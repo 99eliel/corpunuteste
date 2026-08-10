@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-10-teste-manejo-fase-lateral-162",
-  "updatedAt": "2026-08-10T12:45:00-03:00",
-  "notes": "AMBIENTE DE TESTE. No Manejo Sutiã, a fase existente passa a aparecer como Fase Bojo e foi adicionada uma Fase Lateral independente, com filtro múltiplo, sugestões gerenciáveis pelo administrador e salvamento em manejosSetores.sutia.faseLateral. OP, REF e QTI ficam compactos com largura fixa; os demais campos repartem o espaço restante da tela. Manejo Calcinha e o sistema principal não foram alterados."
+  "version": "2026-08-10-teste-manejo-fase-lateral-integrada-163",
+  "updatedAt": "2026-08-10T13:15:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Fase Lateral integrada diretamente ao Manejo Sutia copiando a Fase Bojo: campo digitavel, sugestoes pelo botao + e filtro digitavel. OP, REF e QTI fixos e compactos; demais colunas dividem o espaco. Manejo Calcinha sem Fase Lateral. Sistema principal nao alterado."
 }

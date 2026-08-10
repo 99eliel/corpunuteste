@@ -481,7 +481,8 @@
                   <th>REF</th>
                   <th>SILK</th>
                   <th>TECIDO</th>
-                  <th>FASE</th>
+                  <th>FASE BOJO</th>
+                  <th class="manejo-head-fase-lateral">FASE LATERAL</th>
                   <th>QTI</th>
                   <th>COR</th>
                   <th>NECESSIDADE</th>
@@ -508,6 +509,10 @@
                   <th>
                     <input id="filtroManejoFase" class="filtro-digitavel" type="text" list="filtroManejoFaseList" placeholder="Todas" autocomplete="off" />
                     <datalist id="filtroManejoFaseList"></datalist>
+                  </th>
+                  <th class="manejo-filter-fase-lateral">
+                    <input id="filtroManejoFaseLateral" class="filtro-digitavel" type="text" list="filtroManejoFaseLateralList" placeholder="Todas" autocomplete="off" />
+                    <datalist id="filtroManejoFaseLateralList"></datalist>
                   </th>
                   <th>
                     <input id="filtroManejoQuantidade" class="filtro-digitavel" type="text" list="filtroManejoQuantidadeList" placeholder="Todas" autocomplete="off" />
@@ -538,6 +543,7 @@
           </div>
 
           <datalist id="manejoFasesList"></datalist>
+          <datalist id="manejoFasesLateraisList"></datalist>
           <datalist id="manejoFaccaoList"></datalist>
           <datalist id="manejoCeluList"></datalist>
           <datalist id="manejoSilkNomesList"></datalist>

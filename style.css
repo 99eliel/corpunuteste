@@ -4089,3 +4089,34 @@ table td {
 .filter-summary small {
   color: #475569;
 }
+
+
+/* TESTE 163 - Fase Bojo + Fase Lateral integradas ao Manejo Sutia. */
+#manejo .manejo-inline-table.manejo-limpo-table {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+}
+#manejo .manejo-inline-table.manejo-limpo-table th,
+#manejo .manejo-inline-table.manejo-limpo-table td { min-width: 0 !important; box-sizing: border-box !important; }
+#manejo .manejo-inline-table.manejo-limpo-table th:nth-child(1),
+#manejo .manejo-inline-table.manejo-limpo-table td:nth-child(1) { width:64px !important; min-width:64px !important; max-width:64px !important; }
+#manejo .manejo-inline-table.manejo-limpo-table th:nth-child(2),
+#manejo .manejo-inline-table.manejo-limpo-table td:nth-child(2) { width:58px !important; min-width:58px !important; max-width:58px !important; }
+#manejo .manejo-inline-table.manejo-limpo-table th:nth-child(7),
+#manejo .manejo-inline-table.manejo-limpo-table td:nth-child(7) { width:62px !important; min-width:62px !important; max-width:62px !important; }
+#manejo .manejo-inline-table.manejo-limpo-table th:nth-child(10),
+#manejo .manejo-inline-table.manejo-limpo-table td:nth-child(10) { width:76px !important; min-width:76px !important; max-width:76px !important; }
+#manejo .manejo-inline-table.manejo-limpo-table th:nth-child(11),
+#manejo .manejo-inline-table.manejo-limpo-table td:nth-child(11) { width:62px !important; min-width:62px !important; max-width:62px !important; }
+#manejo .manejo-inline-table.manejo-limpo-table input,
+#manejo .manejo-inline-table.manejo-limpo-table select,
+#manejo .manejo-inline-table.manejo-limpo-table textarea,
+#manejo .manejo-inline-table.manejo-limpo-table .silk-fields,
+#manejo .manejo-inline-table.manejo-limpo-table .tecido-fields,
+#manejo .manejo-inline-table.manejo-limpo-table .fase-plus { width:100% !important; min-width:0 !important; max-width:100% !important; box-sizing:border-box !important; }
+#manejo .manejo-inline-table:not(.manejo-sutia-ativo) .manejo-head-fase-lateral,
+#manejo .manejo-inline-table:not(.manejo-sutia-ativo) .manejo-filter-fase-lateral,
+#manejo .manejo-inline-table:not(.manejo-sutia-ativo) .manejo-col-fase-lateral { display:none !important; }
+@media (max-width:1180px) { #manejo .manejo-inline-table.manejo-limpo-table { min-width:1120px !important; } }

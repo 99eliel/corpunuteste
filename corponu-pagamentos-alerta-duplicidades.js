@@ -8,8 +8,6 @@
   const VERSION_IDENTIDADE_FLOW = "2026-08-07-corpo-nu-flow-identidade-145";
   const VERSION_CALCINHA_SALVAMENTO_RAPIDO = "2026-08-07-calcinha-salvamento-rapido-147";
   const VERSION_QUANTIDADE_SEM_SCROLL = "2026-08-07-quantidade-sem-scroll-148";
-  const VERSION_MANEJO_FASES_TESTE = "2026-08-10-teste-manejo-fases-162";
-  const VERSION_MANEJO_LAYOUT_TESTE = "2026-08-10-teste-manejo-layout-162";
   const VERSION_LATERAL_CANCELADAS = "2026-08-10-lateral-canceladas-dom-160";
 
   function carregarScript(nomeArquivo, modulo, versao, mensagemErro) {
@@ -82,23 +80,6 @@
     "Não foi possível atualizar a lista de Facções imediatamente após a saída."
   );
 
-  // TESTE 162: adiciona somente no Manejo Sutiã a Fase Lateral e renomeia
-  // visualmente a fase já existente para Fase Bojo. O módulo mantém dados separados.
-  carregarScript(
-    "corponu-manejo-fases-teste-157.js",
-    "manejo-fases-teste-162",
-    VERSION_MANEJO_FASES_TESTE,
-    "Não foi possível carregar Fase Bojo/Fase Lateral no Manejo de teste."
-  );
-
-  // TESTE 162: OP, REF e QTI ficam compactos e fixos; as demais colunas
-  // usam o espaço restante da tela sem alterar a lógica operacional.
-  carregarScript(
-    "corponu-manejo-layout-teste-162.js",
-    "manejo-layout-teste-162",
-    VERSION_MANEJO_LAYOUT_TESTE,
-    "Não foi possível aplicar o layout compacto do Manejo de teste."
-  );
 
   // 160 atua somente na tabela do antigo módulo Corte, hoje exibido como
   // Facções > Lateral e Alça. Canceladas somem da lista normal após qualquer render.

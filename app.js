@@ -63,6 +63,7 @@ const state = {
   movimentacoesProducao: [],
   manejos: [],
   fasesManejoExtras: [],
+  fasesLateraisManejoExtras: [],
   faccoesManejoExtras: [],
   celusManejoExtras: [],
   precosReferencia: [],
@@ -1596,6 +1597,11 @@ function atualizarBotoesManejoSetor() {
 
   const info = document.getElementById("manejoSetorInfo");
   if (info) info.textContent = getInfoManejoSetor(setorAtual).descricao;
+
+  const tabelaManejo = document.querySelector("#manejo .manejo-inline-table");
+  if (tabelaManejo) tabelaManejo.classList.toggle("manejo-sutia-ativo", setorAtual === "sutia");
+  const cabecalhoFase = tabelaManejo?.querySelector(".manejo-head-row th:nth-child(5)");
+  if (cabecalhoFase) cabecalhoFase.textContent = setorAtual === "sutia" ? "FASE BOJO" : "FASE";
 }
 
 function selecionarManejoSetor(setor) {
@@ -1676,6 +1682,7 @@ function configurarManejo() {
     "filtroManejoSilk",
     "filtroManejoDataTecido",
     "filtroManejoFase",
+    "filtroManejoFaseLateral",
     "filtroManejoQuantidade",
     "filtroManejoCor",
     "filtroManejoFaccao",
@@ -2200,7 +2207,13 @@ function renderManejoInline() {
         <td>
           <div class="fase-plus">
             <input id="${rowId}-fase" value="${escapeHtml(manejo?.fase || "")}" list="manejoFasesList" placeholder="Digite a fase" />
-            <button class="btn-plus" type="button" onclick="adicionarFaseSugestao('${op.id}')" title="Adicionar fase às sugestões">+</button>
+            <button class="btn-plus" type="button" onclick="adicionarFaseSugestao('${op.id}')" title="Adicionar Fase Bojo às sugestões">+</button>
+          </div>
+        </td>
+        <td class="manejo-col-fase-lateral">
+          <div class="fase-plus">
+            <input id="${rowId}-faseLateral" value="${escapeHtml(manejo?.faseLateral || "")}" list="manejoFasesLateraisList" placeholder="Digite a fase" />
+            <button class="btn-plus" type="button" onclick="adicionarFaseLateralSugestao('${op.id}')" title="Adicionar Fase Lateral às sugestões">+</button>
           </div>
         </td>
         <td><input class="manejo-readonly" type="number" value="${escapeHtml(op.quantidade ?? 0)}" readonly /></td>
@@ -2366,6 +2379,7 @@ function getValorManejoParaFiltro(op, campo, setor = getManejoSetorAtual()) {
     silk: getValorSilkManejoParaFiltro(manejo),
     dataTecido: getValorTecidoManejoParaFiltro(manejo),
     fase: manejo?.fase || "",
+    faseLateral: setor === "sutia" ? (manejo?.faseLateral || "") : "",
     quantidade: op.quantidade ?? "",
     cor: op.cor || "",
     faccao: manejo?.faccao || "",
@@ -2384,6 +2398,7 @@ const CAMPOS_FILTRO_MANEJO_EXATO_QUANDO_OPCAO = new Set([
   "silk",
   "dataTecido",
   "fase",
+  "faseLateral",
   "quantidade",
   "cor",
   "faccao",
@@ -2397,6 +2412,7 @@ function getOpcoesFiltroManejoNormalizadas(campo, setor = getManejoSetorAtual())
   const ordens = getOrdensDoSetorManejo(setor);
   const extrasPorCampo = {
     fase: state.fasesManejoExtras || [],
+    faseLateral: state.fasesLateraisManejoExtras || [],
     faccao: state.faccoesManejoExtras || [],
     celu: state.celusManejoExtras || []
   };
@@ -2579,6 +2595,7 @@ function filtrarOrdensManejoPorColunas() {
     silk: document.getElementById("filtroManejoSilk")?.value || "",
     dataTecido: document.getElementById("filtroManejoDataTecido")?.value || "",
     fase: document.getElementById("filtroManejoFase")?.value || "",
+    faseLateral: setor === "sutia" ? (document.getElementById("filtroManejoFaseLateral")?.value || "") : "",
     quantidade: document.getElementById("filtroManejoQuantidade")?.value || "",
     cor: document.getElementById("filtroManejoCor")?.value || "",
     faccao: document.getElementById("filtroManejoFaccao")?.value || "",
@@ -2610,6 +2627,7 @@ function filtrarOrdensManejoPorColunas() {
       manejo?.silkData,
       manejo?.dataTecido,
       manejo?.fase,
+      manejo?.faseLateral,
       manejo?.faccao,
       manejo?.chegada,
       manejo?.falta,
@@ -2638,6 +2656,7 @@ function limparFiltrosColunasManejo() {
     "filtroManejoSilk",
     "filtroManejoDataTecido",
     "filtroManejoFase",
+    "filtroManejoFaseLateral",
     "filtroManejoQuantidade",
     "filtroManejoCor",
     "filtroManejoFaccao",
@@ -2668,6 +2687,7 @@ function preencherSelectFiltroManejo(id, valores, labelTodos = "Todos") {
     filtroManejoSilk: ["Preenchido", "Campo vazio", "Sem silk"],
     filtroManejoDataTecido: ["Preenchido", "Campo vazio", "Sem tecido"],
     filtroManejoFase: ["Campo vazio"],
+    filtroManejoFaseLateral: ["Campo vazio"],
     filtroManejoQuantidade: ["Campo vazio"],
     filtroManejoCor: ["Campo vazio"],
     filtroManejoFaccao: ["Campo vazio"],
@@ -2741,6 +2761,15 @@ function renderFiltrosColunasManejo() {
     ...ordens.map(op => getValorManejoParaFiltro(op, "fase")),
     ...state.fasesManejoExtras
   ], "Todas");
+  if (setor === "sutia") {
+    preencherSelectFiltroManejo("filtroManejoFaseLateral", [
+      ...ordens.map(op => getValorManejoParaFiltro(op, "faseLateral")),
+      ...state.fasesLateraisManejoExtras
+    ], "Todas");
+  } else {
+    const filtroLateral = document.getElementById("filtroManejoFaseLateral");
+    if (filtroLateral) filtroLateral.value = "";
+  }
   preencherSelectFiltroManejo("filtroManejoQuantidade", ordens.map(op => getValorManejoParaFiltro(op, "quantidade")), "Todas");
   preencherSelectFiltroManejo("filtroManejoCor", ordens.map(op => getValorManejoParaFiltro(op, "cor")), "Todas");
   preencherSelectFiltroManejo("filtroManejoFaccao", [
@@ -2833,7 +2862,8 @@ function getFiltrosManejoAtivosTexto() {
     ["REF", "filtroManejoReferencia"],
     ["Silk", "filtroManejoSilk"],
     ["Data tecido", "filtroManejoDataTecido"],
-    ["Fase", "filtroManejoFase"],
+    ["Fase Bojo", "filtroManejoFase"],
+    ["Fase Lateral", "filtroManejoFaseLateral"],
     ["QTI", "filtroManejoQuantidade"],
     ["Cor", "filtroManejoCor"],
     ["Data", "filtroManejoData"],
@@ -3117,6 +3147,9 @@ async function salvarManejoLinha(ordemId) {
   const infoSetor = getInfoManejoSetor(setor);
   const manejoExistente = getManejoDaOrdem(ordem, setor);
   const fase = limparTexto(valorLinhaManejo(ordem, "fase")).toUpperCase();
+  const faseLateral = setor === "sutia"
+    ? limparTexto(valorLinhaManejo(ordem, "faseLateral")).toUpperCase()
+    : (manejoExistente?.faseLateral || "");
 
   if (!fase) {
     toast("Informe a fase antes de salvar.");
@@ -3139,6 +3172,7 @@ async function salvarManejoLinha(ordemId) {
     setorLabel: infoSetor.label,
     dataTecido: valorLinhaManejo(ordem, "dataTecido") || "",
     fase,
+    faseLateral,
     faccao: limparTexto(valorLinhaManejo(ordem, "faccao")).toUpperCase(),
     chegada: valorLinhaManejo(ordem, "chegada") || "",
     falta: Number(valorLinhaManejo(ordem, "falta") || 0),
@@ -3361,6 +3395,7 @@ function salvarListaLocalManejo(chave, lista) {
 
 function carregarSugestoesExtrasManejo() {
   state.fasesManejoExtras = carregarListaLocalManejo("fasesManejoExtras");
+  state.fasesLateraisManejoExtras = carregarListaLocalManejo("fasesLateraisManejoExtras");
   state.faccoesManejoExtras = carregarListaLocalManejo("faccoesManejoExtras");
   state.celusManejoExtras = carregarListaLocalManejo("celusManejoExtras");
 }
@@ -3392,7 +3427,11 @@ function adicionarSugestaoManejo(ordemId, campo, listaState, chaveStorage, nomeC
 }
 
 function adicionarFaseSugestao(ordemId) {
-  adicionarSugestaoManejo(ordemId, "fase", "fasesManejoExtras", "fasesManejoExtras", "Fase");
+  adicionarSugestaoManejo(ordemId, "fase", "fasesManejoExtras", "fasesManejoExtras", "Fase Bojo");
+}
+
+function adicionarFaseLateralSugestao(ordemId) {
+  adicionarSugestaoManejo(ordemId, "faseLateral", "fasesLateraisManejoExtras", "fasesLateraisManejoExtras", "Fase Lateral");
 }
 
 function adicionarFaccaoSugestao(ordemId) {
@@ -3419,6 +3458,7 @@ function getTodosManejosDaOrdem(op) {
 
 function renderDatalistManejo() {
   const fasesList = document.getElementById("manejoFasesList");
+  const fasesLateraisList = document.getElementById("manejoFasesLateraisList");
   const faccaoList = document.getElementById("manejoFaccaoList");
   const celuList = document.getElementById("manejoCeluList");
   const silkNomesList = document.getElementById("manejoSilkNomesList");
@@ -3438,6 +3478,24 @@ function renderDatalistManejo() {
     });
 
     fasesList.innerHTML = [...fases].sort().map(fase => `<option value="${escapeHtml(fase)}"></option>`).join("");
+  }
+
+  if (fasesLateraisList) {
+    const fasesLaterais = new Set();
+
+    state.fasesLateraisManejoExtras.forEach(fase => {
+      if (fase) fasesLaterais.add(String(fase).toUpperCase());
+    });
+
+    state.ordens.forEach(op => {
+      const manejoSutia = getManejoDaOrdem(op, "sutia");
+      if (manejoSutia?.faseLateral) fasesLaterais.add(String(manejoSutia.faseLateral).toUpperCase());
+    });
+
+    fasesLateraisList.innerHTML = [...fasesLaterais]
+      .sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }))
+      .map(fase => `<option value="${escapeHtml(fase)}"></option>`)
+      .join("");
   }
 
   if (faccaoList) {
