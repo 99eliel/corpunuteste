@@ -8,6 +8,7 @@
   const VERSION_IDENTIDADE_FLOW = "2026-08-07-corpo-nu-flow-identidade-145";
   const VERSION_CALCINHA_SALVAMENTO_RAPIDO = "2026-08-07-calcinha-salvamento-rapido-147";
   const VERSION_QUANTIDADE_SEM_SCROLL = "2026-08-07-quantidade-sem-scroll-148";
+  const VERSION_MANEJO_FASES_TESTE = "2026-08-10-teste-manejo-fases-157";
 
   function carregarScript(nomeArquivo, modulo, versao, mensagemErro) {
     const existente = [...document.scripts].find(script =>
@@ -77,6 +78,15 @@
     "faccoes-saida-atualizacao-imediata-143",
     VERSION_ATUALIZACAO_SAIDA_FACCOES,
     "Não foi possível atualizar a lista de Facções imediatamente após a saída."
+  );
+
+  // TESTE 157: única mudança nova desta rodada. O módulo só toca elementos
+  // dentro de #manejo e salva apenas manejosSetores.sutia.faseLateral.
+  carregarScript(
+    "corponu-manejo-fases-teste-157.js",
+    "manejo-fases-teste-157",
+    VERSION_MANEJO_FASES_TESTE,
+    "Não foi possível carregar o teste de Fase Bojo/Fase Lateral no Manejo."
   );
 
   if (window.__CORPONU_DUPLICIDADE_TABELA_LOADER_135__ === VERSION_DUPLICIDADE) return;
