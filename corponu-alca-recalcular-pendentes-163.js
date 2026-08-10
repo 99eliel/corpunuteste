@@ -1,12 +1,12 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-10-alca-recalculo-pendentes-163";
+  const VERSION = "2026-08-10-alca-recalculo-00270-168";
   const FIREBASE_VERSION = "10.12.5";
-  const VALOR_ALCA = 0.0540;
+  const VALOR_ALCA = 0.0270;
   const ALCAS_POR_SUTIA = 2;
-  const VALOR_POR_SUTIA = 0.1080;
-  const MARCADOR_ID = "migracao-alca-pendentes-00540-163";
+  const VALOR_POR_SUTIA = 0.0540;
+  const MARCADOR_ID = "correcao-alca-pendentes-00270-168";
   const PRECO_ID = "valor-padrao-alca";
   const ALIASES_ALCA = ["ALÇA", "ALCA", "ALÇAS", "ALCAS"];
 
@@ -161,7 +161,7 @@
       const marcadorRef = firestore.doc(db, "configuracoes", MARCADOR_ID);
       const marcador = await firestore.getDoc(marcadorRef);
       if (marcador.exists() && marcador.data()?.concluida === true) {
-        toast("Os pagamentos pendentes de ALÇA já foram recalculados para R$ 0,0540.");
+        toast("Os pagamentos pendentes de ALÇA já foram recalculados para R$ 0,0270 por alça.");
         return;
       }
 
@@ -213,7 +213,7 @@
     botao.type = "button";
     botao.className = "btn";
     botao.textContent = "Recalcular pendentes de ALÇA";
-    botao.title = "Atualiza somente pagamentos de ALÇA ainda pendentes para R$ 0,0540. Pagos não são alterados.";
+    botao.title = "Atualiza somente pagamentos de ALÇA ainda pendentes para R$ 0,0270 por alça (R$ 0,0540 por sutiã). Pagos não são alterados.";
     botao.addEventListener("click", () => executar(botao));
     salvar.insertAdjacentElement("afterend", botao);
   }

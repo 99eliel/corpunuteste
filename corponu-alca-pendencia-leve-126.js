@@ -1,11 +1,11 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-10-alca-00540-valores-4casas-162";
+  const VERSION = "2026-08-10-alca-00270-correcao-168";
   const FIREBASE_VERSION = "10.12.5";
   const PRECO_ID = "valor-padrao-alca";
-  const VALOR_MIGRACAO = 0.0540;
-  const VALOR_ANTIGO = 0.0500;
+  const VALOR_MIGRACAO = 0.0270;
+  const VALOR_ANTIGO = 0.0540;
   const ALCAS_POR_SUTIA = 2;
   const MODAL_ID = "modalPendenciasValoresFinanceiro";
 
@@ -254,7 +254,7 @@
       atualizarTextos(valorAtual);
 
       if (!(salvo > 0) || Math.abs(salvo - VALOR_ANTIGO) < 0.0000001) {
-        const migrado = await salvarDocumentoValor(VALOR_MIGRACAO, "migracao_0_0500_para_0_0540");
+        const migrado = await salvarDocumentoValor(VALOR_MIGRACAO, "correcao_0_0540_duas_alcas_para_0_0270_unitario");
         atualizarTextos(migrado);
       }
     } catch (error) {

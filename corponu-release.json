@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-10-teste-manejo-responsivo-167",
-  "updatedAt": "2026-08-10T15:24:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Corrige somente a responsividade do Manejo Sutiã em telas maiores que 1920px. Em telas até Full HD o layout validado permanece inalterado. Em QHD/ultrawide a tabela passa a ter largura máxima controlada, OP/REF/QTI permanecem compactos e os campos internos respeitam os limites das células, evitando sobreposição. Fase Lateral, sugestões, ALÇA 0,0540 e valores com 4 casas permanecem inalterados."
+  "version": "2026-08-10-teste-alca-00270-responsivo-168",
+  "updatedAt": "2026-08-10T16:00:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Mantém a correção responsiva 167 e corrige o valor da ALÇA: R$ 0,0270 por alça e R$ 0,0540 por sutiã (2 alças). O valor incorreto R$ 0,0540 unitário é migrado para R$ 0,0270. O recálculo administrativo usa novo marcador e continua alterando somente pagamentos pendentes; pagos permanecem intocados. Fase Lateral e valores com 4 casas permanecem inalterados."
 }
