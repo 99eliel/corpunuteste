@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-10-teste-fase-lateral-principal-163-166",
-  "updatedAt": "2026-08-10T14:26:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Mantém a Fase Lateral e suas sugestões da versão 165b e incorpora as atualizações posteriores do sistema principal 161→163: valor da ALÇA 0,0540, exibição/entrada monetária com 4 casas decimais e ação segura para recalcular somente pagamentos pendentes de ALÇA. Sistema principal não alterado nesta integração."
+  "version": "2026-08-10-teste-manejo-responsivo-167",
+  "updatedAt": "2026-08-10T15:24:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Corrige somente a responsividade do Manejo Sutiã em telas maiores que 1920px. Em telas até Full HD o layout validado permanece inalterado. Em QHD/ultrawide a tabela passa a ter largura máxima controlada, OP/REF/QTI permanecem compactos e os campos internos respeitam os limites das células, evitando sobreposição. Fase Lateral, sugestões, ALÇA 0,0540 e valores com 4 casas permanecem inalterados."
 }
