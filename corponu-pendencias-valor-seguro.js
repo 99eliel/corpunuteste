@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-07-faccoes-sem-bipar-156";
+  const VERSION = "2026-08-10-alca-recalculo-pendentes-163";
   if (window.__CORPONU_PENDENCIAS_VALOR_BOOTSTRAP__ === VERSION) return;
   window.__CORPONU_PENDENCIAS_VALOR_BOOTSTRAP__ = VERSION;
 
@@ -21,23 +21,21 @@
     return script;
   }
 
-  // Mantém somente a contenção visual da tabela de Facções.
+  carregarScript(
+    "./corponu-valores-4-casas-162.js",
+    "valores-4-casas-162"
+  );
+
   carregarScript(
     "./corponu-faccoes-layout-141.js",
     "faccoes-layout-141"
   );
 
-  // 156 remove somente o botão Bipar da aba Facções por CSS. Não usa observer,
-  // não altera movimentações e não interfere na bipagem disponível em outras telas.
   carregarScript(
     "./corponu-faccoes-sem-bipar-156.js",
     "faccoes-sem-bipar-156"
   );
 
-  // Um único responsável pela interface e dados do aviso de chegada.
-  // Depois dele, a 155 apenas restaura o rótulo "Informar chegada" e protege
-  // cliques em linhas que ainda tenham nascido com o botão legado "Chegada".
-  // A 155 não usa MutationObserver, intervalo nem recriação de elementos.
   carregarScript(
     "./corponu-chegada-estabilidade-132.js",
     "chegada-estabilidade-132",
@@ -51,14 +49,15 @@
     )
   );
 
-  // Única rotina financeira da ALÇA: corrige somente documentos realmente sem
-  // valor e não executa atualização geral de pagamentos.
   carregarScript(
     "./corponu-alca-pendencia-leve-126.js",
-    "alca-pendencia-leve-126"
+    "alca-pendencia-leve-162",
+    () => carregarScript(
+      "./corponu-alca-recalcular-pendentes-163.js",
+      "alca-recalcular-pendentes-163"
+    )
   );
 
-  // LATERAL permanece com a rotina estável já validada.
   carregarScript(
     "./corponu-lateral-unificada-118-seguro.js",
     "lateral-unificada-118",
@@ -68,7 +67,6 @@
     )
   );
 
-  // A chegada manual mantém as facções ativas vinculadas ao processo.
   carregarScript(
     "./corponu-chegada-manual-faccoes-processo-119-seguro.js",
     "chegada-manual-faccoes-processo-119"
