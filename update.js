@@ -2257,7 +2257,7 @@
     [200, 700, 1500, 2600].forEach(delay => setTimeout(aplicarGestaoFasesLateralNoDom, delay));
   }
 
-  iniciarGestaoFasesLateralSutia();
+  setTimeout(iniciarGestaoFasesLateralSutia, 0);
 
   // =========================================================
   // HOTFIX: SETA DOS CAMPOS COM SUGESTÕES NO MANEJO
