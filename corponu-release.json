@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-10-lateral-canceladas-direto-161",
-  "updatedAt": "2026-08-10T09:36:00-03:00",
-  "notes": "Corrige diretamente o módulo visual obrigatório da aba Facções > Lateral e Alça. Linhas da tabela que estejam marcadas como Cancelada são removidas imediatamente e novamente após qualquer redesenho da tela. O registro continua preservado no Firebase/logs, mas deixa de permanecer na listagem operacional. Nenhuma regra de saída, chegada, pagamentos, busca de OP, Manejo, Sutiã ou Calcinha foi alterada."
+  "version": "2026-08-10-teste-manejo-fase-lateral-162",
+  "updatedAt": "2026-08-10T12:45:00-03:00",
+  "notes": "AMBIENTE DE TESTE. No Manejo Sutiã, a fase existente passa a aparecer como Fase Bojo e foi adicionada uma Fase Lateral independente, com filtro múltiplo, sugestões gerenciáveis pelo administrador e salvamento em manejosSetores.sutia.faseLateral. OP, REF e QTI ficam compactos com largura fixa; os demais campos repartem o espaço restante da tela. Manejo Calcinha e o sistema principal não foram alterados."
 }
