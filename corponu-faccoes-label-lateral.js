@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-03-faccoes-label-lateral-alca-103";
+  const VERSION = "2026-08-10-faccoes-label-lateral-alca-161";
 
   if (window.__CORPONU_FACCOES_LABEL_LATERAL__ === VERSION) return;
   window.__CORPONU_FACCOES_LABEL_LATERAL__ = VERSION;
@@ -13,6 +13,8 @@
     "modalSelecionarChegadaCorte",
     "s3titulo"
   ];
+
+  const STYLE_ID = "corponuLateralSemCanceladas161";
 
   let aplicando = false;
   let agendado = false;
@@ -68,15 +70,40 @@
     corrigirTextosVisiveis(botao);
   }
 
+  function garantirEstiloCanceladas() {
+    if (document.getElementById(STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent = `
+      #painelFaccoesCorte #listaFaccoesCorte tr:has(.corte-pill.cancelado){
+        display:none !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function removerLinhasCanceladas() {
+    const tbody = document.getElementById("listaFaccoesCorte");
+    if (!tbody) return;
+
+    [...tbody.querySelectorAll(":scope > tr")].forEach(linha => {
+      const badgeCancelado = linha.querySelector(".corte-pill.cancelado");
+      if (!badgeCancelado) return;
+      linha.remove();
+    });
+  }
+
   function aplicarNomeLateral() {
     if (aplicando) return;
     aplicando = true;
     try {
+      garantirEstiloCanceladas();
       corrigirBotaoAba();
       IDS_TEXTO.forEach(id => corrigirTextosVisiveis(document.getElementById(id)));
       document
         .querySelectorAll('#faccoes [data-area-faccoes="corte"]')
         .forEach(corrigirTextosVisiveis);
+      removerLinhasCanceladas();
     } finally {
       aplicando = false;
     }

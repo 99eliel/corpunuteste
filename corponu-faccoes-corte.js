@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const VERSION = "2026-08-04-lateral-origem-128";
+  const VERSION = "2026-08-10-lateral-carregamento-158";
   if (window.__CORPONU_FACCOES_CORTE_LOADER__ === VERSION) return;
   window.__CORPONU_FACCOES_CORTE_LOADER__ = VERSION;
 
@@ -178,12 +178,117 @@
           ? "Valor a definir: existem valores ativos diferentes para esta referência de LATERAL."
           : "Valor a definir: não existe preço cadastrado para esta referência e processo de Corte."),`;
 
+    const carregamentoAntigo = `  async function carregarTudoCorte() {
+    if (carregando) return;
+    carregando = true;
+    const button = document.getElementById("btnCorteAtualizar");
+    if (button) { button.disabled = true; button.textContent = "Atualizando..."; }
+    try {
+      if (!perfil) await carregarPerfil();
+      await Promise.all([carregarProcessos(), carregarFaccoes(), carregarMovimentos(), carregarPrecos(), carregarPagamentosCorte()]);
+      renderTudo();
+    } catch (error) {
+      console.error(error);
+      toast("Não foi possível carregar todos os dados da área Corte.", "error");
+    } finally {
+      carregando = false;
+      if (button) { button.disabled = false; button.textContent = "Atualizar"; }
+    }
+  }`;
+
+    const carregamentoNovo = `  async function carregarTudoCorte(forcar = false) {
+    if (carregando) return;
+
+    const estadoCache = window.__CORPONU_CORTE_CACHE_158__ || (window.__CORPONU_CORTE_CACHE_158__ = {
+      completoEm: 0
+    });
+    const CACHE_COMPLETO_MS = 45 * 1000;
+    const cacheAindaValido = !forcar &&
+      estadoCache.completoEm > 0 &&
+      Date.now() - estadoCache.completoEm < CACHE_COMPLETO_MS &&
+      movimentos.length > 0;
+
+    if (cacheAindaValido) {
+      renderTudo();
+      return;
+    }
+
+    carregando = true;
+    const button = document.getElementById("btnCorteAtualizar");
+    if (button) { button.disabled = true; button.textContent = "Atualizando..."; }
+
+    const ordenarMovimentos = () => {
+      movimentos.sort((a, b) => {
+        const da = a.atualizadoEm?.toMillis?.() || a.criadoEm?.toMillis?.() || Date.parse(a.dataEnvio || "") || 0;
+        const db = b.atualizadoEm?.toMillis?.() || b.criadoEm?.toMillis?.() || Date.parse(b.dataEnvio || "") || 0;
+        return db - da;
+      });
+    };
+
+    const tentarCacheLocalMovimentos = async () => {
+      try {
+        const c = await aguardarContexto();
+        if (typeof c.fs.getDocsFromCache !== "function") return false;
+        const consulta = c.fs.query(
+          c.fs.collection(c.db, "movimentacoesProducao"),
+          c.fs.where("area", "==", AREA)
+        );
+        const snap = await c.fs.getDocsFromCache(consulta);
+        if (snap.empty) return false;
+        movimentos = snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+        ordenarMovimentos();
+        renderTudo();
+        return true;
+      } catch (error) {
+        return false;
+      }
+    };
+
+    try {
+      // 1) Mostra imediatamente o que já estiver no cache persistente do navegador.
+      await tentarCacheLocalMovimentos();
+
+      // 2) Prioriza somente as movimentações do servidor. A tabela aparece antes
+      // de esperar perfil, processos, facções, preços e pagamentos.
+      await carregarMovimentos();
+      renderTudo();
+
+      // 3) Completa perfil e processos. Eles refinam permissões, rótulos e filtros.
+      const etapaPrincipal = [];
+      if (!perfil) etapaPrincipal.push(carregarPerfil());
+      etapaPrincipal.push(carregarProcessos());
+      await Promise.allSettled(etapaPrincipal);
+      renderTudo();
+
+      // 4) Dados auxiliares terminam em segundo plano lógico e só então refinam
+      // cartões financeiros, facções e valores. Não bloqueiam a tabela principal.
+      await Promise.allSettled([
+        carregarFaccoes(),
+        carregarPrecos(),
+        carregarPagamentosCorte()
+      ]);
+      renderTudo();
+      estadoCache.completoEm = Date.now();
+    } catch (error) {
+      console.error(error);
+      toast("Não foi possível carregar todos os dados da área Lateral e Alça.", "error");
+    } finally {
+      carregando = false;
+      if (button) { button.disabled = false; button.textContent = "Atualizar"; }
+    }
+  }`;
+
+    const cliqueAtualizarAntigo = `      if (target.closest("#btnCorteAtualizar")) return carregarTudoCorte();`;
+    const cliqueAtualizarNovo = `      if (target.closest("#btnCorteAtualizar")) return carregarTudoCorte(true);`;
+
     const substituicoes = [
       [inicioAntigo, inicioNovo, "início do gerador"],
       [calculoAntigo, calculoNovo, "cálculo de LATERAL e ALÇA"],
       [setorAntigo, setorNovo, "setor do pagamento"],
       [quantidadeAntiga, quantidadeNova, "metadados de quantidade"],
-      [statusAntigo, statusNovo, "situação do pagamento"]
+      [statusAntigo, statusNovo, "situação do pagamento"],
+      [carregamentoAntigo, carregamentoNovo, "carregamento progressivo de Lateral e Alça"],
+      [cliqueAtualizarAntigo, cliqueAtualizarNovo, "atualização manual forçada de Lateral e Alça"]
     ];
 
     substituicoes.forEach(([antigo, novo, descricao]) => {
@@ -193,6 +298,9 @@
       }
       fonte = fonte.replace(antigo, novo);
     });
+
+    // Depois de operações que realmente alteram dados, não reutiliza o cache curto.
+    fonte = fonte.replaceAll("await carregarTudoCorte();", "await carregarTudoCorte(true);");
 
     return fonte;
   }

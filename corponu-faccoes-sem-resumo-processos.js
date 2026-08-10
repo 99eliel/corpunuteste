@@ -1,7 +1,10 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-07-30-faccoes-sem-bloco-processos-29";
+  const VERSION = "2026-08-10-faccoes-canceladas-origem-159";
+  const STYLE_ID = "corponuFaccoesCanceladas159Style";
+  const CLASSE_MOSTRAR = "corponu-mostrar-canceladas-159";
+
   if (window.__CORPONU_FACCOES_SEM_RESUMO_PROCESSOS__ === VERSION) return;
   window.__CORPONU_FACCOES_SEM_RESUMO_PROCESSOS__ = VERSION;
 
@@ -76,13 +79,70 @@
     if (!removerEntreCardsETabela()) removerPorConteudoComoReserva();
   }
 
-  function iniciar() {
-    removerBloco();
-    setTimeout(removerBloco, 100);
-    setTimeout(removerBloco, 500);
+  function injetarRegraCanceladas() {
+    if (document.getElementById(STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent = `
+      #painelFaccoesCorte:not(.${CLASSE_MOSTRAR}) #listaFaccoesCorte > tr:has(.corte-pill.cancelado) {
+        display: none !important;
+      }
+      #listaFaccoesCorte > tr:has(.corte-pill.cancelado) [data-cancelar-corte] {
+        display: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
-    const observer = new MutationObserver(removerBloco);
+  function filtroMostraCanceladas() {
+    return String(document.getElementById("corteFiltroStatus")?.value || "") === "cancelado";
+  }
+
+  function sincronizarModoCanceladas() {
+    const painel = document.getElementById("painelFaccoesCorte");
+    if (!painel) return;
+    painel.classList.toggle(CLASSE_MOSTRAR, filtroMostraCanceladas());
+  }
+
+  function ocultarMovimentacoesCanceladasFallback() {
+    const tbody = document.getElementById("listaFaccoesCorte");
+    if (!tbody) return;
+
+    const mostrarCanceladas = filtroMostraCanceladas();
+    tbody.querySelectorAll(":scope > tr").forEach(linha => {
+      const cancelada = Boolean(linha.querySelector(".corte-pill.cancelado"));
+      if (!cancelada) return;
+      if (mostrarCanceladas) linha.style.removeProperty("display");
+      else linha.style.setProperty("display", "none", "important");
+    });
+  }
+
+  function aplicarAjustes() {
+    removerBloco();
+    injetarRegraCanceladas();
+    sincronizarModoCanceladas();
+    ocultarMovimentacoesCanceladasFallback();
+  }
+
+  function iniciar() {
+    aplicarAjustes();
+    setTimeout(aplicarAjustes, 100);
+    setTimeout(aplicarAjustes, 500);
+    setTimeout(aplicarAjustes, 1500);
+
+    const observer = new MutationObserver(() => {
+      sincronizarModoCanceladas();
+      ocultarMovimentacoesCanceladasFallback();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
+
+    document.addEventListener("change", event => {
+      if (event.target?.id !== "corteFiltroStatus") return;
+      setTimeout(() => {
+        sincronizarModoCanceladas();
+        ocultarMovimentacoesCanceladasFallback();
+      }, 0);
+    }, true);
   }
 
   if (document.readyState === "loading") {

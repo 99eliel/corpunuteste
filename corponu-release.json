@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-10-teste-manejo-fases-157",
-  "updatedAt": "2026-08-10T08:03:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Organiza somente o Manejo Sutiã: o campo Fase existente passa a ser exibido como Fase Bojo e continua com os mesmos dados; adiciona uma coluna real e independente Fase Lateral, com sugestões gerenciáveis, seletor com seta, filtro múltiplo próprio e salvamento somente no campo manejosSetores.sutia.faseLateral. O Manejo Calcinha permanece original. A tabela usa largura mínima e rolagem horizontal para não sobrepor campos. app.js, update.js, Facções, saída manual, busca de OP, pagamentos e demais fluxos não foram alterados."
+  "version": "2026-08-10-lateral-canceladas-direto-161",
+  "updatedAt": "2026-08-10T09:36:00-03:00",
+  "notes": "Corrige diretamente o módulo visual obrigatório da aba Facções > Lateral e Alça. Linhas da tabela que estejam marcadas como Cancelada são removidas imediatamente e novamente após qualquer redesenho da tela. O registro continua preservado no Firebase/logs, mas deixa de permanecer na listagem operacional. Nenhuma regra de saída, chegada, pagamentos, busca de OP, Manejo, Sutiã ou Calcinha foi alterada."
 }
