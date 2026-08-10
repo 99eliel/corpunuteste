@@ -2328,6 +2328,9 @@ async function salvarSilkETecidoAntesDeMovimentar(op, setor = getManejoSetorAtua
   const manejoExistente = getManejoDaOrdem(op, setor) || {};
   const faseLinha = limparTexto(valorLinhaManejo(op, "fase")).toUpperCase();
   const fase = faseLinha || manejoExistente.fase || "PRONTO PARA MOVIMENTAR";
+  const faseLateral = setor === "sutia"
+    ? (limparTexto(valorLinhaManejo(op, "faseLateral")).toUpperCase() || manejoExistente.faseLateral || "")
+    : (manejoExistente.faseLateral || "");
 
   const manejo = {
     ...manejoExistente,
@@ -2340,6 +2343,7 @@ async function salvarSilkETecidoAntesDeMovimentar(op, setor = getManejoSetorAtua
     tecidoNome: dados.tecidoNome || manejoExistente.tecidoNome || manejoExistente.tecido || "",
     dataTecido: dados.dataTecido || manejoExistente.dataTecido || "",
     fase,
+    faseLateral,
     faccao: limparTexto(valorLinhaManejo(op, "faccao")).toUpperCase() || manejoExistente.faccao || "",
     chegada: valorLinhaManejo(op, "chegada") || manejoExistente.chegada || "",
     falta: Number(valorLinhaManejo(op, "falta") || manejoExistente.falta || 0),
@@ -3233,6 +3237,9 @@ async function biparManejoLinha(ordemId) {
   const infoSetor = getInfoManejoSetor(setor);
   const manejoExistente = getManejoDaOrdem(ordem, setor) || {};
   const faseAtual = limparTexto(valorLinhaManejo(ordem, "fase")).toUpperCase() || manejoExistente.fase || "";
+  const faseLateralAtual = setor === "sutia"
+    ? (limparTexto(valorLinhaManejo(ordem, "faseLateral")).toUpperCase() || manejoExistente.faseLateral || "")
+    : (manejoExistente.faseLateral || "");
 
   if (!faseAtual) {
     const continuar = confirm("Essa OP ainda está sem fase preenchida. Deseja marcar como bipada mesmo assim?");
@@ -3259,6 +3266,7 @@ async function biparManejoLinha(ordemId) {
     setorLabel: infoSetor.label,
     dataTecido: valorLinhaManejo(ordem, "dataTecido") || manejoExistente.dataTecido || "",
     fase: faseAtual,
+    faseLateral: faseLateralAtual,
     faccao: limparTexto(valorLinhaManejo(ordem, "faccao")).toUpperCase() || manejoExistente.faccao || "",
     chegada: valorLinhaManejo(ordem, "chegada") || manejoExistente.chegada || "",
     falta: Number(valorLinhaManejo(ordem, "falta") || manejoExistente.falta || 0),
@@ -11198,6 +11206,7 @@ window.filtrarManejosPorOP = filtrarManejosPorOP;
 window.salvarManejoLinha = salvarManejoLinha;
 window.limparManejoLinha = limparManejoLinha;
 window.adicionarFaseSugestao = adicionarFaseSugestao;
+window.adicionarFaseLateralSugestao = adicionarFaseLateralSugestao;
 window.adicionarFaccaoSugestao = adicionarFaccaoSugestao;
 window.adicionarCeluSugestao = adicionarCeluSugestao;
 window.imprimirManejoFiltrado = imprimirManejoFiltrado;

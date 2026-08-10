@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-10-teste-manejo-fase-lateral-integrada-163",
-  "updatedAt": "2026-08-10T13:15:00-03:00",
+  "version": "2026-08-10-teste-manejo-fase-lateral-integrada-163b",
+  "updatedAt": "2026-08-10T13:20:00-03:00",
   "notes": "AMBIENTE DE TESTE. Fase Lateral integrada diretamente ao Manejo Sutia copiando a Fase Bojo: campo digitavel, sugestoes pelo botao + e filtro digitavel. OP, REF e QTI fixos e compactos; demais colunas dividem o espaco. Manejo Calcinha sem Fase Lateral. Sistema principal nao alterado."
 }
