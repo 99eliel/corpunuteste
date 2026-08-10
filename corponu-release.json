@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-10-teste-manejo-fase-lateral-integrada-163b",
-  "updatedAt": "2026-08-10T13:20:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Fase Lateral integrada diretamente ao Manejo Sutia copiando a Fase Bojo: campo digitavel, sugestoes pelo botao + e filtro digitavel. OP, REF e QTI fixos e compactos; demais colunas dividem o espaco. Manejo Calcinha sem Fase Lateral. Sistema principal nao alterado."
+  "version": "2026-08-10-teste-fase-lateral-sugestoes-164",
+  "updatedAt": "2026-08-10T13:58:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Adicionada a área Opções do filtro Fase Lateral — Sutiã, independente da Fase Bojo e da Calcinha. Administrador pode adicionar/remover opções, recuperar opções antigas sob demanda e a lista é sincronizada no Firebase com todos os usuários. As opções alimentam imediatamente o campo e o filtro da Fase Lateral. Layout ultrawide não foi alterado."
 }

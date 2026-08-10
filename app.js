@@ -2416,7 +2416,7 @@ function getOpcoesFiltroManejoNormalizadas(campo, setor = getManejoSetorAtual())
   const ordens = getOrdensDoSetorManejo(setor);
   const extrasPorCampo = {
     fase: state.fasesManejoExtras || [],
-    faseLateral: state.fasesLateraisManejoExtras || [],
+    faseLateral: [...(state.fasesLateraisManejoExtras || []), ...(window.__CORPONU_FASES_LATERAIS_OFICIAIS__ || [])],
     faccao: state.faccoesManejoExtras || [],
     celu: state.celusManejoExtras || []
   };
@@ -2768,7 +2768,8 @@ function renderFiltrosColunasManejo() {
   if (setor === "sutia") {
     preencherSelectFiltroManejo("filtroManejoFaseLateral", [
       ...ordens.map(op => getValorManejoParaFiltro(op, "faseLateral")),
-      ...state.fasesLateraisManejoExtras
+      ...state.fasesLateraisManejoExtras,
+      ...(window.__CORPONU_FASES_LATERAIS_OFICIAIS__ || [])
     ], "Todas");
   } else {
     const filtroLateral = document.getElementById("filtroManejoFaseLateral");
@@ -3492,6 +3493,10 @@ function renderDatalistManejo() {
     const fasesLaterais = new Set();
 
     state.fasesLateraisManejoExtras.forEach(fase => {
+      if (fase) fasesLaterais.add(String(fase).toUpperCase());
+    });
+
+    (window.__CORPONU_FASES_LATERAIS_OFICIAIS__ || []).forEach(fase => {
       if (fase) fasesLaterais.add(String(fase).toUpperCase());
     });
 
@@ -11207,6 +11212,16 @@ window.salvarManejoLinha = salvarManejoLinha;
 window.limparManejoLinha = limparManejoLinha;
 window.adicionarFaseSugestao = adicionarFaseSugestao;
 window.adicionarFaseLateralSugestao = adicionarFaseLateralSugestao;
+
+window.addEventListener("corponu:fases-laterais-atualizadas", () => {
+  try {
+    renderDatalistManejo();
+    renderFiltrosColunasManejo();
+    if (paginaAtivaAtual() === "manejo") renderManejoInline();
+  } catch (error) {
+    console.warn("Não foi possível atualizar visualmente as sugestões da Fase Lateral.", error);
+  }
+});
 window.adicionarFaccaoSugestao = adicionarFaccaoSugestao;
 window.adicionarCeluSugestao = adicionarCeluSugestao;
 window.imprimirManejoFiltrado = imprimirManejoFiltrado;
