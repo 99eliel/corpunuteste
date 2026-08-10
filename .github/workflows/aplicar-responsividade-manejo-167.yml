@@ -1,0 +1,67 @@
+name: Aplicar responsividade do Manejo 167
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.trigger-responsividade-manejo-167'
+
+permissions:
+  contents: write
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ativar CSS responsivo somente no teste
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          versao = '2026-08-10-teste-manejo-responsivo-167'
+          css = 'corponu-manejo-responsivo-teste-167.css'
+
+          index = Path('index.html')
+          html = index.read_text(encoding='utf-8')
+          link = f'<link rel="stylesheet" href="{css}?v={versao}" />'
+          if link not in html:
+              ancora = '<link rel="stylesheet" href="style.css?v=2026-08-10-teste-fase-lateral-163b" />'
+              if ancora not in html:
+                  raise SystemExit('Link principal do style.css não encontrado no index.html.')
+              html = html.replace(ancora, ancora + '\n' + link, 1)
+          index.write_text(html, encoding='utf-8')
+
+          release_path = Path('corponu-release.json')
+          release = json.loads(release_path.read_text(encoding='utf-8'))
+          release['version'] = versao
+          release['updatedAt'] = '2026-08-10T15:24:00-03:00'
+          release['notes'] = ('AMBIENTE DE TESTE. Corrige somente a responsividade do Manejo Sutiã em telas maiores que 1920px. '
+                              'Em telas até Full HD o layout validado permanece inalterado. Em QHD/ultrawide a tabela passa a ter largura máxima controlada, '
+                              'OP/REF/QTI permanecem compactos e os campos internos respeitam os limites das células, evitando sobreposição. '
+                              'Fase Lateral, sugestões, ALÇA 0,0540 e valores com 4 casas permanecem inalterados.')
+          release_path.write_text(json.dumps(release, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Validar integração visual
+        run: |
+          set -euo pipefail
+          test -f corponu-manejo-responsivo-teste-167.css
+          grep -q '@media (min-width: 1921px)' corponu-manejo-responsivo-teste-167.css
+          grep -q 'corponu-manejo-responsivo-teste-167.css' index.html
+          grep -q '2026-08-10-teste-manejo-responsivo-167' corponu-release.json
+
+      - name: Publicar e limpar arquivos temporários
+        run: |
+          rm -f .trigger-responsividade-manejo-167
+          rm -f .github/workflows/aplicar-responsividade-manejo-167.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'teste: corrigir Manejo em telas grandes 167 [skip ci]'
+          git push origin HEAD:main
