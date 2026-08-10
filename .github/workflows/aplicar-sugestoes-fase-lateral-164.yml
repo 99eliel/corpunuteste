@@ -1,0 +1,83 @@
+name: Aplicar sugestões Fase Lateral 164
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/aplicar-sugestoes-fase-lateral-164.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Integrar lista oficial da Fase Lateral
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          def rep(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'Âncora não encontrada: {label}')
+              return text.replace(old, new, 1)
+
+          app_path = Path('app.js')
+          app = app_path.read_text(encoding='utf-8')
+
+          app = rep(
+              app,
+              '    faseLateral: state.fasesLateraisManejoExtras || [],',
+              '    faseLateral: [...(state.fasesLateraisManejoExtras || []), ...(window.__CORPONU_FASES_LATERAIS_OFICIAIS__ || [])],',
+              'opções exatas da fase lateral'
+          )
+
+          app = rep(
+              app,
+              '      ...state.fasesLateraisManejoExtras\n    ], "Todas");',
+              '      ...state.fasesLateraisManejoExtras,\n      ...(window.__CORPONU_FASES_LATERAIS_OFICIAIS__ || [])\n    ], "Todas");',
+              'filtro oficial da fase lateral'
+          )
+
+          app = rep(
+              app,
+              '    state.fasesLateraisManejoExtras.forEach(fase => {\n      if (fase) fasesLaterais.add(String(fase).toUpperCase());\n    });',
+              '    state.fasesLateraisManejoExtras.forEach(fase => {\n      if (fase) fasesLaterais.add(String(fase).toUpperCase());\n    });\n\n    (window.__CORPONU_FASES_LATERAIS_OFICIAIS__ || []).forEach(fase => {\n      if (fase) fasesLaterais.add(String(fase).toUpperCase());\n    });',
+              'datalist oficial da fase lateral'
+          )
+
+          export_anchor = 'window.adicionarFaseLateralSugestao = adicionarFaseLateralSugestao;\n'
+          export_new = export_anchor + '''\nwindow.addEventListener("corponu:fases-laterais-atualizadas", () => {\n  try {\n    renderDatalistManejo();\n    renderFiltrosColunasManejo();\n    if (paginaAtivaAtual() === "manejo") renderManejoInline();\n  } catch (error) {\n    console.warn("Não foi possível atualizar visualmente as sugestões da Fase Lateral.", error);\n  }\n});\n'''
+          app = rep(app, export_anchor, export_new, 'listener atualização lateral')
+          app_path.write_text(app, encoding='utf-8')
+
+          index_path = Path('index.html')
+          html = index_path.read_text(encoding='utf-8')
+          old = '  <script src="update.js?v=2026-07-30-rastreamento-enviar-manejo-17"></script>\n  <script type="module" src="app.js?v=2026-08-10-teste-fase-lateral-163b"></script>'
+          new = '  <script src="update.js?v=2026-07-30-rastreamento-enviar-manejo-17"></script>\n  <script src="corponu-fase-lateral-sugestoes-164.js?v=2026-08-10-fase-lateral-sugestoes-164" defer></script>\n  <script type="module" src="app.js?v=2026-08-10-teste-fase-lateral-164"></script>'
+          html = rep(html, old, new, 'carregamento módulo 164')
+          index_path.write_text(html, encoding='utf-8')
+
+          release_path = Path('corponu-release.json')
+          release = json.loads(release_path.read_text(encoding='utf-8'))
+          release['version'] = '2026-08-10-teste-fase-lateral-sugestoes-164'
+          release['updatedAt'] = '2026-08-10T13:58:00-03:00'
+          release['notes'] = ('AMBIENTE DE TESTE. Adicionada a área Opções do filtro Fase Lateral — Sutiã, independente da Fase Bojo e da Calcinha. Administrador pode adicionar/remover opções, recuperar opções antigas sob demanda e a lista é sincronizada no Firebase com todos os usuários. As opções alimentam imediatamente o campo e o filtro da Fase Lateral. Layout ultrawide não foi alterado.')
+          release_path.write_text(json.dumps(release, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Remover workflow temporário e publicar
+        run: |
+          rm -f .github/workflows/aplicar-sugestoes-fase-lateral-164.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "teste: sugestões da Fase Lateral sincronizadas 164 [skip ci]"
+          git push origin HEAD:main
