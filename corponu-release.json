@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-11-teste-rotulos-origem-componentes-176",
-  "updatedAt": "2026-08-11T10:18:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Na conferência do Sutiã Completo, Lateral e Bojo deixam de aparecer como Pronta/Não pronta e passam a mostrar Feito pela facção, Feito pela confecção ou Não informado. A alteração é somente visual."
+  "version": "2026-08-11-teste-admin-edita-componentes-chegada-177",
+  "updatedAt": "2026-08-11T10:34:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Administradores podem corrigir Lateral e Bojo diretamente na conferência da chegada do Sutiã Completo. Usuários comuns continuam somente visualizando informações já registradas. A correção entra no cálculo e substitui a informação consolidada da OP. A responsividade exclusiva do teste permanece preservada."
 }
