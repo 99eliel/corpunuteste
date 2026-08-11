@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-07-31-sutia-completo-calculo-51";
+  const VERSION = "2026-08-11-origem-componentes-calculo-169";
   const FB = "10.12.5";
   const CONFIG_DOC = "sutia-completo-pagamento";
   const PROCESSO_COMPLETO = "SUTIÃ COMPLETO";
@@ -475,6 +475,10 @@
     return {
       conhecido: true,
       pronto,
+      descontar: pronto,
+      feitoPelaFaccao: false,
+      feitoPelaConfeccao: pronto,
+      origemExecucao: pronto ? "confeccao" : "",
       origem: revisao.origemAtualizacao === "pagamento_manual" ? "Pagamento manual" : "Revisão manual",
       responsavel
     };
@@ -488,6 +492,10 @@
     return {
       conhecido: salvo.informado === true || salvo.pronto === true || salvo.pronto === false,
       pronto: salvo.pronto === true,
+      descontar: salvo.descontarNoSutiaCompleto === true ? true : salvo.descontarNoSutiaCompleto === false ? false : salvo.feitoPelaConfeccao === true ? true : salvo.feitoPelaFaccao === true ? false : salvo.pronto === true,
+      feitoPelaFaccao: salvo.feitoPelaFaccao === true,
+      feitoPelaConfeccao: salvo.feitoPelaConfeccao === true,
+      origemExecucao: texto(salvo.origemExecucao || ""),
       origem: texto(salvo.origemLabel || salvo.origem || "Registro consolidado"),
       responsavel: texto(salvo.responsavel || salvo.quemFez),
       quantidade: Math.max(0, numero(salvo.quantidadePronta))
@@ -514,6 +522,10 @@
         return {
           conhecido: true,
           pronto: true,
+          descontar: true,
+          feitoPelaFaccao: false,
+          feitoPelaConfeccao: false,
+          origemExecucao: "processo_anterior",
           origem: `Chegada de ${processo}`,
           responsavel: texto(ultimo?.destino),
           quantidade: totalOP > 0 ? Math.min(totalOP, quantidadeAutomatica) : quantidadeAutomatica,
@@ -578,6 +590,10 @@
       status: info.status || (info.pronto ? "completo" : "nao_pronto"),
       quantidadePronta: Math.max(0, numero(info.quantidade)),
       quantidadeTotal: Math.max(0, numero(contexto.totalOP)),
+      descontarNoSutiaCompleto: info.descontar === true || (info.descontar !== false && info.pronto === true),
+      feitoPelaFaccao: info.feitoPelaFaccao === true,
+      feitoPelaConfeccao: info.feitoPelaConfeccao === true,
+      origemExecucao: info.origemExecucao || "",
       origem: info.origem || "",
       origemLabel: info.origem || "",
       responsavel: info.responsavel || "",
@@ -607,7 +623,7 @@
 
     if (informacaoDefinitiva(info)) {
       return `
-        <div class="sc51-componente" data-componente="${nome}">
+        <div class="sc51-componente" data-componente="${nome}" data-descontar="${info.descontar === true || (info.descontar !== false && info.pronto === true) ? "1" : "0"}" data-feito-faccao="${info.feitoPelaFaccao === true ? "1" : "0"}" data-feito-confeccao="${info.feitoPelaConfeccao === true ? "1" : "0"}" data-origem-execucao="${escapar(info.origemExecucao || "")}">
           <strong>${titulo}</strong>
           <span class="sc51-pill ${info.pronto ? "sim" : "nao"}">${info.pronto ? "Pronta" : "Não pronta"}</span>
           <small>${info.origem || "Informação registrada"}${info.responsavel ? ` • ${info.responsavel}` : ""}</small>
@@ -624,8 +640,8 @@
         <strong>${parcial ? `${titulo} parcialmente registrada` : `${titulo} sem informação`}</strong>
         <select id="${idSituacao}" required>
           <option value="">Informe a situação</option>
-          <option value="sim">${nome === "lateral" ? "Lateral feita pela facção" : "Bojo feito pela facção"}</option>
-          <option value="nao">${nome === "lateral" ? "Lateral feita pela confecção" : "Bojo feito pela confecção"}</option>
+          <option value="faccao">${nome === "lateral" ? "Lateral feita pela facção" : "Bojo feito pela facção"}</option>
+          <option value="confeccao">${nome === "lateral" ? "Lateral feita pela confecção" : "Bojo feito pela confecção"}</option>
         </select>
         <input id="${idResponsavel}" type="text" maxlength="120" placeholder="Quem fez? Informe ao marcar como pronta" value="${parcial ? escapar(info.responsavel || "") : ""}" disabled>
         <small>${detalheParcial} A escolha será usada neste cálculo${parcial ? "" : " e ficará registrada na OP"}.</small>
@@ -663,10 +679,10 @@
     if (!select || !input || select.dataset.sc51 === "1") return;
     select.dataset.sc51 = "1";
     select.addEventListener("change", () => {
-      const pronto = select.value === "sim";
-      input.disabled = !pronto;
-      input.required = pronto;
-      if (!pronto) input.value = "";
+      const feitoPelaFaccao = select.value === "faccao";
+      input.disabled = !feitoPelaFaccao;
+      input.required = feitoPelaFaccao;
+      if (!feitoPelaFaccao) input.value = "";
       atualizarResumoChegada(prefixo);
     });
     input.addEventListener("input", () => atualizarResumoChegada(prefixo));
@@ -678,6 +694,10 @@
         return {
           conhecido: true,
           pronto: info.pronto,
+          descontar: info.descontar === true || (info.descontar !== false && info.pronto === true),
+          feitoPelaFaccao: info.feitoPelaFaccao === true,
+          feitoPelaConfeccao: info.feitoPelaConfeccao === true,
+          origemExecucao: info.origemExecucao || "",
           origem: info.origem,
           responsavel: info.responsavel
         };
@@ -685,9 +705,13 @@
       const titulo = nome === "lateral" ? "Lateral" : "Bojo";
       const valor = texto(document.getElementById(`${prefixo}${titulo}Situacao`)?.value);
       return {
-        conhecido: valor === "sim" || valor === "nao",
-        pronto: valor === "sim",
-        origem: "Informado na chegada do Sutiã Completo",
+        conhecido: valor === "faccao" || valor === "confeccao",
+        pronto: valor === "faccao" || valor === "confeccao",
+        descontar: valor === "confeccao",
+        feitoPelaFaccao: valor === "faccao",
+        feitoPelaConfeccao: valor === "confeccao",
+        origemExecucao: valor,
+        origem: valor === "faccao" ? "Feito pela facção na chegada do Sutiã Completo" : "Feito pela confecção",
         responsavel: texto(document.getElementById(`${prefixo}${titulo}Responsavel`)?.value)
       };
     };
@@ -702,16 +726,16 @@
 
   async function calcularMemoria(referencia, contexto, dados) {
     const base = valorBaseParaReferencia(referencia);
-    const precoLateral = dados.lateral.pronto ? await buscarPreco(PROCESSO_LATERAL, referencia) : null;
-    const precoBojo = dados.bojo.pronto ? await buscarPreco(PROCESSO_BOJO, referencia) : null;
+    const precoLateral = dados.lateral.descontar ? await buscarPreco(PROCESSO_LATERAL, referencia) : null;
+    const precoBojo = dados.bojo.descontar ? await buscarPreco(PROCESSO_BOJO, referencia) : null;
     const faltantes = [];
 
-    if (dados.lateral.pronto && !precoLateral) faltantes.push(`${PROCESSO_LATERAL} da referência ${referencia}`);
-    if (dados.bojo.pronto && !precoBojo) faltantes.push(`${PROCESSO_BOJO} da referência ${referencia}`);
+    if (dados.lateral.descontar && !precoLateral) faltantes.push(`${PROCESSO_LATERAL} da referência ${referencia}`);
+    if (dados.bojo.descontar && !precoBojo) faltantes.push(`${PROCESSO_BOJO} da referência ${referencia}`);
 
     const descontos = {
-      lateral: dados.lateral.pronto && precoLateral ? arred4(precoLateral.valor) : 0,
-      bojo: dados.bojo.pronto && precoBojo ? arred4(precoBojo.valor) : 0,
+      lateral: dados.lateral.descontar && precoLateral ? arred4(precoLateral.valor) : 0,
+      bojo: dados.bojo.descontar && precoBojo ? arred4(precoBojo.valor) : 0,
       fecho: dados.fechoPronto ? 0 : arred4(configAtual.descontoFechoNaoFeito),
       pontoLuz: dados.pontoLuzPronto ? 0 : arred4(configAtual.descontoPontoLuzNaoFeito)
     };
@@ -735,8 +759,8 @@
       const memoria = await calcularMemoria(atual.referencia, atual.contexto, dados);
       const partes = [
         `Base ${moeda4(memoria.base)}`,
-        dados.lateral.pronto ? `Lateral − ${memoria.precoLateral ? moeda4(memoria.descontos.lateral) : "valor não cadastrado"}` : "Lateral sem desconto",
-        dados.bojo.pronto ? `Bojo − ${memoria.precoBojo ? moeda4(memoria.descontos.bojo) : "valor não cadastrado"}` : "Bojo sem desconto",
+        dados.lateral.descontar ? `Lateral − ${memoria.precoLateral ? moeda4(memoria.descontos.lateral) : "valor não cadastrado"}` : "Lateral sem desconto",
+        dados.bojo.descontar ? `Bojo − ${memoria.precoBojo ? moeda4(memoria.descontos.bojo) : "valor não cadastrado"}` : "Bojo sem desconto",
         dados.fechoPronto ? "Fecho sem desconto" : `Fecho − ${moeda4(memoria.descontos.fecho)}`,
         dados.pontoLuzPronto ? "Ponto de luz sem desconto" : `Ponto de luz − ${moeda4(memoria.descontos.pontoLuz)}`
       ];
@@ -861,20 +885,20 @@
     const dados = dadosDoPainel(prefixo, atual.contexto);
     if (!dados.lateral.conhecido) {
       document.getElementById(`${prefixo}LateralSituacao`)?.focus();
-      avisar("Informe se a lateral veio pronta.", "erro");
+      avisar("Informe quem fez a lateral: facção ou confecção.", "erro");
       return null;
     }
-    if (dados.lateral.pronto && !dados.lateral.responsavel && !informacaoDefinitiva(atual.contexto.lateral)) {
+    if (dados.lateral.feitoPelaFaccao && !dados.lateral.responsavel && !informacaoDefinitiva(atual.contexto.lateral)) {
       document.getElementById(`${prefixo}LateralResponsavel`)?.focus();
       avisar("Informe quem fez a lateral.", "erro");
       return null;
     }
     if (!dados.bojo.conhecido) {
       document.getElementById(`${prefixo}BojoSituacao`)?.focus();
-      avisar("Informe se o bojo veio pronto.", "erro");
+      avisar("Informe quem fez o bojo: facção ou confecção.", "erro");
       return null;
     }
-    if (dados.bojo.pronto && !dados.bojo.responsavel && !informacaoDefinitiva(atual.contexto.bojo)) {
+    if (dados.bojo.feitoPelaFaccao && !dados.bojo.responsavel && !informacaoDefinitiva(atual.contexto.bojo)) {
       document.getElementById(`${prefixo}BojoResponsavel`)?.focus();
       avisar("Informe quem fez o bojo.", "erro");
       return null;
@@ -975,9 +999,17 @@
     await ctx.fs.setDoc(ctx.fs.doc(ctx.db, "movimentacoesProducao", mov.id), {
       sutiaCompletoConferencia: {
         lateralPronta: dados.lateral.pronto,
+        lateralDescontada: dados.lateral.descontar === true,
+        lateralFeitaPelaFaccao: dados.lateral.feitoPelaFaccao === true,
+        lateralFeitaPelaConfeccao: dados.lateral.feitoPelaConfeccao === true,
+        lateralOrigemExecucao: dados.lateral.origemExecucao || "",
         lateralOrigem: dados.lateral.origem || "",
         lateralResponsavel: dados.lateral.responsavel || "",
         bojoPronto: dados.bojo.pronto,
+        bojoDescontado: dados.bojo.descontar === true,
+        bojoFeitoPelaFaccao: dados.bojo.feitoPelaFaccao === true,
+        bojoFeitoPelaConfeccao: dados.bojo.feitoPelaConfeccao === true,
+        bojoOrigemExecucao: dados.bojo.origemExecucao || "",
         bojoOrigem: dados.bojo.origem || "",
         bojoResponsavel: dados.bojo.responsavel || "",
         fechoPronto: dados.fechoPronto,
@@ -1016,6 +1048,10 @@
         pronto: novo.pronto,
         status: novo.pronto ? "completo" : "nao_pronto",
         quantidadePronta: novo.pronto ? Math.max(0, numero(contexto.totalOP)) : 0,
+        descontarNoSutiaCompleto: novo.descontar === true,
+        feitoPelaFaccao: novo.feitoPelaFaccao === true,
+        feitoPelaConfeccao: novo.feitoPelaConfeccao === true,
+        origemExecucao: novo.origemExecucao || "",
         quantidadeTotal: Math.max(0, numero(contexto.totalOP)),
         origem: "chegada_sutia_completo",
         origemLabel: "Informado na chegada do Sutiã Completo",
@@ -1079,9 +1115,17 @@
       precoLateralReferenciaId: memoria.precoLateral?.id || "",
       precoBojoReferenciaId: memoria.precoBojo?.id || "",
       lateralPronta: dados.lateral.pronto,
+      lateralDescontada: dados.lateral.descontar === true,
+      lateralFeitaPelaFaccao: dados.lateral.feitoPelaFaccao === true,
+      lateralFeitaPelaConfeccao: dados.lateral.feitoPelaConfeccao === true,
+      lateralOrigemExecucao: dados.lateral.origemExecucao || "",
       lateralOrigem: dados.lateral.origem || "",
       lateralResponsavel: dados.lateral.responsavel || "",
       bojoPronto: dados.bojo.pronto,
+      bojoDescontado: dados.bojo.descontar === true,
+      bojoFeitoPelaFaccao: dados.bojo.feitoPelaFaccao === true,
+      bojoFeitoPelaConfeccao: dados.bojo.feitoPelaConfeccao === true,
+      bojoOrigemExecucao: dados.bojo.origemExecucao || "",
       bojoOrigem: dados.bojo.origem || "",
       bojoResponsavel: dados.bojo.responsavel || "",
       fechoPronto: dados.fechoPronto,
@@ -1153,10 +1197,10 @@
       const contexto = await obterContextoComponentes(op);
       const dadosFinais = {
         lateral: informacaoDefinitiva(contexto.lateral)
-          ? { conhecido: true, pronto: contexto.lateral.pronto, origem: contexto.lateral.origem, responsavel: contexto.lateral.responsavel }
+          ? { conhecido: true, pronto: contexto.lateral.pronto, descontar: contexto.lateral.descontar === true || (contexto.lateral.descontar !== false && contexto.lateral.pronto === true), feitoPelaFaccao: contexto.lateral.feitoPelaFaccao === true, feitoPelaConfeccao: contexto.lateral.feitoPelaConfeccao === true, origemExecucao: contexto.lateral.origemExecucao || "", origem: contexto.lateral.origem, responsavel: contexto.lateral.responsavel }
           : dados.lateral,
         bojo: informacaoDefinitiva(contexto.bojo)
-          ? { conhecido: true, pronto: contexto.bojo.pronto, origem: contexto.bojo.origem, responsavel: contexto.bojo.responsavel }
+          ? { conhecido: true, pronto: contexto.bojo.pronto, descontar: contexto.bojo.descontar === true || (contexto.bojo.descontar !== false && contexto.bojo.pronto === true), feitoPelaFaccao: contexto.bojo.feitoPelaFaccao === true, feitoPelaConfeccao: contexto.bojo.feitoPelaConfeccao === true, origemExecucao: contexto.bojo.origemExecucao || "", origem: contexto.bojo.origem, responsavel: contexto.bojo.responsavel }
           : dados.bojo,
         fechoPronto: dados.fechoPronto,
         pontoLuzPronto: dados.pontoLuzPronto
@@ -1178,7 +1222,7 @@
       await registrarLog(
         "calculo_sutia_completo_aplicado",
         mov.id,
-        `OP ${mov.numeroOP || op.numeroOP || "-"} | base ${moeda4(memoria.base)} | lateral ${dadosFinais.lateral.pronto ? moeda4(memoria.descontos.lateral) : "não"} | bojo ${dadosFinais.bojo.pronto ? moeda4(memoria.descontos.bojo) : "não"} | fecho ${dadosFinais.fechoPronto ? "pronto" : `-${moeda4(memoria.descontos.fecho)}`} | ponto de luz ${dadosFinais.pontoLuzPronto ? "pronto" : `-${moeda4(memoria.descontos.pontoLuz)}`}`
+        `OP ${mov.numeroOP || op.numeroOP || "-"} | base ${moeda4(memoria.base)} | lateral ${dadosFinais.lateral.descontar ? moeda4(memoria.descontos.lateral) : "sem desconto"} | bojo ${dadosFinais.bojo.descontar ? moeda4(memoria.descontos.bojo) : "sem desconto"} | fecho ${dadosFinais.fechoPronto ? "pronto" : `-${moeda4(memoria.descontos.fecho)}`} | ponto de luz ${dadosFinais.pontoLuzPronto ? "pronto" : `-${moeda4(memoria.descontos.pontoLuz)}`}`
       );
 
       if (resultado?.faltando) {

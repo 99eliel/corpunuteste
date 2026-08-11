@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-11-teste-termos-componentes-sutia-170",
-  "updatedAt": "2026-08-11T08:34:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Altera somente os textos das opções de Lateral e Bojo na conferência do Sutiã Completo para feito pela facção ou feito pela confecção. Mantém a correção responsiva do Manejo, a Fase Lateral, a ALÇA em R$ 0,0270 e todas as regras de cálculo e pagamento inalteradas."
+  "version": "2026-08-11-teste-origem-componentes-sutia-171",
+  "updatedAt": "2026-08-11T08:45:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Sincroniza a regra aprovada do Sutiã Completo: feito pela facção não desconta; feito pela confecção desconta Lateral/Bojo. A origem fica persistida na OP, movimentação e pagamento. Mantém a responsividade exclusiva do teste, Fase Lateral e demais funções."
 }

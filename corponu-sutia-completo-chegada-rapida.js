@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-03-chegada-sutia-completo-rapida-107";
+  const VERSION = "2026-08-11-origem-componentes-chegada-169";
   const FIREBASE_VERSION = "10.12.5";
   const PROCESSO_COMPLETO = "SUTIÃ COMPLETO";
   const PROCESSO_LATERAL = "LATERAL";
@@ -207,10 +207,14 @@
     if (select instanceof HTMLSelectElement) {
       const valor = texto(select.value);
       return {
-        conhecido: valor === "sim" || valor === "nao",
-        pronto: valor === "sim",
+        conhecido: ["faccao", "confeccao", "sim", "nao"].includes(valor),
+        pronto: ["faccao", "confeccao", "sim"].includes(valor),
+        descontar: valor === "confeccao" || valor === "sim",
+        feitoPelaFaccao: valor === "faccao",
+        feitoPelaConfeccao: valor === "confeccao",
+        origemExecucao: valor === "faccao" ? "faccao" : valor === "confeccao" ? "confeccao" : "legado",
         responsavel: texto(responsavelInput?.value),
-        origem: "Informado na chegada do Sutiã Completo",
+        origem: valor === "faccao" ? "Feito pela facção na chegada do Sutiã Completo" : valor === "confeccao" ? "Feito pela confecção" : "Informado na chegada do Sutiã Completo",
         informadoAgora: true
       };
     }
@@ -221,9 +225,16 @@
     const detalhe = texto(card?.querySelector("small")?.textContent);
     const partes = detalhe.split("•").map(item => item.trim()).filter(Boolean);
 
+    const descontoAttr = texto(card?.dataset?.descontar);
+    const feitoPelaFaccao = card?.dataset?.feitoFaccao === "1";
+    const feitoPelaConfeccao = card?.dataset?.feitoConfeccao === "1";
     return {
       conhecido: pronto || nao,
       pronto,
+      descontar: descontoAttr === "1" ? true : descontoAttr === "0" ? false : pronto,
+      feitoPelaFaccao,
+      feitoPelaConfeccao,
+      origemExecucao: texto(card?.dataset?.origemExecucao || ""),
       origem: partes[0] || "Informação registrada na OP",
       responsavel: partes.length > 1 ? partes[partes.length - 1] : "",
       informadoAgora: false
@@ -362,15 +373,15 @@
     }
 
     const precos = await carregarPrecos();
-    const precoLateral = dados.lateral.pronto ? buscarPrecoEmLista(precos, PROCESSO_LATERAL, referencia) : null;
-    const precoBojo = dados.bojo.pronto ? buscarPrecoEmLista(precos, PROCESSO_BOJO, referencia) : null;
+    const precoLateral = dados.lateral.descontar ? buscarPrecoEmLista(precos, PROCESSO_LATERAL, referencia) : null;
+    const precoBojo = dados.bojo.descontar ? buscarPrecoEmLista(precos, PROCESSO_BOJO, referencia) : null;
     const faltantes = [];
-    if (dados.lateral.pronto && !precoLateral) faltantes.push(`${PROCESSO_LATERAL} da referência ${referencia}`);
-    if (dados.bojo.pronto && !precoBojo) faltantes.push(`${PROCESSO_BOJO} da referência ${referencia}`);
+    if (dados.lateral.descontar && !precoLateral) faltantes.push(`${PROCESSO_LATERAL} da referência ${referencia}`);
+    if (dados.bojo.descontar && !precoBojo) faltantes.push(`${PROCESSO_BOJO} da referência ${referencia}`);
 
     const descontos = {
-      lateral: dados.lateral.pronto && precoLateral ? arred4(precoLateral.valor) : 0,
-      bojo: dados.bojo.pronto && precoBojo ? arred4(precoBojo.valor) : 0,
+      lateral: dados.lateral.descontar && precoLateral ? arred4(precoLateral.valor) : 0,
+      bojo: dados.bojo.descontar && precoBojo ? arred4(precoBojo.valor) : 0,
       fecho: dados.fechoPronto ? 0 : arred4(config.descontoFechoNaoFeito),
       pontoLuz: dados.pontoLuzPronto ? 0 : arred4(config.descontoPontoLuzNaoFeito)
     };
@@ -440,9 +451,17 @@
   function montarConferencia(dados, memoria, usuario, quantidade) {
     return {
       lateralPronta: dados.lateral.pronto,
+      lateralDescontada: dados.lateral.descontar === true,
+      lateralFeitaPelaFaccao: dados.lateral.feitoPelaFaccao === true,
+      lateralFeitaPelaConfeccao: dados.lateral.feitoPelaConfeccao === true,
+      lateralOrigemExecucao: dados.lateral.origemExecucao || "",
       lateralOrigem: dados.lateral.origem || "",
       lateralResponsavel: dados.lateral.responsavel || "",
       bojoPronto: dados.bojo.pronto,
+      bojoDescontado: dados.bojo.descontar === true,
+      bojoFeitoPelaFaccao: dados.bojo.feitoPelaFaccao === true,
+      bojoFeitoPelaConfeccao: dados.bojo.feitoPelaConfeccao === true,
+      bojoOrigemExecucao: dados.bojo.origemExecucao || "",
       bojoOrigem: dados.bojo.origem || "",
       bojoResponsavel: dados.bojo.responsavel || "",
       fechoPronto: dados.fechoPronto,
@@ -507,9 +526,17 @@
       precoLateralReferenciaId: memoria.precoLateralId || "",
       precoBojoReferenciaId: memoria.precoBojoId || "",
       lateralPronta: dados.lateral.pronto,
+      lateralDescontada: dados.lateral.descontar === true,
+      lateralFeitaPelaFaccao: dados.lateral.feitoPelaFaccao === true,
+      lateralFeitaPelaConfeccao: dados.lateral.feitoPelaConfeccao === true,
+      lateralOrigemExecucao: dados.lateral.origemExecucao || "",
       lateralOrigem: dados.lateral.origem || "",
       lateralResponsavel: dados.lateral.responsavel || "",
       bojoPronto: dados.bojo.pronto,
+      bojoDescontado: dados.bojo.descontar === true,
+      bojoFeitoPelaFaccao: dados.bojo.feitoPelaFaccao === true,
+      bojoFeitoPelaConfeccao: dados.bojo.feitoPelaConfeccao === true,
+      bojoOrigemExecucao: dados.bojo.origemExecucao || "",
       bojoOrigem: dados.bojo.origem || "",
       bojoResponsavel: dados.bojo.responsavel || "",
       fechoPronto: dados.fechoPronto,
@@ -567,6 +594,10 @@
       status: info.pronto ? "completo" : "nao_pronto",
       quantidadePronta: info.pronto ? total : 0,
       quantidadeTotal: total,
+      descontarNoSutiaCompleto: info.descontar === true,
+      feitoPelaFaccao: info.feitoPelaFaccao === true,
+      feitoPelaConfeccao: info.feitoPelaConfeccao === true,
+      origemExecucao: info.origemExecucao || "",
       origem: "chegada_sutia_completo",
       origemLabel: "Informado na chegada do Sutiã Completo",
       responsavel: info.responsavel || "",
@@ -590,7 +621,7 @@
       acao: "movimentacao_retorno_sutia_completo_otimizada",
       tipoAlvo: "movimentacaoProducao",
       alvoId: String(mov.id || ""),
-      detalhes: `OP ${mov.numeroOP || "-"} | ${mov.destino || "-"} | voltou ${quantidade} peças | falta ${falta} | defeito ${moeda(descontoDefeito)} | lateral ${dados.lateral.pronto ? "sim" : "não"} | bojo ${dados.bojo.pronto ? "sim" : "não"} | fecho ${dados.fechoPronto ? "sim" : "não"} | ponto de luz ${dados.pontoLuzPronto ? "sim" : "não"} | valor ${moeda4(memoria.valorUnitario)}`,
+      detalhes: `OP ${mov.numeroOP || "-"} | ${mov.destino || "-"} | voltou ${quantidade} peças | falta ${falta} | defeito ${moeda(descontoDefeito)} | lateral ${dados.lateral.feitoPelaFaccao ? "facção" : dados.lateral.feitoPelaConfeccao ? "confecção" : dados.lateral.descontar ? "desconto" : "sem desconto"} | bojo ${dados.bojo.feitoPelaFaccao ? "facção" : dados.bojo.feitoPelaConfeccao ? "confecção" : dados.bojo.descontar ? "desconto" : "sem desconto"} | fecho ${dados.fechoPronto ? "sim" : "não"} | ponto de luz ${dados.pontoLuzPronto ? "sim" : "não"} | valor ${moeda4(memoria.valorUnitario)}`,
       usuarioUid: usuario?.uid || "",
       usuarioNome: usuario?.displayName || "",
       usuarioEmail: usuario?.email || "",
