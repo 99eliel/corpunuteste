@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-11-teste-admin-edita-componentes-chegada-177",
-  "updatedAt": "2026-08-11T10:34:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Administradores podem corrigir Lateral e Bojo diretamente na conferência da chegada do Sutiã Completo. Usuários comuns continuam somente visualizando informações já registradas. A correção entra no cálculo e substitui a informação consolidada da OP. A responsividade exclusiva do teste permanece preservada."
+  "version": "2026-08-11-teste-admin-edita-componentes-chegada-177b",
+  "updatedAt": "2026-08-11T10:45:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Correção técnica da edição administrativa de Lateral e Bojo na chegada do Sutiã Completo. Administradores podem alterar informações já existentes antes de confirmar; usuários comuns permanecem somente leitura. A responsividade exclusiva do teste permanece preservada."
 }

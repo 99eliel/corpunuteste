@@ -1,9 +1,9 @@
 (() => {
   "use strict";
 
-  const LOADER_VERSION = "2026-08-11-admin-edita-componentes-chegada-177";
+  const LOADER_VERSION = "2026-08-11-admin-edita-componentes-chegada-177b";
   const BASE_FILE = "corponu-sutia-completo-calculo-base-176.js";
-  const GUARD = "__CORPONU_SUTIA_COMPLETO_ADMIN_LOADER_177__";
+  const GUARD = "__CORPONU_SUTIA_COMPLETO_ADMIN_LOADER_177B__";
 
   if (window[GUARD] === LOADER_VERSION) return;
   window[GUARD] = LOADER_VERSION;
@@ -38,7 +38,7 @@
 
     substituir(
       'const VERSION = "2026-08-11-componentes-opcionais-calculo-170";',
-      'const VERSION = "2026-08-11-admin-edita-componentes-chegada-177";',
+      'const VERSION = "2026-08-11-admin-edita-componentes-chegada-177b";',
       "versão interna"
     );
 
@@ -58,8 +58,8 @@
       /  function criarBlocoComponente\(nome, info, prefixo\) \{[\s\S]*?\n  \}\n\n  function criarPainelChegada/,
       `  function criarBlocoComponente(nome, info, prefixo) {
     const titulo = nome === "lateral" ? "Lateral" : "Bojo";
-    const idSituacao = \`${prefixo}${nome === "lateral" ? "LateralSituacao" : "BojoSituacao"}\`;
-    const idResponsavel = \`${prefixo}${nome === "lateral" ? "LateralResponsavel" : "BojoResponsavel"}\`;
+    const idSituacao = \`${'${prefixo}'}${'${nome === "lateral" ? "LateralSituacao" : "BojoSituacao"}'}\`;
+    const idResponsavel = \`${'${prefixo}'}${'${nome === "lateral" ? "LateralResponsavel" : "BojoResponsavel"}'}\`;
     const definitiva = informacaoDefinitiva(info);
     const adminEdita = definitiva && ehAdmin(perfilAtual);
 
@@ -74,10 +74,10 @@
       const descontar = valorOrigem === "confeccao";
 
       return \`
-        <div class="sc51-componente" data-componente="${nome}" data-descontar="${descontar ? "1" : "0"}" data-feito-faccao="${valorOrigem === "faccao" ? "1" : "0"}" data-feito-confeccao="${valorOrigem === "confeccao" ? "1" : "0"}" data-origem-execucao="${escapar(info.origemExecucao || "")}">
-          <strong>${titulo}</strong>
-          <span class="sc51-pill ${classeOrigem}">${rotuloOrigem}</span>
-          <small>${info.origem || "Informação registrada"}${info.responsavel ? ` • ${info.responsavel}` : ""}</small>
+        <div class="sc51-componente" data-componente="${'${nome}'}" data-descontar="${'${descontar ? "1" : "0"}'}" data-feito-faccao="${'${valorOrigem === "faccao" ? "1" : "0"}'}" data-feito-confeccao="${'${valorOrigem === "confeccao" ? "1" : "0"}'}" data-origem-execucao="${'${escapar(info.origemExecucao || "")}'}">
+          <strong>${'${titulo}'}</strong>
+          <span class="sc51-pill ${'${classeOrigem}'}">${'${rotuloOrigem}'}</span>
+          <small>${'${info.origem || "Informação registrada"}'}${'${info.responsavel ? ` • ${info.responsavel}` : ""}'}</small>
         </div>\`;
     }
 
@@ -86,25 +86,25 @@
     const detalheParcial = adminEdita
       ? "Informação atual carregada da OP. Como administrador, você pode corrigi-la antes de confirmar esta chegada."
       : parcial
-        ? \`${numero(info.quantidade).toLocaleString("pt-BR")} de ${numero(info.quantidadeTotal || 0).toLocaleString("pt-BR")} peças registradas. Confirme esta chegada.\`
+        ? \`${'${numero(info.quantidade).toLocaleString("pt-BR")}'} de ${'${numero(info.quantidadeTotal || 0).toLocaleString("pt-BR")}'} peças registradas. Confirme esta chegada.\`
         : "Nenhuma informação registrada na OP.";
-    const responsavelAtual = adminEdita && valorAtual === "faccao"
-      ? escapar(info.responsavel || "")
+    const responsavelAtual = adminEdita 
+      ? ((valorAtual === "faccao") ? escapar(info.responsavel || "") : "")
       : parcial
         ? escapar(info.responsavel || "")
         : "";
 
     return \`
-      <div class="sc51-componente" data-componente="${nome}" ${adminEdita ? 'data-edicao-admin="1"' : ""}>
-        <strong>${adminEdita ? `${titulo} — edição do administrador` : parcial ? `${titulo} parcialmente registrada` : `${titulo} sem informação`}</strong>
-        <select id="${idSituacao}" required>
+      <div class="sc51-componente" data-componente="${'${nome}'}" ${'${adminEdita ? \'data-edicao-admin="1"\' : ""}'}>
+        <strong>${'${adminEdita ? `${titulo} — edição do administrador` : parcial ? `${titulo} parcialmente registrada` : `${titulo} sem informação`}'}</strong>
+        <select id="${'${idSituacao}'}" required>
           <option value="">Informe a situação</option>
-          <option value="faccao" ${valorAtual === "faccao" ? "selected" : ""}>${nome === "lateral" ? "Lateral feita pela facção" : "Bojo feito pela facção"}</option>
-          <option value="confeccao" ${valorAtual === "confeccao" ? "selected" : ""}>${nome === "lateral" ? "Lateral feita pela confecção" : "Bojo feito pela confecção"}</option>
-          <option value="nao_informado" ${valorAtual === "nao_informado" ? "selected" : ""}>Não sei / não informado</option>
+          <option value="faccao" ${'${valorAtual === "faccao" ? "selected" : ""}'}>${'${nome === "lateral" ? "Lateral feita pela facção" : "Bojo feito pela facção"}'}</option>
+          <option value="confeccao" ${'${valorAtual === "confeccao" ? "selected" : ""}'}>${'${nome === "lateral" ? "Lateral feita pela confecção" : "Bojo feito pela confecção"}'}</option>
+          <option value="nao_informado" ${'${valorAtual === "nao_informado" ? "selected" : ""}'}>Não sei / não informado</option>
         </select>
-        <input id="${idResponsavel}" type="text" maxlength="120" placeholder="Quem fez? (opcional)" value="${responsavelAtual}" ${valorAtual === "faccao" ? "" : "disabled"}>
-        <small>${detalheParcial} ${adminEdita ? "A alteração substituirá a informação anterior da OP." : `A escolha será usada neste cálculo${parcial ? "" : " e ficará registrada na OP"}.`}</small>
+        <input id="${'${idResponsavel}'}" type="text" maxlength="120" placeholder="Quem fez? (opcional)" value="${'${responsavelAtual}'}" ${'${valorAtual === "faccao" ? "" : "disabled"}'}>
+        <small>${'${detalheParcial}'} ${'${adminEdita ? "A alteração substituirá a informação anterior da OP." : `A escolha será usada neste cálculo${parcial ? "" : " e ficará registrada na OP"}.`}'}</small>
       </div>\`;
   }
 
@@ -117,7 +117,7 @@
       `  function dadosDoPainel(prefixo, contexto) {
     const ler = (nome, info) => {
       const titulo = nome === "lateral" ? "Lateral" : "Bojo";
-      const select = document.getElementById(\`${prefixo}${titulo}Situacao\`);
+      const select = document.getElementById(\`${'${prefixo}'}${'${titulo}'}Situacao\`);
 
       if (select instanceof HTMLSelectElement) {
         const valor = texto(select.value);
@@ -130,7 +130,7 @@
           feitoPelaConfeccao: valor === "confeccao",
           origemExecucao: valor === "nao_informado" ? "nao_informado" : valor,
           origem: valor === "faccao" ? "Feito pela facção na chegada do Sutiã Completo" : valor === "confeccao" ? "Feito pela confecção" : "Origem ainda não informada",
-          responsavel: texto(document.getElementById(\`${prefixo}${titulo}Responsavel\`)?.value)
+          responsavel: texto(document.getElementById(\`${'${prefixo}'}${'${titulo}'}Responsavel\`)?.value)
         };
       }
 
@@ -165,8 +165,8 @@
     return {
       lateral: ler("lateral", contexto.lateral),
       bojo: ler("bojo", contexto.bojo),
-      fechoPronto: document.getElementById(\`${prefixo}FechoPronto\`)?.checked === true,
-      pontoLuzPronto: document.getElementById(\`${prefixo}PontoLuzPronto\`)?.checked === true
+      fechoPronto: document.getElementById(\`${'${prefixo}'}FechoPronto\`)?.checked === true,
+      pontoLuzPronto: document.getElementById(\`${'${prefixo}'}PontoLuzPronto\`)?.checked === true
     };
   }
 
@@ -202,7 +202,7 @@
       if (novo.indefinido === true && !edicaoAdmin) return;
 
       const indefinido = novo.indefinido === true;
-      atualizacoes[\`componentesConsolidados.${nome}\`] = {
+      atualizacoes[\`componentesConsolidados.${'${nome}'}\`] = {
         informado: true,
         pronto: indefinido ? false : novo.pronto,
         status: indefinido ? "nao_informado" : (novo.pronto ? "completo" : "nao_pronto"),
