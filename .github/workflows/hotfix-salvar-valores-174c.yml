@@ -1,0 +1,49 @@
+name: Hotfix salvar valores 174c
+on:
+  push:
+    branches: [main]
+    paths: ['.hotfix-salvar-valores-174c']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remover recálculo automático do submit
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re, json
+          p=Path('app.js'); s=p.read_text(encoding='utf-8')
+          pattern=r'''\n\s*let pendenciasAtualizadas = 0;\n\s*if \(\["LATERAL", "ENCAPAR BOJO"\]\.includes\(processo\).*?\n\s*toast\(pendenciasAtualizadas > 0.*?"Valor salvo\."\);'''
+          novo, n = re.subn(pattern, '\n    toast("Valor salvo.");', s, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit(f'bloco automático não encontrado: {n}')
+          p.write_text(novo,encoding='utf-8')
+
+          p=Path('index.html'); s=p.read_text(encoding='utf-8')
+          s=re.sub(r'app\.js\?v=[^"\']+', 'app.js?v=2026-08-11-teste-cadastro-valores-estavel-174c', s, count=1)
+          p.write_text(s,encoding='utf-8')
+
+          Path('corponu-release.json').write_text(json.dumps({
+            'version':'2026-08-11-teste-cadastro-valores-estavel-174c',
+            'updatedAt':'2026-08-11T09:45:00-03:00',
+            'notes':'AMBIENTE DE TESTE. Cadastro de LATERAL/BOJO salva somente o valor. Recálculo automático foi removido do submit para evitar crash. A correção responsiva do teste permanece.'
+          },ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+      - name: Validar
+        run: |
+          node --check app.js
+          node --check corponu-sutia-completo-calculo.js
+          ! grep -q 'let pendenciasAtualizadas = 0' app.js
+          grep -q 'toast("Valor salvo.")' app.js
+      - name: Publicar
+        run: |
+          rm -f .hotfix-salvar-valores-174b .hotfix-salvar-valores-174c
+          rm -f .github/workflows/hotfix-salvar-valores-174b.yml .github/workflows/hotfix-salvar-valores-174c.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'teste: estabilizar cadastro de valores 174c [skip ci]'
+          git push
