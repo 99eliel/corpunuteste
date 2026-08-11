@@ -8182,15 +8182,7 @@ async function salvarPrecoReferencia(event) {
     preencherProcessosValores();
     renderProcessosValores();
     renderPrecosReferencia();
-
-    let pendenciasAtualizadas = 0;
-    if (["LATERAL", "ENCAPAR BOJO"].includes(processo) && typeof window.CorpoNuSutiaCompleto?.recalcularPendentesDaReferencia === "function") {
-      try {
-        const resultadoPendencias = await window.CorpoNuSutiaCompleto.recalcularPendentesDaReferencia(referencia);
-        pendenciasAtualizadas = Number(resultadoPendencias?.atualizados || 0);
-      } catch (error) { console.warn("Valor salvo, mas pendências do Sutiã Completo não foram recalculadas automaticamente.", error); }
-    }
-    toast(pendenciasAtualizadas > 0 ? `Valor salvo. ${pendenciasAtualizadas} pagamento(s) pendente(s) recalculado(s).` : "Valor salvo.");
+    toast("Valor salvo.");
   } catch (error) {
     console.error(error);
     toast("Erro ao salvar valor da referência.");
