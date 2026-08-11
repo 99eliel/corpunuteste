@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-10-teste-alca-00270-responsivo-168",
-  "updatedAt": "2026-08-10T16:00:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Mantém a correção responsiva 167 e corrige o valor da ALÇA: R$ 0,0270 por alça e R$ 0,0540 por sutiã (2 alças). O valor incorreto R$ 0,0540 unitário é migrado para R$ 0,0270. O recálculo administrativo usa novo marcador e continua alterando somente pagamentos pendentes; pagos permanecem intocados. Fase Lateral e valores com 4 casas permanecem inalterados."
+  "version": "2026-08-11-teste-alca-legado-pendentes-169",
+  "updatedAt": "2026-08-11T08:27:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Mantém a correção responsiva 167, Fase Lateral e o valor da ALÇA em R$ 0,0270 por unidade. O recálculo passa a incluir pagamentos antigos da área Lateral/Alça gravados como movimentacao_corte, usa novo marcador e segue a mesma regra dos pagamentos novos: R$ 0,0540 por sutiã com total financeiro arredondado em centavos. Somente pendentes são alterados."
 }
