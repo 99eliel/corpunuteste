@@ -1,0 +1,52 @@
+name: Sincronizar origem componentes 171
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.sincronizar-origem-componentes-171'
+
+permissions:
+  contents: write
+
+jobs:
+  sincronizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Trazer somente os dois modulos aprovados do principal
+        run: |
+          git fetch https://github.com/99eliel/corponu1.git main
+          git checkout FETCH_HEAD -- corponu-sutia-completo-calculo.js corponu-sutia-completo-chegada-rapida.js
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          release = {
+            'version': '2026-08-11-teste-origem-componentes-sutia-171',
+            'updatedAt': '2026-08-11T08:45:00-03:00',
+            'notes': 'AMBIENTE DE TESTE. Sincroniza a regra aprovada do Sutiã Completo: feito pela facção não desconta; feito pela confecção desconta Lateral/Bojo. A origem fica persistida na OP, movimentação e pagamento. Mantém a responsividade exclusiva do teste, Fase Lateral e demais funções.'
+          }
+          Path('corponu-release.json').write_text(json.dumps(release, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Validar
+        run: |
+          node --check corponu-sutia-completo-calculo.js
+          node --check corponu-sutia-completo-chegada-rapida.js
+          grep -q 'value="faccao"' corponu-sutia-completo-calculo.js
+          grep -q 'value="confeccao"' corponu-sutia-completo-calculo.js
+          grep -q 'descontarNoSutiaCompleto' corponu-sutia-completo-chegada-rapida.js
+          grep -q 'data-descontar=' corponu-sutia-completo-calculo.js
+
+      - name: Publicar e limpar
+        run: |
+          rm -f .sincronizar-origem-componentes-171
+          rm -f .github/workflows/sincronizar-origem-componentes-171.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'teste: corrigir desconto por origem de Lateral e Bojo 171 [skip ci]'
+          git push origin HEAD:main
