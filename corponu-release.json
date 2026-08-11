@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-11-teste-pendencias-motivo-173b",
-  "updatedAt": "2026-08-11T09:07:00-03:00",
-  "notes": "AMBIENTE DE TESTE. A Central Financeira mostra o motivo específico de cada pagamento sem valor, como falta valor da LATERAL da referência, falta valor do ENCAPAR BOJO ou falta definir a origem do componente. A mudança não altera cálculos ou pagamentos, usa primeiro o cache do Firestore e a 173b evita reprocessamento repetitivo dos cards. Mantém a correção responsiva exclusiva do teste."
+  "version": "2026-08-11-teste-cadastro-valores-pendencias-174",
+  "updatedAt": "2026-08-11T09:28:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Corrige o cadastro de LATERAL/ENCAPAR BOJO e recalcula somente pendências de SUTIÃ COMPLETO da mesma referência ao salvar o valor. Mantém a responsividade exclusiva do teste."
 }

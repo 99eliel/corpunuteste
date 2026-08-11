@@ -1398,12 +1398,22 @@
       lateral: {
         conhecido: true,
         pronto: typeof conferencia.lateralPronta === "boolean" ? conferencia.lateralPronta : contexto.lateral.pronto,
+        descontar: typeof conferencia.lateralDescontada === "boolean" ? conferencia.lateralDescontada : (contexto.lateral.descontar === true || (contexto.lateral.descontar !== false && contexto.lateral.pronto === true)),
+        indefinido: (conferencia.lateralOrigemExecucao || contexto.lateral.origemExecucao) === "nao_informado",
+        feitoPelaFaccao: typeof conferencia.lateralFeitaPelaFaccao === "boolean" ? conferencia.lateralFeitaPelaFaccao : contexto.lateral.feitoPelaFaccao === true,
+        feitoPelaConfeccao: typeof conferencia.lateralFeitaPelaConfeccao === "boolean" ? conferencia.lateralFeitaPelaConfeccao : contexto.lateral.feitoPelaConfeccao === true,
+        origemExecucao: conferencia.lateralOrigemExecucao || contexto.lateral.origemExecucao || "",
         origem: conferencia.lateralOrigem || contexto.lateral.origem,
         responsavel: conferencia.lateralResponsavel || contexto.lateral.responsavel
       },
       bojo: {
         conhecido: true,
         pronto: typeof conferencia.bojoPronto === "boolean" ? conferencia.bojoPronto : contexto.bojo.pronto,
+        descontar: typeof conferencia.bojoDescontado === "boolean" ? conferencia.bojoDescontado : (contexto.bojo.descontar === true || (contexto.bojo.descontar !== false && contexto.bojo.pronto === true)),
+        indefinido: (conferencia.bojoOrigemExecucao || contexto.bojo.origemExecucao) === "nao_informado",
+        feitoPelaFaccao: typeof conferencia.bojoFeitoPelaFaccao === "boolean" ? conferencia.bojoFeitoPelaFaccao : contexto.bojo.feitoPelaFaccao === true,
+        feitoPelaConfeccao: typeof conferencia.bojoFeitoPelaConfeccao === "boolean" ? conferencia.bojoFeitoPelaConfeccao : contexto.bojo.feitoPelaConfeccao === true,
+        origemExecucao: conferencia.bojoOrigemExecucao || contexto.bojo.origemExecucao || "",
         origem: conferencia.bojoOrigem || contexto.bojo.origem,
         responsavel: conferencia.bojoResponsavel || contexto.bojo.responsavel
       },
@@ -1435,6 +1445,36 @@
         console.warn("Pagamento não recalculado.", pagamento.id, error);
         resultado.aguardando += 1;
       }
+    }
+    return resultado;
+  }
+
+  async function recalcularPendentesDaReferencia(referencia) {
+    const ref = referenciaNormalizada(referencia);
+    if (!ref) return { atualizados: 0, ignorados: 0, aguardando: 0 };
+    await carregarConfig();
+    precosCache.expiraEm = 0;
+    await carregarPrecos(true);
+    const ctx = await firebase();
+    const encontrados = new Map();
+    const valores = [ref];
+    const numerica = Number(ref);
+    if (Number.isFinite(numerica)) valores.push(numerica);
+    for (const valor of valores) {
+      try {
+        const snap = await ctx.fs.getDocs(ctx.fs.query(ctx.fs.collection(ctx.db, "entregasPagamento"), ctx.fs.where("referencia", "==", valor)));
+        snap.docs.forEach(item => encontrados.set(item.id, { id: item.id, ...item.data() }));
+      } catch (error) { console.warn("Pendências da referência não consultadas.", error); }
+    }
+    const resultado = { atualizados: 0, ignorados: 0, aguardando: 0 };
+    for (const pagamento of encontrados.values()) {
+      if (processoCanonico(pagamento.processo || pagamento.servicoNome || pagamento.processoMovimentacao) !== PROCESSO_COMPLETO) continue;
+      try {
+        const item = await recalcularPagamentoExistente(pagamento);
+        if (item.tipo === "atualizado") resultado.atualizados += 1;
+        else if (item.tipo === "aguardando") resultado.aguardando += 1;
+        else resultado.ignorados += 1;
+      } catch (error) { console.warn("Pagamento da referência não recalculado.", pagamento.id, error); resultado.aguardando += 1; }
     }
     return resultado;
   }
@@ -1574,6 +1614,7 @@
     versao: VERSION,
     carregarConfig,
     recalcularPendentes,
+    recalcularPendentesDaReferencia,
     atualizarStatusOP: async numeroOP => {
       const op = await buscarOPPorNumero(numeroOP);
       if (!op) return false;
