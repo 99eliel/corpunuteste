@@ -622,10 +622,32 @@
     const idResponsavel = `${prefixo}${nome === "lateral" ? "LateralResponsavel" : "BojoResponsavel"}`;
 
     if (informacaoDefinitiva(info)) {
+      const origemExecucao = normalizar(info.origemExecucao || "");
+      const indefinido = info.indefinido === true || origemExecucao === "NAO INFORMADO";
+      const feitoPelaFaccao = info.feitoPelaFaccao === true || origemExecucao === "FACCAO";
+      const feitoPelaConfeccao = info.feitoPelaConfeccao === true || origemExecucao === "CONFECCAO";
+      const descontar = info.descontar === true || (info.descontar !== false && info.pronto === true);
+
+      let rotuloOrigem = "Não informado";
+      let classeOrigem = "pendente";
+      if (!indefinido && feitoPelaFaccao) {
+        rotuloOrigem = "Feito pela facção";
+        classeOrigem = "sim";
+      } else if (!indefinido && feitoPelaConfeccao) {
+        rotuloOrigem = "Feito pela confecção";
+        classeOrigem = "nao";
+      } else if (!indefinido && typeof info.descontar === "boolean") {
+        rotuloOrigem = info.descontar ? "Feito pela confecção" : "Feito pela facção";
+        classeOrigem = info.descontar ? "nao" : "sim";
+      } else if (!indefinido && typeof info.pronto === "boolean") {
+        rotuloOrigem = descontar ? "Feito pela confecção" : "Feito pela facção";
+        classeOrigem = descontar ? "nao" : "sim";
+      }
+
       return `
-        <div class="sc51-componente" data-componente="${nome}" data-descontar="${info.descontar === true || (info.descontar !== false && info.pronto === true) ? "1" : "0"}" data-feito-faccao="${info.feitoPelaFaccao === true ? "1" : "0"}" data-feito-confeccao="${info.feitoPelaConfeccao === true ? "1" : "0"}" data-origem-execucao="${escapar(info.origemExecucao || "")}">
+        <div class="sc51-componente" data-componente="${nome}" data-descontar="${descontar ? "1" : "0"}" data-feito-faccao="${feitoPelaFaccao ? "1" : "0"}" data-feito-confeccao="${feitoPelaConfeccao ? "1" : "0"}" data-origem-execucao="${escapar(info.origemExecucao || "")}">
           <strong>${titulo}</strong>
-          <span class="sc51-pill ${info.pronto ? "sim" : "nao"}">${info.pronto ? "Pronta" : "Não pronta"}</span>
+          <span class="sc51-pill ${classeOrigem}">${rotuloOrigem}</span>
           <small>${info.origem || "Informação registrada"}${info.responsavel ? ` • ${info.responsavel}` : ""}</small>
         </div>`;
     }
@@ -654,7 +676,7 @@
     return `
       <div id="${id}" class="sc51-chegada">
         <h4>Conferência do Sutiã Completo</h4>
-        <p>Confirme o que veio pronto. Fecho e ponto de luz só geram desconto quando não vieram feitos.</p>
+        <p>Confirme quem fez a Lateral e o Bojo. Fecho e ponto de luz só geram desconto quando não vieram feitos.</p>
         <div class="sc51-componentes">
           ${criarBlocoComponente("lateral", contexto.lateral, prefixo)}
           ${criarBlocoComponente("bojo", contexto.bojo, prefixo)}
