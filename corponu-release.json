@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-11-teste-cabecalho-manejo-178",
-  "updatedAt": "2026-08-11T11:15:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Correção exclusivamente textual do cabeçalho do Manejo: restaura TECIDO e mantém FASE BOJO/FASE LATERAL no Sutiã e FASE na Calcinha. Nenhuma lógica, filtro, largura ou salvamento foi alterado."
+  "version": "2026-08-11-teste-cabecalho-manejo-texto-179",
+  "updatedAt": "2026-08-11T11:24:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Correção exclusivamente textual do cabeçalho do Manejo. Garante Nº OP, REF, SILK, TECIDO, FASE BOJO, FASE LATERAL, QTI, COR, NECESSIDADE, STATUS e AÇÕES no Sutiã; na Calcinha mantém FASE. Nenhuma lógica, filtro, largura, célula ou salvamento foi alterado."
 }
