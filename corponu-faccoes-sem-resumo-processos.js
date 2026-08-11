@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-10-faccoes-canceladas-origem-159";
+  const VERSION = "2026-08-11-faccoes-sem-resumo-processos-175";
   const STYLE_ID = "corponuFaccoesCanceladas159Style";
   const CLASSE_MOSTRAR = "corponu-mostrar-canceladas-159";
 
@@ -130,9 +130,14 @@
     setTimeout(aplicarAjustes, 500);
     setTimeout(aplicarAjustes, 1500);
 
+    let timerRemocao = 0;
     const observer = new MutationObserver(() => {
-      sincronizarModoCanceladas();
-      ocultarMovimentacoesCanceladasFallback();
+      window.clearTimeout(timerRemocao);
+      timerRemocao = window.setTimeout(() => {
+        removerBloco();
+        sincronizarModoCanceladas();
+        ocultarMovimentacoesCanceladasFallback();
+      }, 30);
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
