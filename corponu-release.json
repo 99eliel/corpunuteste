@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-11-teste-origem-componentes-sutia-171",
-  "updatedAt": "2026-08-11T08:45:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Sincroniza a regra aprovada do Sutiã Completo: feito pela facção não desconta; feito pela confecção desconta Lateral/Bojo. A origem fica persistida na OP, movimentação e pagamento. Mantém a responsividade exclusiva do teste, Fase Lateral e demais funções."
+  "version": "2026-08-11-teste-componentes-opcionais-172",
+  "updatedAt": "2026-08-11T08:56:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Lateral e Bojo podem ficar como Não sei / não informado sem bloquear a chegada. O nome de quem fez é opcional. Origem desconhecida mantém o pagamento aguardando definição; facção não desconta e confecção desconta. Mantém a correção responsiva exclusiva do teste."
 }

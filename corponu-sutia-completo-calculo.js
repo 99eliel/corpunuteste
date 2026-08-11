@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-11-origem-componentes-calculo-169";
+  const VERSION = "2026-08-11-componentes-opcionais-calculo-170";
   const FB = "10.12.5";
   const CONFIG_DOC = "sutia-completo-pagamento";
   const PROCESSO_COMPLETO = "SUTIÃ COMPLETO";
@@ -642,8 +642,9 @@
           <option value="">Informe a situação</option>
           <option value="faccao">${nome === "lateral" ? "Lateral feita pela facção" : "Bojo feito pela facção"}</option>
           <option value="confeccao">${nome === "lateral" ? "Lateral feita pela confecção" : "Bojo feito pela confecção"}</option>
+          <option value="nao_informado">Não sei / não informado</option>
         </select>
-        <input id="${idResponsavel}" type="text" maxlength="120" placeholder="Quem fez? Informe ao marcar como pronta" value="${parcial ? escapar(info.responsavel || "") : ""}" disabled>
+        <input id="${idResponsavel}" type="text" maxlength="120" placeholder="Quem fez? (opcional)" value="${parcial ? escapar(info.responsavel || "") : ""}" disabled>
         <small>${detalheParcial} A escolha será usada neste cálculo${parcial ? "" : " e ficará registrada na OP"}.</small>
       </div>`;
   }
@@ -681,7 +682,7 @@
     select.addEventListener("change", () => {
       const feitoPelaFaccao = select.value === "faccao";
       input.disabled = !feitoPelaFaccao;
-      input.required = feitoPelaFaccao;
+      input.required = false;
       if (!feitoPelaFaccao) input.value = "";
       atualizarResumoChegada(prefixo);
     });
@@ -705,13 +706,14 @@
       const titulo = nome === "lateral" ? "Lateral" : "Bojo";
       const valor = texto(document.getElementById(`${prefixo}${titulo}Situacao`)?.value);
       return {
-        conhecido: valor === "faccao" || valor === "confeccao",
+        conhecido: valor === "faccao" || valor === "confeccao" || valor === "nao_informado",
         pronto: valor === "faccao" || valor === "confeccao",
         descontar: valor === "confeccao",
+        indefinido: valor === "nao_informado",
         feitoPelaFaccao: valor === "faccao",
         feitoPelaConfeccao: valor === "confeccao",
-        origemExecucao: valor,
-        origem: valor === "faccao" ? "Feito pela facção na chegada do Sutiã Completo" : "Feito pela confecção",
+        origemExecucao: valor === "nao_informado" ? "nao_informado" : valor,
+        origem: valor === "faccao" ? "Feito pela facção na chegada do Sutiã Completo" : valor === "confeccao" ? "Feito pela confecção" : "Origem ainda não informada",
         responsavel: texto(document.getElementById(`${prefixo}${titulo}Responsavel`)?.value)
       };
     };
@@ -730,8 +732,10 @@
     const precoBojo = dados.bojo.descontar ? await buscarPreco(PROCESSO_BOJO, referencia) : null;
     const faltantes = [];
 
-    if (dados.lateral.descontar && !precoLateral) faltantes.push(`${PROCESSO_LATERAL} da referência ${referencia}`);
-    if (dados.bojo.descontar && !precoBojo) faltantes.push(`${PROCESSO_BOJO} da referência ${referencia}`);
+    if (dados.lateral.indefinido) faltantes.push("definição da LATERAL");
+    else if (dados.lateral.descontar && !precoLateral) faltantes.push(`${PROCESSO_LATERAL} da referência ${referencia}`);
+    if (dados.bojo.indefinido) faltantes.push("definição do BOJO");
+    else if (dados.bojo.descontar && !precoBojo) faltantes.push(`${PROCESSO_BOJO} da referência ${referencia}`);
 
     const descontos = {
       lateral: dados.lateral.descontar && precoLateral ? arred4(precoLateral.valor) : 0,
@@ -759,8 +763,8 @@
       const memoria = await calcularMemoria(atual.referencia, atual.contexto, dados);
       const partes = [
         `Base ${moeda4(memoria.base)}`,
-        dados.lateral.descontar ? `Lateral − ${memoria.precoLateral ? moeda4(memoria.descontos.lateral) : "valor não cadastrado"}` : "Lateral sem desconto",
-        dados.bojo.descontar ? `Bojo − ${memoria.precoBojo ? moeda4(memoria.descontos.bojo) : "valor não cadastrado"}` : "Bojo sem desconto",
+        dados.lateral.indefinido ? "Lateral aguardando informação" : dados.lateral.descontar ? `Lateral − ${memoria.precoLateral ? moeda4(memoria.descontos.lateral) : "valor não cadastrado"}` : "Lateral sem desconto",
+        dados.bojo.indefinido ? "Bojo aguardando informação" : dados.bojo.descontar ? `Bojo − ${memoria.precoBojo ? moeda4(memoria.descontos.bojo) : "valor não cadastrado"}` : "Bojo sem desconto",
         dados.fechoPronto ? "Fecho sem desconto" : `Fecho − ${moeda4(memoria.descontos.fecho)}`,
         dados.pontoLuzPronto ? "Ponto de luz sem desconto" : `Ponto de luz − ${moeda4(memoria.descontos.pontoLuz)}`
       ];
@@ -888,19 +892,9 @@
       avisar("Informe quem fez a lateral: facção ou confecção.", "erro");
       return null;
     }
-    if (dados.lateral.feitoPelaFaccao && !dados.lateral.responsavel && !informacaoDefinitiva(atual.contexto.lateral)) {
-      document.getElementById(`${prefixo}LateralResponsavel`)?.focus();
-      avisar("Informe quem fez a lateral.", "erro");
-      return null;
-    }
     if (!dados.bojo.conhecido) {
       document.getElementById(`${prefixo}BojoSituacao`)?.focus();
       avisar("Informe quem fez o bojo: facção ou confecção.", "erro");
-      return null;
-    }
-    if (dados.bojo.feitoPelaFaccao && !dados.bojo.responsavel && !informacaoDefinitiva(atual.contexto.bojo)) {
-      document.getElementById(`${prefixo}BojoResponsavel`)?.focus();
-      avisar("Informe quem fez o bojo.", "erro");
       return null;
     }
 
@@ -915,8 +909,8 @@
         `Confirmar a chegada de SUTIÃ COMPLETO da OP ${atual.mov?.numeroOP || atual.numeroOP || atual.op?.numeroOP || "-"}?`,
         "",
         `Valor-base: ${moeda4(memoria.base)}`,
-        `Lateral: ${dados.lateral.pronto ? (memoria.precoLateral ? `desconto ${moeda4(memoria.descontos.lateral)}` : "PRONTA, mas sem valor cadastrado") : "não pronta — sem desconto"}`,
-        `Bojo: ${dados.bojo.pronto ? (memoria.precoBojo ? `desconto ${moeda4(memoria.descontos.bojo)}` : "PRONTO, mas sem valor cadastrado") : "não pronto — sem desconto"}`,
+        `Lateral: ${dados.lateral.indefinido ? "não informada — pagamento aguardará definição" : dados.lateral.descontar ? (memoria.precoLateral ? `feita pela confecção — desconto ${moeda4(memoria.descontos.lateral)}` : "feita pela confecção, mas sem valor cadastrado") : "feita pela facção — sem desconto"}`,
+        `Bojo: ${dados.bojo.indefinido ? "não informado — pagamento aguardará definição" : dados.bojo.descontar ? (memoria.precoBojo ? `feito pela confecção — desconto ${moeda4(memoria.descontos.bojo)}` : "feito pela confecção, mas sem valor cadastrado") : "feito pela facção — sem desconto"}`,
         `Fecho: ${dados.fechoPronto ? "veio pronto — sem desconto" : `não feito — desconto ${moeda4(memoria.descontos.fecho)}`}`,
         `Ponto de luz: ${dados.pontoLuzPronto ? "veio pronto — sem desconto" : `não feito — desconto ${moeda4(memoria.descontos.pontoLuz)}`}`,
         "",
@@ -1042,7 +1036,7 @@
     const agora = ctx.fs.serverTimestamp();
 
     function incluir(nome, original, novo) {
-      if (original.conhecido) return;
+      if (original.conhecido || novo.indefinido === true) return;
       atualizacoes[`componentesConsolidados.${nome}`] = {
         informado: true,
         pronto: novo.pronto,

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-11-origem-componentes-chegada-169";
+  const VERSION = "2026-08-11-componentes-opcionais-chegada-170";
   const FIREBASE_VERSION = "10.12.5";
   const PROCESSO_COMPLETO = "SUTIÃ COMPLETO";
   const PROCESSO_LATERAL = "LATERAL";
@@ -207,14 +207,15 @@
     if (select instanceof HTMLSelectElement) {
       const valor = texto(select.value);
       return {
-        conhecido: ["faccao", "confeccao", "sim", "nao"].includes(valor),
+        conhecido: ["faccao", "confeccao", "nao_informado", "sim", "nao"].includes(valor),
         pronto: ["faccao", "confeccao", "sim"].includes(valor),
         descontar: valor === "confeccao" || valor === "sim",
+        indefinido: valor === "nao_informado",
         feitoPelaFaccao: valor === "faccao",
         feitoPelaConfeccao: valor === "confeccao",
-        origemExecucao: valor === "faccao" ? "faccao" : valor === "confeccao" ? "confeccao" : "legado",
+        origemExecucao: valor === "faccao" ? "faccao" : valor === "confeccao" ? "confeccao" : valor === "nao_informado" ? "nao_informado" : "legado",
         responsavel: texto(responsavelInput?.value),
-        origem: valor === "faccao" ? "Feito pela facção na chegada do Sutiã Completo" : valor === "confeccao" ? "Feito pela confecção" : "Informado na chegada do Sutiã Completo",
+        origem: valor === "faccao" ? "Feito pela facção na chegada do Sutiã Completo" : valor === "confeccao" ? "Feito pela confecção" : valor === "nao_informado" ? "Origem ainda não informada" : "Informado na chegada do Sutiã Completo",
         informadoAgora: true
       };
     }
@@ -376,8 +377,10 @@
     const precoLateral = dados.lateral.descontar ? buscarPrecoEmLista(precos, PROCESSO_LATERAL, referencia) : null;
     const precoBojo = dados.bojo.descontar ? buscarPrecoEmLista(precos, PROCESSO_BOJO, referencia) : null;
     const faltantes = [];
-    if (dados.lateral.descontar && !precoLateral) faltantes.push(`${PROCESSO_LATERAL} da referência ${referencia}`);
-    if (dados.bojo.descontar && !precoBojo) faltantes.push(`${PROCESSO_BOJO} da referência ${referencia}`);
+    if (dados.lateral.indefinido) faltantes.push("definição da LATERAL");
+    else if (dados.lateral.descontar && !precoLateral) faltantes.push(`${PROCESSO_LATERAL} da referência ${referencia}`);
+    if (dados.bojo.indefinido) faltantes.push("definição do BOJO");
+    else if (dados.bojo.descontar && !precoBojo) faltantes.push(`${PROCESSO_BOJO} da referência ${referencia}`);
 
     const descontos = {
       lateral: dados.lateral.descontar && precoLateral ? arred4(precoLateral.valor) : 0,
@@ -607,8 +610,8 @@
     });
 
     const patch = {};
-    if (dados.lateral.informadoAgora) patch["componentesConsolidados.lateral"] = montar(dados.lateral);
-    if (dados.bojo.informadoAgora) patch["componentesConsolidados.bojo"] = montar(dados.bojo);
+    if (dados.lateral.informadoAgora && !dados.lateral.indefinido) patch["componentesConsolidados.lateral"] = montar(dados.lateral);
+    if (dados.bojo.informadoAgora && !dados.bojo.indefinido) patch["componentesConsolidados.bojo"] = montar(dados.bojo);
     if (Object.keys(patch).length) {
       patch.componentesConsolidadosAtualizadoPor = usuario?.uid || "";
       patch.componentesConsolidadosAtualizadoEm = agora;
