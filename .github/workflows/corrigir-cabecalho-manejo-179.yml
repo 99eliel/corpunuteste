@@ -1,0 +1,88 @@
+name: Corrigir cabecalho Manejo teste 179
+on:
+  push:
+    branches: [main]
+    paths: ['.corrigir-cabecalho-manejo-179']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aplicar somente textos do cabecalho
+        run: |
+          cat > corponu-manejo-cabecalho-texto-179.js <<'EOF'
+          (() => {
+            "use strict";
+            const VERSION = "2026-08-11-teste-cabecalho-manejo-texto-179";
+            if (window.__CORPONU_MANEJO_CABECALHO_TEXTO__ === VERSION) return;
+            window.__CORPONU_MANEJO_CABECALHO_TEXTO__ = VERSION;
+
+            function setorAtual() {
+              const ativo = document.querySelector("#manejo .manejo-setor-btn.active")?.dataset?.setor;
+              if (ativo) return ativo;
+              return document.querySelector("#manejo .manejo-inline-table")?.classList.contains("manejo-sutia-ativo") ? "sutia" : "calcinha";
+            }
+
+            function corrigirTextos() {
+              const linha = document.querySelector("#manejo .manejo-head-row");
+              if (!linha) return;
+              const celulas = Array.from(linha.children).filter(el => el.tagName === "TH");
+              if (!celulas.length) return;
+              const sutia = setorAtual() === "sutia";
+              const nomes = sutia
+                ? ["Nº OP", "REF", "SILK", "TECIDO", "FASE BOJO", "FASE LATERAL", "QTI", "COR", "NECESSIDADE", "STATUS", "AÇÕES"]
+                : ["Nº OP", "REF", "SILK", "TECIDO", "FASE", "FASE LATERAL", "QTI", "COR", "NECESSIDADE", "STATUS", "AÇÕES"];
+              nomes.forEach((nome, indice) => {
+                if (celulas[indice] && celulas[indice].textContent.trim() !== nome) {
+                  celulas[indice].textContent = nome;
+                }
+              });
+            }
+
+            function iniciar() {
+              corrigirTextos();
+              document.addEventListener("click", event => {
+                if (event.target.closest("#manejo .manejo-setor-btn")) setTimeout(corrigirTextos, 0);
+              }, true);
+              const manejo = document.getElementById("manejo");
+              if (!manejo) return;
+              const observer = new MutationObserver(() => corrigirTextos());
+              observer.observe(manejo, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["class"] });
+            }
+
+            if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true });
+            else iniciar();
+          })();
+          EOF
+
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          tag = '<script src="corponu-manejo-cabecalho-texto-179.js?v=2026-08-11-teste-cabecalho-manejo-texto-179"></script>'
+          if tag not in s:
+              if '</body>' not in s:
+                  raise SystemExit('body final nao encontrado')
+              s = s.replace('</body>', f'  {tag}\n</body>', 1)
+          p.write_text(s, encoding='utf-8')
+          Path('corponu-release.json').write_text(json.dumps({
+            'version':'2026-08-11-teste-cabecalho-manejo-texto-179',
+            'updatedAt':'2026-08-11T11:24:00-03:00',
+            'notes':'AMBIENTE DE TESTE. Correção exclusivamente textual do cabeçalho do Manejo. Garante Nº OP, REF, SILK, TECIDO, FASE BOJO, FASE LATERAL, QTI, COR, NECESSIDADE, STATUS e AÇÕES no Sutiã; na Calcinha mantém FASE. Nenhuma lógica, filtro, largura, célula ou salvamento foi alterado.'
+          }, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+      - name: Validar
+        run: |
+          node --check corponu-manejo-cabecalho-texto-179.js
+          grep -q '"SILK", "TECIDO", "FASE BOJO", "FASE LATERAL"' corponu-manejo-cabecalho-texto-179.js
+      - name: Publicar
+        run: |
+          rm -f .corrigir-cabecalho-manejo-179 .github/workflows/corrigir-cabecalho-manejo-179.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'teste: garantir somente textos corretos do cabecalho do Manejo 179 [skip ci]'
+          git push
