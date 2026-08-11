@@ -1600,8 +1600,16 @@ function atualizarBotoesManejoSetor() {
 
   const tabelaManejo = document.querySelector("#manejo .manejo-inline-table");
   if (tabelaManejo) tabelaManejo.classList.toggle("manejo-sutia-ativo", setorAtual === "sutia");
-  const cabecalhoFase = tabelaManejo?.querySelector(".manejo-head-row th:nth-child(5)");
-  if (cabecalhoFase) cabecalhoFase.textContent = setorAtual === "sutia" ? "FASE BOJO" : "FASE";
+
+  const cabecalhosManejo = tabelaManejo?.querySelectorAll(".manejo-head-row th");
+  if (cabecalhosManejo?.length) {
+    const nomesFixos = ["Nº OP", "REF", "SILK", "TECIDO"];
+    nomesFixos.forEach((nome, indice) => {
+      if (cabecalhosManejo[indice]) cabecalhosManejo[indice].textContent = nome;
+    });
+    if (cabecalhosManejo[4]) cabecalhosManejo[4].textContent = setorAtual === "sutia" ? "FASE BOJO" : "FASE";
+    if (setorAtual === "sutia" && cabecalhosManejo[5]) cabecalhosManejo[5].textContent = "FASE LATERAL";
+  }
 }
 
 function selecionarManejoSetor(setor) {
