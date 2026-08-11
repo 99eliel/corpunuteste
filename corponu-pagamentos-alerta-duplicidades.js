@@ -9,6 +9,7 @@
   const VERSION_CALCINHA_SALVAMENTO_RAPIDO = "2026-08-07-calcinha-salvamento-rapido-147";
   const VERSION_QUANTIDADE_SEM_SCROLL = "2026-08-07-quantidade-sem-scroll-148";
   const VERSION_LATERAL_CANCELADAS = "2026-08-10-lateral-canceladas-dom-160";
+  const VERSION_PENDENCIAS_MOTIVO = "2026-08-11-pendencias-motivo-171";
 
   function carregarScript(nomeArquivo, modulo, versao, mensagemErro) {
     const existente = [...document.scripts].find(script =>
@@ -25,8 +26,6 @@
     return script;
   }
 
-  // 145 aplica a identidade oficial Corpo Nu Flow usando a nova logo enviada
-  // pela empresa, sem alterar qualquer regra operacional do sistema.
   carregarScript(
     "corponu-identidade-corpo-nu-flow-145.js",
     "identidade-corpo-nu-flow-145",
@@ -34,8 +33,6 @@
     "Não foi possível carregar a identidade Corpo Nu Flow."
   );
 
-  // 148 protege SOMENTE a quantidade da OP contra alteração pela rodinha do mouse.
-  // Cadastro de Produto/Referência não possui campo de quantidade.
   carregarScript(
     "corponu-quantidade-sem-scroll-148.js",
     "quantidade-sem-scroll-148",
@@ -43,8 +40,6 @@
     "Não foi possível ativar a proteção da quantidade da OP contra o scroll do mouse."
   );
 
-  // 139 adiciona, somente para administradores, uma lixeira sob demanda para
-  // visualizar e restaurar OPs marcadas com excluida=true sem recriar documentos.
   carregarScript(
     "corponu-ops-excluidas-restauracao-139.js",
     "ops-excluidas-restauracao-139",
@@ -52,9 +47,6 @@
     "Não foi possível carregar a lixeira/restauração de OPs excluídas."
   );
 
-  // 147 precisa iniciar antes da 144/142/137. Ela substitui somente o listener
-  // de salvamento da Calcinha por uma versão otimizada, mantendo as mesmas
-  // validações, mas executando as leituras independentes em paralelo.
   carregarScript(
     "corponu-calcinha-salvamento-rapido-147.js",
     "calcinha-salvamento-rapido-147",
@@ -62,8 +54,6 @@
     "Não foi possível ativar o salvamento rápido das OPs de Calcinha."
   );
 
-  // 144 carrega a regra 142 de necessidade opcional com proteção contra o
-  // MutationObserver que entrava em ciclo ao abrir a aba Calcinha.
   carregarScript(
     "corponu-ordens-necessidade-opcional-fix-144.js",
     "ordens-necessidade-opcional-fix-144",
@@ -71,8 +61,6 @@
     "Não foi possível carregar a correção da aba Calcinha com necessidade opcional."
   );
 
-  // 143 garante que, depois de uma saída registrada em Sutiã ou Calcinha,
-  // a tabela principal de Facções seja atualizada imediatamente, sem exigir F5.
   carregarScript(
     "corponu-faccoes-saida-atualizacao-imediata-143.js",
     "faccoes-saida-atualizacao-imediata-143",
@@ -80,14 +68,18 @@
     "Não foi possível atualizar a lista de Facções imediatamente após a saída."
   );
 
-
-  // 160 atua somente na tabela do antigo módulo Corte, hoje exibido como
-  // Facções > Lateral e Alça. Canceladas somem da lista normal após qualquer render.
   carregarScript(
     "corponu-lateral-canceladas-160.js",
     "lateral-canceladas-160",
     VERSION_LATERAL_CANCELADAS,
     "Não foi possível ocultar movimentações canceladas de Lateral e Alça."
+  );
+
+  carregarScript(
+    "corponu-pendencias-motivo-171.js",
+    "pendencias-motivo-171",
+    VERSION_PENDENCIAS_MOTIVO,
+    "Não foi possível mostrar o motivo específico das pendências financeiras."
   );
 
   if (window.__CORPONU_DUPLICIDADE_TABELA_LOADER_135__ === VERSION_DUPLICIDADE) return;
