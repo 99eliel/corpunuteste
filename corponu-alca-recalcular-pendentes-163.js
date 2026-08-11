@@ -1,14 +1,14 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-10-alca-recalculo-00270-168";
+  const VERSION = "2026-08-11-alca-legado-pendentes-169";
   const FIREBASE_VERSION = "10.12.5";
   const VALOR_ALCA = 0.0270;
   const ALCAS_POR_SUTIA = 2;
   const VALOR_POR_SUTIA = 0.0540;
-  const MARCADOR_ID = "correcao-alca-pendentes-00270-168";
+  const MARCADOR_ID = "correcao-alca-legado-pendentes-00270-169";
   const PRECO_ID = "valor-padrao-alca";
-  const ALIASES_ALCA = ["ALÇA", "ALCA", "ALÇAS", "ALCAS"];
+  const ALIASES_ALCA = ["ALÇA", "ALCA", "ALÇAS", "ALCAS", "Alça", "Alca", "Alças", "Alcas", "alça", "alca", "alças", "alcas"];
 
   if (window.__CORPONU_ALCA_RECALCULO_PENDENTES_163__ === VERSION) return;
   window.__CORPONU_ALCA_RECALCULO_PENDENTES_163__ = VERSION;
@@ -34,19 +34,32 @@
     return Number.isFinite(resultado) ? resultado : 0;
   }
 
+  const arredondar2 = valor => Math.round((Number(valor || 0) + Number.EPSILON) * 100) / 100;
   const arredondar4 = valor => Math.round((Number(valor || 0) + Number.EPSILON) * 10000) / 10000;
   const moeda4 = valor => `R$ ${Number(valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
 
   function ehAlca(item) {
-    const processo = normalizar(item?.processo || item?.servicoNome || item?.processoMovimentacao || "");
-    return processo === "ALCA" || processo === "ALCAS";
+    const candidatos = [
+      item?.processo,
+      item?.servicoNome,
+      item?.processoMovimentacao,
+      item?.processoCorteId,
+      item?.setorLabel
+    ].map(normalizar).filter(Boolean);
+    return candidatos.some(valor => valor === "ALCA" || valor === "ALCAS");
   }
 
   function estaPendente(item) {
     if (!ehAlca(item)) return false;
-    if (item?.pago === true || item?.quitado === true || item?.cancelado === true || item?.excluido === true) return false;
+    if (
+      item?.pago === true || item?.quitado === true || item?.confirmado === true ||
+      item?.cancelado === true || item?.excluido === true || item?.estornado === true
+    ) return false;
     const status = normalizar(item?.statusPagamento || item?.statusFinanceiro || item?.status || "PENDENTE");
-    return !["PAGO", "PAGA", "QUITADO", "QUITADA", "CONFIRMADO", "CONFIRMADA", "CANCELADO", "CANCELADA", "EXCLUIDO", "EXCLUIDA", "ESTORNADO", "ESTORNADA"].includes(status);
+    return ![
+      "PAGO", "PAGA", "QUITADO", "QUITADA", "CONFIRMADO", "CONFIRMADA",
+      "CANCELADO", "CANCELADA", "EXCLUIDO", "EXCLUIDA", "ESTORNADO", "ESTORNADA"
+    ].includes(status);
   }
 
   function quantidadeSutias(item) {
@@ -92,7 +105,10 @@
     el.classList.remove("hidden");
     el.style.background = erro ? "#991b1b" : "#166534";
     clearTimeout(window.__alca163Toast);
-    window.__alca163Toast = setTimeout(() => { el.classList.add("hidden"); el.style.removeProperty("background"); }, erro ? 7000 : 5000);
+    window.__alca163Toast = setTimeout(() => {
+      el.classList.add("hidden");
+      el.style.removeProperty("background");
+    }, erro ? 7000 : 5000);
   }
 
   async function consultarAlca(firestore, db) {
@@ -101,8 +117,10 @@
       firestore.query(col, firestore.where("setor", "==", "alca")),
       firestore.query(col, firestore.where("processo", "in", ALIASES_ALCA)),
       firestore.query(col, firestore.where("servicoNome", "in", ALIASES_ALCA)),
-      firestore.query(col, firestore.where("processoMovimentacao", "in", ALIASES_ALCA))
+      firestore.query(col, firestore.where("processoMovimentacao", "in", ALIASES_ALCA)),
+      firestore.query(col, firestore.where("origem", "==", "movimentacao_corte"))
     ];
+
     const resultados = await Promise.allSettled(consultas.map(q => firestore.getDocs(q)));
     const mapa = new Map();
     resultados.forEach(resultado => {
@@ -119,8 +137,9 @@
     const quantidade = quantidadeSutias(item);
     const quantidadeAlcas = arredondar4(quantidade * ALCAS_POR_SUTIA);
     const desconto = descontoDefeito(item);
-    const subtotal = arredondar4(quantidade * VALOR_POR_SUTIA);
-    const total = arredondar4(Math.max(subtotal - desconto, 0));
+    const subtotal = arredondar2(quantidade * VALOR_POR_SUTIA);
+    const total = arredondar2(Math.max(subtotal - desconto, 0));
+
     return {
       precoReferenciaId: PRECO_ID,
       servicoId: PRECO_ID,
@@ -154,18 +173,23 @@
     if (executando) return;
     executando = true;
     const original = botao?.textContent || "Recalcular pendentes de ALÇA";
-    if (botao) { botao.disabled = true; botao.textContent = "Recalculando..."; }
+    if (botao) {
+      botao.disabled = true;
+      botao.textContent = "Recalculando...";
+    }
+
     try {
       const { firestore, db, auth } = await contexto();
       const usuario = await usuarioAdmin(firestore, db, auth);
       const marcadorRef = firestore.doc(db, "configuracoes", MARCADOR_ID);
       const marcador = await firestore.getDoc(marcadorRef);
       if (marcador.exists() && marcador.data()?.concluida === true) {
-        toast("Os pagamentos pendentes de ALÇA já foram recalculados para R$ 0,0270 por alça.");
+        toast("Os pagamentos pendentes e legados de ALÇA já foram revisados para R$ 0,0270 por alça.");
         return;
       }
 
-      const pendentes = (await consultarAlca(firestore, db)).filter(item => estaPendente(item.dados));
+      const encontrados = await consultarAlca(firestore, db);
+      const pendentes = encontrados.filter(item => estaPendente(item.dados));
       const agora = firestore.serverTimestamp();
       let alterados = 0;
       let semQuantidade = 0;
@@ -173,12 +197,17 @@
       for (let inicio = 0; inicio < pendentes.length; inicio += 150) {
         const batch = firestore.writeBatch(db);
         let gravacoes = 0;
+
         pendentes.slice(inicio, inicio + 150).forEach(item => {
-          if (!(quantidadeSutias(item.dados) > 0)) { semQuantidade += 1; return; }
+          if (!(quantidadeSutias(item.dados) > 0)) {
+            semQuantidade += 1;
+            return;
+          }
           batch.set(item.ref, patch(item.dados, usuario.uid, agora), { merge: true });
           gravacoes += 1;
           alterados += 1;
         });
+
         if (gravacoes) await batch.commit();
         if (inicio + 150 < pendentes.length) await new Promise(r => setTimeout(r, 50));
       }
@@ -187,20 +216,25 @@
         concluida: true,
         valorAlca: VALOR_ALCA,
         valorPorSutia: VALOR_POR_SUTIA,
+        pagamentosEncontrados: encontrados.length,
         pagamentosRecalculados: alterados,
         ignoradosSemQuantidade: semQuantidade,
+        incluiRegistrosLegadosCorte: true,
         concluidoPor: usuario.uid,
         concluidoEm: firestore.serverTimestamp(),
         versao: VERSION
       }, { merge: true });
 
-      toast(`${alterados} pagamento(s) pendente(s) de ALÇA recalculado(s) para ${moeda4(VALOR_ALCA)} por alça.`);
+      toast(`${alterados} pagamento(s) pendente(s) de ALÇA revisado(s), incluindo registros antigos da área Lateral e Alça.`);
     } catch (error) {
       console.error(error);
       toast(error?.message || "Não foi possível recalcular os pagamentos pendentes de ALÇA.", true);
     } finally {
       executando = false;
-      if (botao && document.contains(botao)) { botao.disabled = false; botao.textContent = original; }
+      if (botao && document.contains(botao)) {
+        botao.disabled = false;
+        botao.textContent = original;
+      }
     }
   }
 
@@ -208,12 +242,13 @@
     if (document.getElementById("btnRecalcularPendentesAlca163")) return;
     const salvar = document.getElementById("btnSalvarValorPadraoAlca");
     if (!salvar?.parentElement) return;
+
     const botao = document.createElement("button");
     botao.id = "btnRecalcularPendentesAlca163";
     botao.type = "button";
     botao.className = "btn";
     botao.textContent = "Recalcular pendentes de ALÇA";
-    botao.title = "Atualiza somente pagamentos de ALÇA ainda pendentes para R$ 0,0270 por alça (R$ 0,0540 por sutiã). Pagos não são alterados.";
+    botao.title = "Revisa pagamentos pendentes atuais e antigos de ALÇA para R$ 0,0270 por alça (R$ 0,0540 por sutiã). Pagos não são alterados.";
     botao.addEventListener("click", () => executar(botao));
     salvar.insertAdjacentElement("afterend", botao);
   }
@@ -229,7 +264,10 @@
     }, true);
   }
 
-  window.CorpoNuAlcaRecalculoPendentes163 = { versao: VERSION, executar: () => executar(document.getElementById("btnRecalcularPendentesAlca163")) };
+  window.CorpoNuAlcaRecalculoPendentes163 = {
+    versao: VERSION,
+    executar: () => executar(document.getElementById("btnRecalcularPendentesAlca163"))
+  };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true });
   else iniciar();
