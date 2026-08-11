@@ -1,0 +1,25 @@
+name: Bump cadastro valores teste 174
+on:
+  push:
+    branches: [main]
+    paths: ['.bump-cadastro-valores-174']
+permissions:
+  contents: write
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html'); s=p.read_text(encoding='utf-8')
+          old='app.js?v=2026-08-10-teste-fase-lateral-163b'
+          if old not in s: raise SystemExit('versão antiga do app não encontrada')
+          s=s.replace(old,'app.js?v=2026-08-11-teste-cadastro-valores-pendencias-174',1)
+          p.write_text(s,encoding='utf-8')
+          PY
+          rm -f .bump-cadastro-valores-174 .github/workflows/bump-cadastro-valores-174.yml
+          git config user.name github-actions[bot]
+          git config user.email 418982+github-actions[bot]@users.noreply.github.com
+          git add -A && git commit -m 'teste: atualizar cache do cadastro de valores 174 [skip ci]' && git push
