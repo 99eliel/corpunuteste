@@ -624,8 +624,8 @@
         <strong>${parcial ? `${titulo} parcialmente registrada` : `${titulo} sem informação`}</strong>
         <select id="${idSituacao}" required>
           <option value="">Informe a situação</option>
-          <option value="sim">${titulo} veio pronta</option>
-          <option value="nao">${titulo} não veio pronta</option>
+          <option value="sim">${nome === "lateral" ? "Lateral feita pela facção" : "Bojo feito pela facção"}</option>
+          <option value="nao">${nome === "lateral" ? "Lateral feita pela confecção" : "Bojo feito pela confecção"}</option>
         </select>
         <input id="${idResponsavel}" type="text" maxlength="120" placeholder="Quem fez? Informe ao marcar como pronta" value="${parcial ? escapar(info.responsavel || "") : ""}" disabled>
         <small>${detalheParcial} A escolha será usada neste cálculo${parcial ? "" : " e ficará registrada na OP"}.</small>
