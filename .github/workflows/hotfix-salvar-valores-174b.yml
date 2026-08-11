@@ -1,0 +1,48 @@
+name: Hotfix salvar valores 174b
+on:
+  push:
+    branches: [main]
+    paths: ['.hotfix-salvar-valores-174b']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remover recálculo automático do submit
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('app.js'); s=p.read_text(encoding='utf-8')
+          old='''    let pendenciasAtualizadas = 0;\n    if (["LATERAL", "ENCAPAR BOJO"].includes(processo) && typeof window.CorpoNuSutiaCompleto?.recalcularPendentesDaReferencia === "function") {\n      try {\n        const resultadoPendencias = await window.CorpoNuSutiaCompleto.recalcularPendentesDaReferencia(referencia);\n        pendenciasAtualizadas = Number(resultadoPendencias?.atualizados || 0);\n      } catch (error) {\n        console.warn("Valor salvo, mas pendências do Sutiã Completo não foram recalculadas automaticamente.", error);\n      }\n    }\n\n    toast(pendenciasAtualizadas > 0\n      ? `Valor salvo. ${pendenciasAtualizadas} pagamento(s) pendente(s) recalculado(s).`\n      : "Valor salvo.");'''
+          if old not in s:
+              raise SystemExit('bloco de recálculo automático não encontrado')
+          s=s.replace(old,'    toast("Valor salvo.");',1)
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('index.html'); s=p.read_text(encoding='utf-8')
+          s=s.replace('app.js?v=2026-08-11-cadastro-valores-pendencias-174','app.js?v=2026-08-11-cadastro-valores-estavel-174b')
+          p.write_text(s,encoding='utf-8')
+
+          Path('corponu-release.json').write_text(json.dumps({
+            'version':'2026-08-11-teste-cadastro-valores-estavel-174b',
+            'updatedAt':'2026-08-11T09:43:00-03:00',
+            'notes':'AMBIENTE DE TESTE. Hotfix de estabilidade: cadastrar valor de LATERAL/BOJO salva somente o valor por referência. O recálculo automático foi desacoplado do botão Salvar para evitar travamento/crash. A correção responsiva do teste permanece.'
+          },ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+      - name: Validar
+        run: |
+          node --check app.js
+          node --check corponu-sutia-completo-calculo.js
+          ! grep -q 'let pendenciasAtualizadas = 0' app.js
+          grep -q 'id="precoReferenciaSetor" type="hidden"' index.html
+      - name: Publicar
+        run: |
+          rm -f .hotfix-salvar-valores-174b .github/workflows/hotfix-salvar-valores-174b.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'teste: estabilizar cadastro de valores 174b [skip ci]'
+          git push
