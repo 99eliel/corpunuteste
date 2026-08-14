@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-29-restantes-faccoes-complementares-1",
-  "updatedAt": "2026-07-30T00:30:00-03:00",
-  "notes": "Versão de compatibilidade mantida igual ao APP_VERSION interno do update.js legado. As novas atualizações são controladas por corponu-release.json, sem apagar cache nem desregistrar o PWA."
+  "version": "2026-07-30-modo-web-sem-pwa-15",
+  "updatedAt": "2026-08-14T15:27:00-03:00",
+  "notes": "Arquivo mantido apenas por compatibilidade com update.js legado. A versão foi alinhada ao APP_VERSION interno para impedir recargas e limpezas de cache conflitantes. As atualizações reais do sistema são controladas por corponu-release.json e corponu-atualizador.js."
 }
