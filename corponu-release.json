@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-14-faccoes-processo-lateral-estavel-163",
-  "updatedAt": "2026-08-14T13:56:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Corrigido o carregamento intermitente do seletor de processo em Facções > Lateral e Alça. A lista agora mantém opções válidas durante leituras assíncronas, reconhece corretamente a aba Lateral mesmo após a troca do rótulo Corte, inclui LATERAL na base segura e evita que carregamentos concorrentes deixem o seletor vazio."
+  "version": "2026-08-14-faccoes-lateral-processos-fixos-164",
+  "updatedAt": "2026-08-14T14:39:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Correção definitiva do seletor em Facções > Lateral e Alça > Registrar saída: enquanto esse modal estiver aberto, o campo Processo a ser feito é protegido e contém sempre LATERAL e ALÇA. A correção não depende da leitura do Firebase e restaura imediatamente as opções caso outro módulo tente limpar ou substituir o seletor."
 }
