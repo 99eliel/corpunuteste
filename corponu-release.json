@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-10-teste-manejo-fase-lateral-162",
-  "updatedAt": "2026-08-10T12:45:00-03:00",
-  "notes": "AMBIENTE DE TESTE. No Manejo Sutiã, a fase existente passa a aparecer como Fase Bojo e foi adicionada uma Fase Lateral independente, com filtro múltiplo, sugestões gerenciáveis pelo administrador e salvamento em manejosSetores.sutia.faseLateral. OP, REF e QTI ficam compactos com largura fixa; os demais campos repartem o espaço restante da tela. Manejo Calcinha e o sistema principal não foram alterados."
+  "version": "2026-08-14-faccoes-processo-lateral-estavel-163",
+  "updatedAt": "2026-08-14T13:56:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Corrigido o carregamento intermitente do seletor de processo em Facções > Lateral e Alça. A lista agora mantém opções válidas durante leituras assíncronas, reconhece corretamente a aba Lateral mesmo após a troca do rótulo Corte, inclui LATERAL na base segura e evita que carregamentos concorrentes deixem o seletor vazio."
 }
