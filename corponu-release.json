@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-14-faccoes-lateral-processos-isolados-165",
-  "updatedAt": "2026-08-14T14:47:00-03:00",
-  "notes": "AMBIENTE DE TESTE. A aba Facções > Lateral e Alça agora usa uma lista de processos totalmente isolada: somente LATERAL e ALÇA. O carregador genérico não adiciona mais processos de calcinha, sutiã, preços, facções ou configurações nessa aba, e qualquer tentativa posterior de alterar o seletor é corrigida imediatamente."
+  "version": "2026-08-14-faccoes-grupos-configuracao-166",
+  "updatedAt": "2026-08-14T15:24:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Corrigido o campo Quem vai fazer no registro de saída. O seletor agora usa como fonte principal os grupos salvos em configuracoes/grupos-faccoes-processos, exatamente os mesmos vínculos definidos no Gerenciador de facções. Cadastros antigos continuam compatíveis por meio do vínculo individual e das listas históricas de cada processo."
 }
