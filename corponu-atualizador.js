@@ -1,30 +1,55 @@
 (() => {
   "use strict";
 
-  const LOCAL_RELEASE = "2026-08-04-calcinha-planejamento-opcional-129";
-  const INTERVALO_VERIFICACAO = 60 * 1000;
-  const RELOAD_KEY = "corponu_web_release_recarregada";
+  const UPDATER_BUILD = "2026-08-14-auto-update-estavel-167";
+  const INTERVALO_VERIFICACAO = 30 * 1000;
+  const ATRASO_ATUALIZACAO_MS = 4500;
+  const APPLIED_KEY = "corponu_release_aplicada";
+  const IN_PROGRESS_KEY = "corponu_release_em_atualizacao";
+  const LAST_CHECK_KEY = "corponu_release_ultima_verificacao";
 
-  if (window.__CORPONU_ATUALIZADOR_WEB__ === LOCAL_RELEASE) return;
-  window.__CORPONU_ATUALIZADOR_WEB__ = LOCAL_RELEASE;
-  window.CORPONU_RELEASE_VERSION = LOCAL_RELEASE;
+  if (window.__CORPONU_ATUALIZADOR_WEB__ === UPDATER_BUILD) return;
+  window.__CORPONU_ATUALIZADOR_WEB__ = UPDATER_BUILD;
+  window.CORPONU_RELEASE_VERSION = UPDATER_BUILD;
   window.__corponuAutoUpdateIniciado = true;
 
   let verificando = false;
+  let atualizacaoAgendada = false;
+
+  function releaseDaUrl() {
+    try {
+      return new URL(window.location.href).searchParams.get("release") || "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function releaseAplicada() {
+    try {
+      return localStorage.getItem(APPLIED_KEY) || "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function versaoAssets() {
+    return releaseDaUrl() || releaseAplicada() || UPDATER_BUILD;
+  }
 
   function reservarModoCalcinhaOpcional() {
     if (document.querySelector('script[data-corponu-dual-mode="1"]')) return;
     const marcador = document.createElement("script");
     marcador.dataset.corponuDualMode = "1";
-    marcador.dataset.corponuDualOpcionalGuard = LOCAL_RELEASE;
+    marcador.dataset.corponuDualOpcionalGuard = versaoAssets();
     document.head.appendChild(marcador);
   }
 
   function carregarScript(nomeArquivo, marcador, mensagemErro) {
     const existente = [...document.scripts].find(script => String(script.src || "").includes(nomeArquivo));
     if (existente) return existente;
+
     const script = document.createElement("script");
-    script.src = `./${nomeArquivo}?v=${encodeURIComponent(LOCAL_RELEASE)}&t=${Date.now()}`;
+    script.src = `./${nomeArquivo}?v=${encodeURIComponent(versaoAssets())}&t=${Date.now()}`;
     script.async = false;
     script.dataset.corponuModulo = marcador;
     script.onerror = () => console.error(mensagemErro);
@@ -83,6 +108,7 @@
       ["corponu-pendencias-valor-seguro.js", "pendencias-valor-seguro", "Não foi possível salvar e recalcular os valores pendentes com segurança."],
       ["corponu-verificacao-sutia-completo.js", "verificacao-sutia-completo-segura", "Não foi possível carregar a verificação segura do Sutiã Completo."]
     ];
+
     modulos.forEach(([arquivo, marcador, erro]) => carregarScript(arquivo, marcador, erro));
   }
 
@@ -91,49 +117,122 @@
       .forEach(id => document.getElementById(id)?.remove());
   }
 
-  async function removerPwaAntigo() {
+  function mostrarAtualizacao(mensagem) {
+    let toast = document.getElementById("corponuToastAtualizacaoAutomatica");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "corponuToastAtualizacaoAutomatica";
+      toast.style.cssText = [
+        "position:fixed",
+        "right:18px",
+        "bottom:18px",
+        "z-index:1000000",
+        "background:#111827",
+        "color:#fff",
+        "padding:12px 15px",
+        "border-radius:12px",
+        "box-shadow:0 14px 40px rgba(15,23,42,.28)",
+        "font:700 13px/1.4 Arial,sans-serif",
+        "max-width:360px"
+      ].join(";");
+      document.body.appendChild(toast);
+    }
+    toast.textContent = mensagem;
+  }
+
+  async function limparCachesParaAtualizacao() {
     try {
       if ("serviceWorker" in navigator && navigator.serviceWorker.getRegistrations) {
         const registros = await navigator.serviceWorker.getRegistrations();
         await Promise.all(registros.map(registro => registro.unregister()));
       }
     } catch (error) {
-      console.warn("Não foi possível remover o service worker antigo.", error);
+      console.warn("Não foi possível remover service worker antigo.", error);
     }
+
     try {
       if ("caches" in window) {
         const chaves = await caches.keys();
-        await Promise.all(chaves.filter(chave => chave.startsWith("op-confeccao-")).map(chave => caches.delete(chave)));
+        await Promise.all(
+          chaves
+            .filter(chave => chave.startsWith("op-confeccao-") || chave.startsWith("corponu-"))
+            .map(chave => caches.delete(chave))
+        );
       }
     } catch (error) {
-      console.warn("Não foi possível remover o cache antigo do PWA.", error);
+      console.warn("Não foi possível limpar caches antigos do CorpoNu.", error);
     }
   }
 
-  function recarregarUmaVez(versao) {
-    const release = String(versao || "").trim();
-    if (!release || release === LOCAL_RELEASE) return;
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("release") === release) return;
-    const chave = `${RELOAD_KEY}_${release}`;
+  function marcarReleaseAplicada(release) {
     try {
-      const ultima = Number(sessionStorage.getItem(chave) || 0);
-      if (Date.now() - ultima < 30000) return;
-      sessionStorage.setItem(chave, String(Date.now()));
-    } catch (error) {}
-    url.searchParams.set("release", release);
-    url.searchParams.set("t", String(Date.now()));
-    setTimeout(() => window.location.replace(url.toString()), 250);
+      localStorage.setItem(APPLIED_KEY, release);
+      localStorage.removeItem(IN_PROGRESS_KEY);
+    } catch (_) {}
   }
 
-  async function verificarRelease() {
-    if (verificando) return;
+  function concluirReleaseDaUrlSeNecessario(remoteRelease) {
+    const urlRelease = releaseDaUrl();
+    if (!urlRelease || urlRelease !== remoteRelease) return false;
+
+    // A página já voltou usando a release solicitada. Os módulos complementares
+    // são carregados com timestamp, então marcamos esta versão como aplicada.
+    marcarReleaseAplicada(remoteRelease);
+    return true;
+  }
+
+  async function recarregarParaRelease(release) {
+    if (atualizacaoAgendada) return;
+    atualizacaoAgendada = true;
+
+    try {
+      localStorage.setItem(IN_PROGRESS_KEY, release);
+    } catch (_) {}
+
+    mostrarAtualizacao("Nova versão disponível. O sistema vai atualizar sozinho...");
+
+    window.setTimeout(async () => {
+      try {
+        mostrarAtualizacao("Atualizando o sistema...");
+        await limparCachesParaAtualizacao();
+      } finally {
+        const url = new URL(window.location.href);
+        url.searchParams.set("release", release);
+        url.searchParams.set("atualizacao", String(Date.now()));
+        window.location.replace(url.toString());
+      }
+    }, ATRASO_ATUALIZACAO_MS);
+  }
+
+  async function verificarRelease(forcar = false) {
+    if (verificando || atualizacaoAgendada) return;
+
+    if (!forcar) {
+      try {
+        const ultima = Number(sessionStorage.getItem(LAST_CHECK_KEY) || 0);
+        if (Date.now() - ultima < 5000) return;
+        sessionStorage.setItem(LAST_CHECK_KEY, String(Date.now()));
+      } catch (_) {}
+    }
+
     verificando = true;
     try {
-      const resposta = await fetch(`corponu-release.json?ts=${Date.now()}`, { cache: "no-store" });
+      const resposta = await fetch(`./corponu-release.json?ts=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" }
+      });
       if (!resposta.ok) return;
+
       const dados = await resposta.json();
-      recarregarUmaVez(dados?.version);
+      const remoteRelease = String(dados?.version || "").trim();
+      if (!remoteRelease) return;
+
+      if (concluirReleaseDaUrlSeNecessario(remoteRelease)) return;
+
+      const aplicada = releaseAplicada();
+      if (aplicada === remoteRelease) return;
+
+      await recarregarParaRelease(remoteRelease);
     } catch (error) {
       console.warn("Não foi possível verificar a versão online do CorpoNu.", error);
     } finally {
@@ -141,20 +240,32 @@
     }
   }
 
-  async function iniciar() {
+  function instalarVerificacoesAutomaticas() {
+    window.setInterval(() => verificarRelease(false), INTERVALO_VERIFICACAO);
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) verificarRelease(true);
+    });
+
+    window.addEventListener("focus", () => verificarRelease(true));
+    window.addEventListener("pageshow", () => verificarRelease(true));
+    window.addEventListener("online", () => verificarRelease(true));
+  }
+
+  function iniciar() {
     reservarModoCalcinhaOpcional();
     carregarModulos();
     removerAvisosAntigos();
-    await removerPwaAntigo();
-    await verificarRelease();
-    setInterval(verificarRelease, INTERVALO_VERIFICACAO);
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) verificarRelease(); });
-    window.addEventListener("focus", verificarRelease);
-    window.addEventListener("online", verificarRelease);
+    verificarRelease(true);
+    instalarVerificacoesAutomaticas();
   }
 
   reservarModoCalcinhaOpcional();
   carregarModulos();
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true });
-  else iniciar();
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", iniciar, { once: true });
+  } else {
+    iniciar();
+  }
 })();
