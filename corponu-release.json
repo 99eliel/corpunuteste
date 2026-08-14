@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-14-faccoes-lateral-processos-fixos-164",
-  "updatedAt": "2026-08-14T14:39:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Correção definitiva do seletor em Facções > Lateral e Alça > Registrar saída: enquanto esse modal estiver aberto, o campo Processo a ser feito é protegido e contém sempre LATERAL e ALÇA. A correção não depende da leitura do Firebase e restaura imediatamente as opções caso outro módulo tente limpar ou substituir o seletor."
+  "version": "2026-08-14-faccoes-lateral-processos-isolados-165",
+  "updatedAt": "2026-08-14T14:47:00-03:00",
+  "notes": "AMBIENTE DE TESTE. A aba Facções > Lateral e Alça agora usa uma lista de processos totalmente isolada: somente LATERAL e ALÇA. O carregador genérico não adiciona mais processos de calcinha, sutiã, preços, facções ou configurações nessa aba, e qualquer tentativa posterior de alterar o seletor é corrigida imediatamente."
 }
