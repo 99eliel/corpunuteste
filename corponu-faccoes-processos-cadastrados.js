@@ -1,9 +1,10 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-14-faccoes-processos-saida-estavel-163";
+  const VERSION = "2026-08-14-faccoes-lateral-processos-isolados-165";
   const FIREBASE_VERSION = "10.12.5";
   const CACHE_MS = 60000;
+  const PROCESSOS_LATERAL_ALCA = ["LATERAL", "ALÇA"];
   const PROCESSOS_PADRAO = [
     "ENCAPAR BOJO",
     "ALÇA",
@@ -22,6 +23,7 @@
   let cache = null;
   let cacheEm = 0;
   let sequenciaPreenchimento = 0;
+  let aplicandoLateral = false;
 
   const normalizar = valor => String(valor ?? "")
     .normalize("NFD")
@@ -76,22 +78,22 @@
         : faccao?.atendeSutia === true || /SUTIA|BOJO|ALCA|LATERAL/.test(texto),
       calcinha: typeof faccao?.trabalhaCalcinha === "boolean"
         ? faccao.trabalhaCalcinha
-        : faccao?.atendeCalcinha === true || texto.includes("CALCINHA") || texto.includes("LATERAL")
+        : faccao?.atendeCalcinha === true || texto.includes("CALCINHA")
     };
   }
 
   function abaAtual() {
+    const modal = document.getElementById("modalSaida3");
     const titulo = normalizar(document.getElementById("s3titulo")?.textContent);
     const botaoLateral = document.getElementById("abaFaccaoCorte");
     const painelLateral = document.getElementById("painelFaccoesCorte");
     const lateralAtiva = botaoLateral?.classList.contains("active") === true;
     const painelLateralVisivel = painelLateral && !painelLateral.classList.contains("hidden");
+    const modalAberto = modal && !modal.classList.contains("hidden");
 
-    // A área antiga "Corte" é apresentada visualmente como "Lateral e Alça".
-    // Não depender apenas do texto "Corte", pois outro módulo troca esse rótulo.
     if (
-      lateralAtiva ||
-      painelLateralVisivel ||
+      (modalAberto && lateralAtiva) ||
+      (modalAberto && painelLateralVisivel) ||
       titulo.includes("CORTE") ||
       titulo.includes("LATERAL") ||
       titulo.includes("ALCA")
@@ -121,19 +123,15 @@
     const porAba = {
       sutia: processosDoDOM(),
       calcinha: processosDoDOM(),
-      corte: processosDoDOM()
+      corte: new Map()
     };
 
+    PROCESSOS_LATERAL_ALCA.forEach(nome => adicionarLista(porAba.corte, nome));
+
     PROCESSOS_PADRAO.forEach(nome => {
-      adicionarLista(porAba.corte, nome);
       const chave = normalizar(nome);
       if (chave.includes("CALCINHA")) adicionarLista(porAba.calcinha, nome);
-      else if (chave === "LATERAL") {
-        adicionarLista(porAba.sutia, nome);
-        adicionarLista(porAba.calcinha, nome);
-      } else {
-        adicionarLista(porAba.sutia, nome);
-      }
+      else adicionarLista(porAba.sutia, nome);
     });
 
     return porAba;
@@ -165,7 +163,6 @@
           faccao.processo
         ];
         listas.forEach(lista => {
-          adicionarLista(porAba.corte, lista);
           if (classe.sutia) adicionarLista(porAba.sutia, lista);
           if (classe.calcinha) adicionarLista(porAba.calcinha, lista);
         });
@@ -176,15 +173,12 @@
         if (preco.ativo === false) return;
         const nome = preco.processo || preco.servicoNome || preco.processoMovimentacao;
         if (!nome) return;
-        adicionarLista(porAba.corte, nome);
         const setor = normalizar(preco.setor || preco.area || preco.tipoPeca);
         const processo = normalizar(nome);
+
         if (setor.includes("CALCINHA") || processo.includes("CALCINHA")) {
           adicionarLista(porAba.calcinha, nome);
-        } else if (processo === "LATERAL") {
-          adicionarLista(porAba.sutia, nome);
-          adicionarLista(porAba.calcinha, nome);
-        } else if (setor.includes("SUTIA") || /SUTIA|BOJO|ALCA/.test(processo)) {
+        } else if (setor.includes("SUTIA") || /SUTIA|BOJO|ALCA|LATERAL/.test(processo)) {
           adicionarLista(porAba.sutia, nome);
         } else {
           adicionarLista(porAba.sutia, nome);
@@ -195,10 +189,14 @@
       const configuracao = configSnap.exists() ? configSnap.data() : {};
       (Array.isArray(configuracao.processos) ? configuracao.processos : []).forEach(processo => {
         if (processo?.ativo === false) return;
-        adicionarLista(porAba.corte, processo);
         if (processo?.atendeSutia === true) adicionarLista(porAba.sutia, processo);
         if (processo?.atendeCalcinha === true) adicionarLista(porAba.calcinha, processo);
       });
+
+      // A antiga área "corte" hoje é exclusivamente Lateral e Alça.
+      // Não recebe processos vindos de DOM, facções, preços ou configurações genéricas.
+      porAba.corte = new Map();
+      PROCESSOS_LATERAL_ALCA.forEach(nome => adicionarLista(porAba.corte, nome));
 
       cache = porAba;
       cacheEm = Date.now();
@@ -217,7 +215,7 @@
 
     const select = document.createElement("select");
     [...atual.attributes].forEach(atributo => {
-      if (atributo.name === "type" || atributo.name === "placeholder") return;
+      if (["type", "placeholder", "list"].includes(atributo.name)) return;
       select.setAttribute(atributo.name, atributo.value);
     });
     select.id = "s3processo";
@@ -227,19 +225,6 @@
     return select;
   }
 
-  function itensPadraoDaAba(aba) {
-    if (aba === "calcinha") {
-      return PROCESSOS_PADRAO.filter(nome => {
-        const chave = normalizar(nome);
-        return chave.includes("CALCINHA") || chave === "LATERAL";
-      });
-    }
-    if (aba === "sutia") {
-      return PROCESSOS_PADRAO.filter(nome => !normalizar(nome).includes("CALCINHA"));
-    }
-    return [...PROCESSOS_PADRAO];
-  }
-
   function opcoesValidas(select) {
     if (!(select instanceof HTMLSelectElement)) return [];
     return [...select.options]
@@ -247,7 +232,49 @@
       .filter(Boolean);
   }
 
+  function assinaturaSelect(select) {
+    return opcoesValidas(select).map(normalizar).join("|");
+  }
+
+  function aplicarLateralAlca() {
+    if (aplicandoLateral || abaAtual() !== "corte") return false;
+    const select = garantirSelect();
+    if (!select) return false;
+
+    const esperado = "LATERAL|ALCA";
+    if (assinaturaSelect(select) === esperado && !select.disabled) return true;
+
+    aplicandoLateral = true;
+    try {
+      const anterior = normalizar(select.value);
+      select.innerHTML = `
+        <option value="">Selecione o processo</option>
+        <option value="LATERAL">LATERAL</option>
+        <option value="ALÇA">ALÇA</option>
+      `;
+      select.disabled = false;
+      if (anterior === "LATERAL") select.value = "LATERAL";
+      else if (["ALCA", "ALCAS"].includes(anterior)) select.value = "ALÇA";
+    } finally {
+      aplicandoLateral = false;
+    }
+    return true;
+  }
+
+  function itensPadraoDaAba(aba) {
+    if (aba === "corte") return [...PROCESSOS_LATERAL_ALCA];
+    if (aba === "calcinha") {
+      return PROCESSOS_PADRAO.filter(nome => normalizar(nome).includes("CALCINHA"));
+    }
+    return PROCESSOS_PADRAO.filter(nome => !normalizar(nome).includes("CALCINHA"));
+  }
+
   function preencherFallbackImediato() {
+    if (abaAtual() === "corte") {
+      aplicarLateralAlca();
+      return document.getElementById("s3processo");
+    }
+
     const select = garantirSelect();
     if (!select || opcoesValidas(select).length) return select;
 
@@ -263,22 +290,29 @@
     const select = garantirSelect();
     if (!select) return;
 
-    const minhaSequencia = ++sequenciaPreenchimento;
     const abaSolicitada = abaAtual();
-    const valorAnterior = select.value;
-    const tinhaOpcoes = opcoesValidas(select).length > 0;
 
-    // Se já existe uma lista válida, não a apaga durante uma atualização assíncrona.
-    // Isso evita o select "vazio" quando dois carregamentos se cruzam.
-    if (!tinhaOpcoes) {
-      preencherFallbackImediato();
+    // Lateral e Alça é uma lista fechada. Não consulta nem espera base genérica.
+    if (abaSolicitada === "corte") {
+      ++sequenciaPreenchimento;
+      aplicarLateralAlca();
+      return;
     }
+
+    const minhaSequencia = ++sequenciaPreenchimento;
+    const valorAnterior = select.value;
+    if (!opcoesValidas(select).length) preencherFallbackImediato();
 
     try {
       const base = await carregarBase(forcar);
       if (minhaSequencia !== sequenciaPreenchimento) return;
 
       const abaAplicar = abaAtual();
+      if (abaAplicar === "corte") {
+        aplicarLateralAlca();
+        return;
+      }
+
       const mapa = base[abaAplicar] || base[abaSolicitada] || new Map();
       let itens = [...mapa.values()]
         .filter(Boolean)
@@ -297,28 +331,37 @@
     } catch (error) {
       console.error("Não foi possível carregar os processos cadastrados.", error);
       if (minhaSequencia !== sequenciaPreenchimento) return;
-
-      // A leitura remota pode falhar, mas o operador continua com a base segura local.
-      preencherFallbackImediato();
-      select.disabled = false;
+      if (abaAtual() === "corte") aplicarLateralAlca();
+      else preencherFallbackImediato();
     }
   }
 
   function preparar() {
+    if (abaAtual() === "corte") {
+      aplicarLateralAlca();
+      return;
+    }
     const select = garantirSelect();
     if (!select) return;
     if (!opcoesValidas(select).length) preencherFallbackImediato();
   }
 
   function agendarPreenchimento(forcar = false) {
-    [0, 120, 420].forEach(atraso => {
-      window.setTimeout(() => preencherSelect(forcar && atraso === 0), atraso);
+    [0, 80, 220, 500].forEach(atraso => {
+      window.setTimeout(() => {
+        if (abaAtual() === "corte") aplicarLateralAlca();
+        else preencherSelect(forcar && atraso === 0);
+      }, atraso);
     });
   }
 
   document.addEventListener("pointerdown", event => {
     const alvo = event.target instanceof Element ? event.target : null;
     if (!alvo?.matches?.("#s3processo")) return;
+    if (abaAtual() === "corte") {
+      aplicarLateralAlca();
+      return;
+    }
     preparar();
     if (opcoesValidas(alvo).length <= 1) preencherSelect(false);
   }, true);
@@ -333,19 +376,20 @@
     const alvo = event.target instanceof Element ? event.target : null;
     if (!alvo) return;
 
-    if (alvo.closest("#btnSaidaAbas, #btnSaidaCorteNovo")) {
-      preparar();
-      agendarPreenchimento(false);
-    }
-
-    if (alvo.closest("#s3buscar")) {
+    if (alvo.closest("#btnSaidaAbas, #btnSaidaCorteNovo, #s3buscar")) {
       preparar();
       agendarPreenchimento(false);
     }
   }, true);
 
   const observer = new MutationObserver(mutations => {
+    if (aplicandoLateral) return;
     preparar();
+
+    const mexeuNoProcesso = mutations.some(mutation =>
+      mutation.target instanceof Element &&
+      (mutation.target.id === "s3processo" || mutation.target.closest?.("#s3processo"))
+    );
 
     const abriuModal = mutations.some(mutation =>
       mutation.type === "attributes" &&
@@ -361,6 +405,11 @@
       !mutation.target.classList.contains("hidden")
     );
 
+    if (abaAtual() === "corte" && (mexeuNoProcesso || abriuModal || exibiuCampos)) {
+      aplicarLateralAlca();
+      return;
+    }
+
     if (abriuModal || exibiuCampos) agendarPreenchimento(false);
   });
 
@@ -370,8 +419,9 @@
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["class"]
+      attributeFilter: ["class", "disabled"]
     });
+
     window.addEventListener("pageshow", () => {
       preparar();
       if (!document.getElementById("modalSaida3")?.classList.contains("hidden")) {
