@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-14-faccoes-grupos-configuracao-166",
-  "updatedAt": "2026-08-14T15:24:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Corrigido o campo Quem vai fazer no registro de saída. O seletor agora usa como fonte principal os grupos salvos em configuracoes/grupos-faccoes-processos, exatamente os mesmos vínculos definidos no Gerenciador de facções. Cadastros antigos continuam compatíveis por meio do vínculo individual e das listas históricas de cada processo."
+  "version": "2026-08-14-auto-update-estavel-167",
+  "updatedAt": "2026-08-14T15:29:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Reorganizado o sistema de atualização automática. O navegador verifica novas releases a cada 30 segundos e também ao voltar para a aba, ao recuperar o foco, ao voltar a ficar online e no pageshow. Ao detectar uma nova versão, aguarda 4,5 segundos para os arquivos terminarem de propagar, limpa caches antigos, remove service worker legado e recarrega automaticamente. O version.json legado foi alinhado ao APP_VERSION de update.js para não competir com o atualizador novo."
 }
