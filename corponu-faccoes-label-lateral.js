@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-10-faccoes-label-lateral-alca-161";
+  const VERSION = "2026-08-14-faccoes-lateral-processos-fixos-164";
 
   if (window.__CORPONU_FACCOES_LABEL_LATERAL__ === VERSION) return;
   window.__CORPONU_FACCOES_LABEL_LATERAL__ = VERSION;
@@ -14,10 +14,18 @@
     "s3titulo"
   ];
 
-  const STYLE_ID = "corponuLateralSemCanceladas161";
+  const STYLE_ID = "corponuLateralSemCanceladas164";
 
   let aplicando = false;
   let agendado = false;
+  let protegendoProcesso = false;
+
+  const normalizar = valor => String(valor ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
 
   function substituirTexto(no) {
     const atual = String(no?.nodeValue || "");
@@ -93,6 +101,63 @@
     });
   }
 
+  function modalSaidaLateralAberto() {
+    const modal = document.getElementById("modalSaida3");
+    if (!modal || modal.classList.contains("hidden")) return false;
+
+    const titulo = normalizar(document.getElementById("s3titulo")?.textContent);
+    const abaLateral = document.getElementById("abaFaccaoCorte")?.classList.contains("active") === true;
+
+    return abaLateral || titulo.includes("LATERAL") || titulo.includes("CORTE");
+  }
+
+  function assinaturaProcessos(select) {
+    if (!(select instanceof HTMLSelectElement)) return "";
+    return [...select.options]
+      .map(option => normalizar(option.value || option.textContent))
+      .filter(Boolean)
+      .join("|");
+  }
+
+  function garantirProcessosLateralAlca() {
+    if (protegendoProcesso || !modalSaidaLateralAberto()) return;
+
+    let campo = document.getElementById("s3processo");
+    if (!campo) return;
+
+    protegendoProcesso = true;
+    try {
+      const valorAnterior = normalizar(campo.value);
+
+      if (!(campo instanceof HTMLSelectElement)) {
+        const select = document.createElement("select");
+        [...campo.attributes].forEach(atributo => {
+          if (["type", "placeholder", "list"].includes(atributo.name)) return;
+          select.setAttribute(atributo.name, atributo.value);
+        });
+        select.id = "s3processo";
+        select.required = true;
+        campo.replaceWith(select);
+        campo = select;
+      }
+
+      const assinaturaEsperada = "LATERAL|ALCA";
+      if (assinaturaProcessos(campo) !== assinaturaEsperada || campo.disabled) {
+        campo.innerHTML = `
+          <option value="">Selecione o processo</option>
+          <option value="LATERAL">LATERAL</option>
+          <option value="ALÇA">ALÇA</option>
+        `;
+        campo.disabled = false;
+      }
+
+      if (valorAnterior === "LATERAL") campo.value = "LATERAL";
+      else if (["ALCA", "ALCAS"].includes(valorAnterior)) campo.value = "ALÇA";
+    } finally {
+      protegendoProcesso = false;
+    }
+  }
+
   function aplicarNomeLateral() {
     if (aplicando) return;
     aplicando = true;
@@ -104,6 +169,7 @@
         .querySelectorAll('#faccoes [data-area-faccoes="corte"]')
         .forEach(corrigirTextosVisiveis);
       removerLinhasCanceladas();
+      garantirProcessosLateralAlca();
     } finally {
       aplicando = false;
     }
@@ -125,10 +191,29 @@
     observer.observe(document.body, {
       childList: true,
       subtree: true,
-      characterData: true
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["class", "disabled"]
     });
 
-    document.addEventListener("click", agendarAplicacao, true);
+    document.addEventListener("pointerdown", event => {
+      const alvo = event.target instanceof Element ? event.target : null;
+      if (alvo?.matches?.("#s3processo")) garantirProcessosLateralAlca();
+    }, true);
+
+    document.addEventListener("focusin", event => {
+      const alvo = event.target instanceof Element ? event.target : null;
+      if (alvo?.matches?.("#s3processo")) garantirProcessosLateralAlca();
+    }, true);
+
+    document.addEventListener("click", event => {
+      agendarAplicacao();
+      const alvo = event.target instanceof Element ? event.target : null;
+      if (alvo?.closest?.("#btnSaidaCorteNovo, #s3buscar")) {
+        [0, 80, 220, 600].forEach(atraso => window.setTimeout(garantirProcessosLateralAlca, atraso));
+      }
+    }, true);
+
     window.addEventListener("pageshow", agendarAplicacao);
   }
 
