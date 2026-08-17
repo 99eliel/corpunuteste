@@ -27,7 +27,7 @@
     (() => {
       "use strict";
 
-      const LOADER_BUILD = "2026-08-17-auto-update-definitivo-170";
+      const LOADER_BUILD = "2026-08-17-calcinha-fase-estavel-171";
       const SHELL_URL = "./corponu-app.html";
       const RELEASE_URL = "./corponu-release.json";
 
@@ -84,7 +84,9 @@
         );
 
         const bootstrap = `<script>window.__CORPONU_ASSET_VERSION__=${JSON.stringify(release)};window.__CORPONU_LOADER_BUILD__=${JSON.stringify(LOADER_BUILD)};window.__CORPONU_LOADER_AT__=${instante};<\/script>`;
+        const faseEstavel = `<script src="./corponu-calcinha-fase-estavel.js?v=${versao}&cb=${instante}"><\/script>`;
         resultado = resultado.replace(/<head>/i, `<head>${bootstrap}`);
+        resultado = resultado.replace(/<\/body>/i, `${faseEstavel}</body>`);
         return resultado;
       }
 
