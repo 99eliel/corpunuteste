@@ -218,3 +218,17 @@
 
   iniciar();
 })();
+
+(() => {
+  "use strict";
+
+  const RUNTIME = "./corponu-main-runtime-180.js";
+  if (document.querySelector('script[data-corponu-main-runtime-loader="180"]')) return;
+
+  const script = document.createElement("script");
+  script.src = `${RUNTIME}?v=2026-08-17-main-runtime-estavel-180&t=${Date.now()}`;
+  script.async = false;
+  script.dataset.corponuMainRuntimeLoader = "180";
+  script.onerror = () => console.error("Não foi possível carregar o runtime principal 180.");
+  (document.head || document.documentElement).appendChild(script);
+})();
