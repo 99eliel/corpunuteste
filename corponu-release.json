@@ -1,5 +1,4 @@
 {
-  "version": "2026-08-17-calcinha-fase-estavel-171",
-  "updatedAt": "2026-08-17T09:04:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Correção pontual no Manejo Calcinha para eliminar a piscada ao alterar a Fase. A tabela agora normaliza Linha e oculta os campos exclusivos de Sutiã antes do próximo frame, impedindo que nomes de Silk/Tecido apareçam temporariamente. Durante a edição da Fase, o observador genérico de classes é pausado por instantes para não interpretar mudanças internas da linha como troca de página. Nenhuma regra de gravação, filtro, pagamento, facção ou Manejo Sutiã foi alterada."
-}
+  "version": "2026-08-17-auto-update-por-aba-172",
+  "updatedAt": "2026-08-17T09:13:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Atualização automática reforçada por aba. Cada página agora mantém um vigia próprio da release realmente carregada, sem usar localStorage como fonte de verdade. A cada 15 segundos e ao voltar para a aba, recuperar foco, voltar a ficar online ou receber pageshow, o sistema consulta a release sem cache. Se a versão online for diferente da versão efetivamente carregada naquela aba, busca um index.html novo com no-store e substitui a página diretamente, com fallback por navegação cache-bustada. Isso evita que uma aba atualizada faça outra aba antiga acreditar que também já foi atualizada."}
