@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-14-auto-update-estavel-167",
-  "updatedAt": "2026-08-14T15:29:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Reorganizado o sistema de atualização automática. O navegador verifica novas releases a cada 30 segundos e também ao voltar para a aba, ao recuperar o foco, ao voltar a ficar online e no pageshow. Ao detectar uma nova versão, aguarda 4,5 segundos para os arquivos terminarem de propagar, limpa caches antigos, remove service worker legado e recarrega automaticamente. O version.json legado foi alinhado ao APP_VERSION de update.js para não competir com o atualizador novo."
+  "version": "2026-08-17-calcinha-manejo-salvamento-estavel-168",
+  "updatedAt": "2026-08-17T08:40:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Correção isolada no salvamento do Manejo Calcinha. Durante a confirmação no Firestore, a tabela permanece visualmente estável enquanto os snapshots em tempo real são processados, evitando piscadas e a exibição rápida de vários nomes das listas de sugestões. A gravação, os campos, os filtros, o Manejo Sutiã e os demais módulos não foram alterados."
 }
