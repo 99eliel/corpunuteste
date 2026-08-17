@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-29-restantes-faccoes-complementares-1",
-  "updatedAt": "2026-07-30T00:30:00-03:00",
-  "notes": "Versão de compatibilidade mantida igual ao APP_VERSION interno do update.js legado. As novas atualizações são controladas por corponu-release.json, sem apagar cache nem desregistrar o PWA."
+  "version": "2026-08-17-main-bootstrap-auto-update-181",
+  "updatedAt": "2026-08-17T09:24:00-03:00",
+  "notes": "BOOTSTRAP DO ATUALIZADOR. O version.json foi avançado de propósito para que abas antigas, que ainda executam o update.js legado, detectem uma versão diferente e façam uma recarga automática. Após essa recarga, o runtime novo da main assume a verificação por corponu-release.json e elimina a dependência de Ctrl+F5 nas próximas versões."
 }
