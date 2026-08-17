@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-17-main-auto-update-calcinha-estavel-180",
-  "updatedAt": "2026-08-17T09:16:00-03:00",
-  "notes": "AMBIENTE PRINCIPAL. A main agora carrega um runtime isolado para estabilizar a troca de Fase no Manejo Calcinha e instalar um vigia de atualização por aba. O vigia compara a release realmente carregada na URL com corponu-release.json a cada 15 segundos, também ao voltar para a aba, recuperar foco ou conexão. Quando encontra versão nova, busca o index sem cache e reescreve os JS/CSS locais com cache busting da nova release, eliminando a dependência de Ctrl+F5 nas próximas atualizações. Nenhuma regra de gravação, pagamentos, facções ou Manejo Sutiã foi alterada."
+  "version": "2026-08-17-main-bootstrap-auto-update-181",
+  "updatedAt": "2026-08-17T09:24:00-03:00",
+  "notes": "AMBIENTE PRINCIPAL. Release de sincronização do atualizador: version.json e corponu-release.json passam a usar a mesma versão 181. As abas antigas podem perceber a mudança pelo version.json e recarregar; depois o runtime principal assume a verificação por aba a cada 15 segundos, com busca sem cache e cache busting dos JS/CSS. Nenhuma regra de negócio foi alterada."
 }
