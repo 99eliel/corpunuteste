@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-17-calcinha-manejo-salvamento-estavel-168",
-  "updatedAt": "2026-08-17T08:40:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Correção isolada no salvamento do Manejo Calcinha. Durante a confirmação no Firestore, a tabela permanece visualmente estável enquanto os snapshots em tempo real são processados, evitando piscadas e a exibição rápida de vários nomes das listas de sugestões. A gravação, os campos, os filtros, o Manejo Sutiã e os demais módulos não foram alterados."
+  "version": "2026-08-17-calcinha-manejo-sem-piscar-169",
+  "updatedAt": "2026-08-17T08:52:00-03:00",
+  "notes": "AMBIENTE DE TESTE. O salvamento do Manejo Calcinha agora ocorre sem qualquer piscada visual. A tabela permanece exatamente no lugar enquanto o Firestore processa as atualizações por trás e o estado final substitui o anterior no mesmo frame, sem tela branca, sem nomes intermediários e sem reconstruções visíveis. Nenhuma lógica de gravação, filtros, Manejo Sutiã ou outros módulos foi alterada."
 }
