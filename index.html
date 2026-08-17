@@ -27,7 +27,7 @@
     (() => {
       "use strict";
 
-      const LOADER_BUILD = "2026-08-17-calcinha-fase-estavel-171";
+      const LOADER_BUILD = "2026-08-17-auto-update-por-aba-172";
       const SHELL_URL = "./corponu-app.html";
       const RELEASE_URL = "./corponu-release.json";
 
@@ -67,12 +67,29 @@
         }
       }
 
+      function criarVigiaRelease(release) {
+        return `<script>(()=>{\n` +
+          `"use strict";\n` +
+          `const RELEASE_CARREGADA=${JSON.stringify(release)};\n` +
+          `const INTERVALO=15000;\n` +
+          `let verificando=false;let atualizando=false;\n` +
+          `window.__CORPONU_RELEASE_REAL__=RELEASE_CARREGADA;\n` +
+          `async function buscarRelease(){const r=await fetch('./corponu-release.json?watch='+Date.now(),{cache:'no-store',headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}});if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();return String(d&&d.version||'').trim();}\n` +
+          `function mostrar(msg){let e=document.getElementById('corponuWatchdogUpdate');if(!e){e=document.createElement('div');e.id='corponuWatchdogUpdate';e.style.cssText='position:fixed;right:18px;bottom:18px;z-index:2147483647;background:#111827;color:#fff;padding:12px 15px;border-radius:12px;box-shadow:0 14px 40px rgba(15,23,42,.28);font:700 13px/1.4 Arial,sans-serif;max-width:360px';document.body.appendChild(e);}e.textContent=msg;}\n` +
+          `async function limpar(){try{if('serviceWorker'in navigator&&navigator.serviceWorker.getRegistrations){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()));}}catch(_){}try{if('caches'in window){const ks=await caches.keys();await Promise.all(ks.filter(k=>k.startsWith('op-confeccao-')||k.startsWith('corponu-')).map(k=>caches.delete(k)));}}catch(_){}}\n` +
+          `async function carregarIndexNovo(remote){mostrar('Nova versão encontrada. Atualizando o sistema...');await limpar();try{const r=await fetch('./index.html?watchReload='+Date.now(),{cache:'no-store',headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}});if(!r.ok)throw new Error('HTTP '+r.status);const html=await r.text();if(!/<html[\\s>]/i.test(html))throw new Error('index inválido');try{const u=new URL(location.href);u.searchParams.set('release',remote);u.searchParams.set('autoupdate',String(Date.now()));history.replaceState(null,'',u.toString());}catch(_){}document.open();document.write(html);document.close();return;}catch(err){console.warn('[CorpoNu Watchdog] fallback por navegação.',err);}const u=new URL(location.href);u.searchParams.set('release',remote);u.searchParams.set('autoupdate',String(Date.now()));u.searchParams.set('_cb',String(Date.now()));location.replace(u.toString());}\n` +
+          `async function verificar(){if(verificando||atualizando)return;verificando=true;try{const remote=await buscarRelease();if(remote&&remote!==RELEASE_CARREGADA){atualizando=true;await carregarIndexNovo(remote);}}catch(err){console.debug('[CorpoNu Watchdog] verificação indisponível.',err);}finally{verificando=false;}}\n` +
+          `setInterval(verificar,INTERVALO);setTimeout(verificar,3000);\n` +
+          `document.addEventListener('visibilitychange',()=>{if(!document.hidden)verificar();});\n` +
+          `window.addEventListener('focus',verificar);window.addEventListener('pageshow',verificar);window.addEventListener('online',verificar);\n` +
+          `window.__CORPONU_RELEASE_WATCHDOG__={release:RELEASE_CARREGADA,verificar};\n` +
+          `})();<\/script>`;
+      }
+
       function aplicarVersaoNosAssets(html, release) {
         const versao = encodeURIComponent(release);
         const instante = Date.now();
 
-        // Todos os JS/CSS locais passam a ter uma URL diferente a cada release.
-        // Isso quebra o cache HTTP normal do navegador sem precisar de Ctrl+F5.
         let resultado = String(html || "").replace(
           /((?:src|href)=["'](?:\.\/)?(?!https?:|\/\/)[^"'?#]+?\.(?:js|css))(?:\?[^"']*)?(["'])/gi,
           `$1?v=${versao}&cb=${instante}$2`
@@ -85,8 +102,9 @@
 
         const bootstrap = `<script>window.__CORPONU_ASSET_VERSION__=${JSON.stringify(release)};window.__CORPONU_LOADER_BUILD__=${JSON.stringify(LOADER_BUILD)};window.__CORPONU_LOADER_AT__=${instante};<\/script>`;
         const faseEstavel = `<script src="./corponu-calcinha-fase-estavel.js?v=${versao}&cb=${instante}"><\/script>`;
+        const vigiaRelease = criarVigiaRelease(release);
         resultado = resultado.replace(/<head>/i, `<head>${bootstrap}`);
-        resultado = resultado.replace(/<\/body>/i, `${faseEstavel}</body>`);
+        resultado = resultado.replace(/<\/body>/i, `${faseEstavel}${vigiaRelease}</body>`);
         return resultado;
       }
 
@@ -98,6 +116,7 @@
             url.searchParams.delete("atualizacao");
             url.searchParams.delete("v");
             url.searchParams.delete("t");
+            url.searchParams.delete("_cb");
             window.history.replaceState(null, "", url.toString());
           }
         } catch (_) {}
