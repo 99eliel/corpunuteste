@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-11-teste-cabecalho-manejo-texto-179",
-  "updatedAt": "2026-08-11T11:24:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Correção exclusivamente textual do cabeçalho do Manejo. Garante Nº OP, REF, SILK, TECIDO, FASE BOJO, FASE LATERAL, QTI, COR, NECESSIDADE, STATUS e AÇÕES no Sutiã; na Calcinha mantém FASE. Nenhuma lógica, filtro, largura, célula ou salvamento foi alterado."
+  "version": "2026-08-17-main-auto-update-calcinha-estavel-180",
+  "updatedAt": "2026-08-17T09:16:00-03:00",
+  "notes": "AMBIENTE PRINCIPAL. A main agora carrega um runtime isolado para estabilizar a troca de Fase no Manejo Calcinha e instalar um vigia de atualização por aba. O vigia compara a release realmente carregada na URL com corponu-release.json a cada 15 segundos, também ao voltar para a aba, recuperar foco ou conexão. Quando encontra versão nova, busca o index sem cache e reescreve os JS/CSS locais com cache busting da nova release, eliminando a dependência de Ctrl+F5 nas próximas atualizações. Nenhuma regra de gravação, pagamentos, facções ou Manejo Sutiã foi alterada."
 }
