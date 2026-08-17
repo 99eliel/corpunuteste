@@ -219,18 +219,19 @@
   iniciar();
 })();
 
-// Proteção visual isolada do salvamento no Manejo Calcinha.
-// Não altera a gravação nem o renderizador do sistema. Apenas mantém a tabela
-// visualmente estável enquanto os snapshots do Firestore são processados.
+// Salvamento visualmente contínuo no Manejo Calcinha.
+// A tabela que o usuário está vendo permanece imóvel enquanto o Firestore atualiza
+// a tabela real por trás. Ao terminar, a troca acontece no mesmo frame, sem branco,
+// sem nomes intermediários e sem reconstruções visíveis.
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-17-calcinha-manejo-salvamento-estavel-168";
-  const TEMPO_ESTABILIZACAO = 650;
+  const VERSION = "2026-08-17-calcinha-manejo-sem-piscar-169";
+  const TEMPO_ESTABILIZACAO = 700;
   const TEMPO_SEGURANCA = 10000;
 
-  if (window.__CORPONU_CALCINHA_MANEJO_SALVAMENTO_ESTAVEL__ === VERSION) return;
-  window.__CORPONU_CALCINHA_MANEJO_SALVAMENTO_ESTAVEL__ = VERSION;
+  if (window.__CORPONU_CALCINHA_MANEJO_SEM_PISCAR__ === VERSION) return;
+  window.__CORPONU_CALCINHA_MANEJO_SEM_PISCAR__ = VERSION;
 
   let salvamentoProtegido = false;
   let timerSeguranca = 0;
@@ -261,83 +262,53 @@
     });
   }
 
-  function criarProtecaoVisual(botao) {
-    const tabelaWrap = botao?.closest(".table-wrap") || document.querySelector("#manejo .table-wrap");
-    if (!(tabelaWrap instanceof HTMLElement)) return () => {};
+  function congelarTabelaSemAlterarVisual(botao) {
+    const tabelaReal = botao?.closest(".table-wrap") || document.querySelector("#manejo .table-wrap");
+    if (!(tabelaReal instanceof HTMLElement) || !tabelaReal.parentNode) return () => {};
 
-    const retangulo = tabelaWrap.getBoundingClientRect();
-    if (!retangulo.width || !retangulo.height) return () => {};
+    const scrollLeft = tabelaReal.scrollLeft;
+    const scrollTop = tabelaReal.scrollTop;
+    const displayAnterior = tabelaReal.style.display;
 
-    const botoesOriginais = [...tabelaWrap.querySelectorAll(".btn-save-manejo")];
-    const indiceBotao = botoesOriginais.indexOf(botao);
+    const tabelaVisivel = tabelaReal.cloneNode(true);
+    copiarEstadoDosCampos(tabelaReal, tabelaVisivel);
 
-    const copia = tabelaWrap.cloneNode(true);
-    copiarEstadoDosCampos(tabelaWrap, copia);
+    // A cópia é apenas a imagem viva do estado atual: nenhum clique é processado nela.
+    tabelaVisivel.removeAttribute("id");
+    tabelaVisivel.querySelectorAll("[id]").forEach(elemento => elemento.removeAttribute("id"));
+    tabelaVisivel.querySelectorAll("[onclick]").forEach(elemento => elemento.removeAttribute("onclick"));
+    tabelaVisivel.dataset.corponuManejoCalcinhaCongelado = VERSION;
+    tabelaVisivel.setAttribute("aria-hidden", "true");
+    tabelaVisivel.style.pointerEvents = "none";
 
-    const botoesCopia = [...copia.querySelectorAll(".btn-save-manejo")];
-    const botaoCopia = indiceBotao >= 0 ? botoesCopia[indiceBotao] : null;
-    if (botaoCopia) {
-      botaoCopia.textContent = "Salvando...";
-      botaoCopia.disabled = true;
-    }
+    // Primeiro colocamos uma cópia idêntica no mesmo lugar e, no mesmo ciclo,
+    // escondemos a tabela real. Assim não existe frame vazio nem mudança de posição.
+    tabelaReal.parentNode.insertBefore(tabelaVisivel, tabelaReal);
+    tabelaVisivel.scrollLeft = scrollLeft;
+    tabelaVisivel.scrollTop = scrollTop;
+    tabelaReal.style.display = "none";
 
-    // Evita IDs duplicados e qualquer ação acidental dentro da cópia visual.
-    copia.removeAttribute("id");
-    copia.querySelectorAll("[id]").forEach(elemento => elemento.removeAttribute("id"));
-    copia.querySelectorAll("[onclick]").forEach(elemento => elemento.removeAttribute("onclick"));
-
-    Object.assign(copia.style, {
-      position: "fixed",
-      left: `${retangulo.left}px`,
-      top: `${retangulo.top}px`,
-      width: `${retangulo.width}px`,
-      height: `${retangulo.height}px`,
-      maxWidth: `${retangulo.width}px`,
-      maxHeight: `${retangulo.height}px`,
-      margin: "0",
-      zIndex: "99960",
-      background: "#ffffff",
-      overflow: "hidden",
-      pointerEvents: "auto",
-      boxSizing: "border-box"
-    });
-
-    copia.setAttribute("aria-hidden", "true");
-    copia.dataset.corponuManejoCalcinhaProtecao = VERSION;
-
-    const bloqueador = document.createElement("div");
-    Object.assign(bloqueador.style, {
-      position: "absolute",
-      inset: "0",
-      zIndex: "10",
-      cursor: "wait",
-      background: "transparent"
-    });
-    bloqueador.addEventListener("click", evento => {
-      evento.preventDefault();
-      evento.stopPropagation();
-    });
-    copia.appendChild(bloqueador);
-
-    document.body.appendChild(copia);
-    copia.scrollLeft = tabelaWrap.scrollLeft;
-    copia.scrollTop = tabelaWrap.scrollTop;
-
-    let removida = false;
+    let restaurada = false;
     return () => {
-      if (removida) return;
-      removida = true;
-      copia.remove();
+      if (restaurada) return;
+      restaurada = true;
+
+      // Revela o estado final e remove a cópia no mesmo frame. Para o usuário,
+      // a linha simplesmente permanece no lugar com o valor já salvo.
+      tabelaReal.style.display = displayAnterior;
+      tabelaReal.scrollLeft = scrollLeft;
+      tabelaReal.scrollTop = scrollTop;
+      tabelaVisivel.remove();
     };
   }
 
-  function finalizarProtecao(removerProtecao) {
+  function finalizarProtecao(restaurarTabela) {
     window.clearTimeout(timerSeguranca);
     timerSeguranca = 0;
 
     window.setTimeout(() => {
       try {
-        removerProtecao?.();
+        restaurarTabela?.();
       } finally {
         salvamentoProtegido = false;
       }
@@ -359,13 +330,7 @@
     const salvarOriginal = window.salvarManejoLinha;
     if (typeof salvarOriginal !== "function") return;
 
-    // Fecha qualquer lista de nomes aberta antes dos snapshots começarem.
-    const campoAtivo = document.activeElement;
-    if (campoAtivo instanceof HTMLInputElement && campoAtivo.hasAttribute("list")) {
-      campoAtivo.blur();
-    }
-
-    const removerProtecao = criarProtecaoVisual(botao);
+    const restaurarTabela = congelarTabelaSemAlterarVisual(botao);
     salvamentoProtegido = true;
 
     let wrapper;
@@ -375,22 +340,22 @@
       }
     };
 
-    wrapper = async function salvarManejoLinhaCalcinhaEstavel(...argumentos) {
+    wrapper = async function salvarManejoLinhaCalcinhaSemPiscar(...argumentos) {
       try {
         return await salvarOriginal.apply(this, argumentos);
       } finally {
         restaurarFuncaoOriginal();
-        finalizarProtecao(removerProtecao);
+        finalizarProtecao(restaurarTabela);
       }
     };
 
-    // O onclick já existente chama este wrapper somente nesta gravação.
+    // O onclick original executa depois desta captura e usa o wrapper somente
+    // durante esta gravação. Nada do fluxo de salvamento foi alterado.
     window.salvarManejoLinha = wrapper;
 
-    // Fallback: nunca deixa a proteção presa se houver uma exceção externa.
     timerSeguranca = window.setTimeout(() => {
       restaurarFuncaoOriginal();
-      removerProtecao();
+      restaurarTabela();
       salvamentoProtegido = false;
     }, TEMPO_SEGURANCA);
   }
