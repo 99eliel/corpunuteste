@@ -218,3 +218,183 @@
 
   iniciar();
 })();
+
+// Correção visual isolada do salvamento no Manejo Calcinha.
+// O app principal reconstrói a tabela ao receber snapshots do Firestore. Durante o
+// salvamento isso pode acontecer mais de uma vez e fazer inputs/datalists piscarem.
+// Esta proteção não altera a gravação nem o renderizador: mantém uma cópia visual
+// estável apenas durante o save e revela a tabela real depois que os snapshots assentam.
+(() => {
+  "use strict";
+
+  const VERSION = "2026-08-17-calcinha-manejo-salvamento-estavel-168";
+  const TEMPO_ESTABILIZACAO = 650;
+  const TEMPO_SEGURANCA = 10000;
+
+  if (window.__CORPONU_CALCINHA_MANEJO_SALVAMENTO_ESTAVEL__ === VERSION) return;
+  window.__CORPONU_CALCINHA_MANEJO_SALVAMENTO_ESTAVEL__ = VERSION;
+
+  let salvamentoProtegido = false;
+  let timerSeguranca = 0;
+
+  function manejoCalcinhaAtivo() {
+    const ativa = document.querySelector('.manejo-setor-btn.active[data-setor="calcinha"]');
+    return Boolean(ativa) || document.body.dataset.corponuManejoTipo === "calcinha";
+  }
+
+  function copiarEstadoDosCampos(origem, copia) {
+    const originais = [...origem.querySelectorAll("input, select, textarea")];
+    const copias = [...copia.querySelectorAll("input, select, textarea")];
+
+    originais.forEach((campo, indice) => {
+      const destino = copias[indice];
+      if (!destino) return;
+
+      if (campo instanceof HTMLInputElement && destino instanceof HTMLInputElement) {
+        destino.value = campo.value;
+        destino.checked = campo.checked;
+      } else if (campo instanceof HTMLSelectElement && destino instanceof HTMLSelectElement) {
+        destino.value = campo.value;
+        destino.selectedIndex = campo.selectedIndex;
+      } else if (campo instanceof HTMLTextAreaElement && destino instanceof HTMLTextAreaElement) {
+        destino.value = campo.value;
+        destino.textContent = campo.value;
+      }
+    });
+  }
+
+  function criarProtecaoVisual(botao) {
+    const tabelaWrap = botao?.closest(".table-wrap") || document.querySelector("#manejo .table-wrap");
+    if (!(tabelaWrap instanceof HTMLElement)) return () => {};
+
+    const retangulo = tabelaWrap.getBoundingClientRect();
+    if (!retangulo.width || !retangulo.height) return () => {};
+
+    const copia = tabelaWrap.cloneNode(true);
+    copiarEstadoDosCampos(tabelaWrap, copia);
+
+    // Evita IDs duplicados e qualquer ação acidental dentro da cópia visual.
+    copia.removeAttribute("id");
+    copia.querySelectorAll("[id]").forEach(elemento => elemento.removeAttribute("id"));
+    copia.querySelectorAll("[onclick]").forEach(elemento => elemento.removeAttribute("onclick"));
+
+    const codigoBotao = String(botao.getAttribute("onclick") || "");
+    const botaoCopia = [...copia.querySelectorAll(".btn-save-manejo")]
+      .find(item => String(item.getAttribute("onclick") || "") === codigoBotao)
+      || copia.querySelector(".btn-save-manejo");
+
+    if (botaoCopia) {
+      botaoCopia.textContent = "Salvando...";
+      botaoCopia.disabled = true;
+    }
+
+    Object.assign(copia.style, {
+      position: "fixed",
+      left: `${retangulo.left}px`,
+      top: `${retangulo.top}px`,
+      width: `${retangulo.width}px`,
+      height: `${retangulo.height}px`,
+      maxWidth: `${retangulo.width}px`,
+      maxHeight: `${retangulo.height}px`,
+      margin: "0",
+      zIndex: "99960",
+      background: "#ffffff",
+      overflow: "hidden",
+      pointerEvents: "auto",
+      boxSizing: "border-box"
+    });
+
+    copia.setAttribute("aria-hidden", "true");
+    copia.dataset.corponuManejoCalcinhaProtecao = VERSION;
+
+    const bloqueador = document.createElement("div");
+    Object.assign(bloqueador.style, {
+      position: "absolute",
+      inset: "0",
+      zIndex: "10",
+      cursor: "wait",
+      background: "transparent"
+    });
+    bloqueador.addEventListener("click", evento => {
+      evento.preventDefault();
+      evento.stopPropagation();
+    });
+    copia.appendChild(bloqueador);
+
+    document.body.appendChild(copia);
+    copia.scrollLeft = tabelaWrap.scrollLeft;
+    copia.scrollTop = tabelaWrap.scrollTop;
+
+    let removida = false;
+    return () => {
+      if (removida) return;
+      removida = true;
+      copia.remove();
+    };
+  }
+
+  function finalizarProtecao(removerProtecao) {
+    window.clearTimeout(timerSeguranca);
+    timerSeguranca = 0;
+
+    window.setTimeout(() => {
+      try {
+        removerProtecao?.();
+      } finally {
+        salvamentoProtegido = false;
+      }
+    }, TEMPO_ESTABILIZACAO);
+  }
+
+  function protegerCliqueDeSalvar(evento) {
+    const alvo = evento.target instanceof Element ? evento.target : null;
+    const botao = alvo?.closest?.(".btn-save-manejo");
+    if (!botao || !manejoCalcinhaAtivo()) return;
+
+    if (salvamentoProtegido) {
+      evento.preventDefault();
+      evento.stopPropagation();
+      evento.stopImmediatePropagation();
+      return;
+    }
+
+    const salvarOriginal = window.salvarManejoLinha;
+    if (typeof salvarOriginal !== "function") return;
+
+    const campoAtivo = document.activeElement;
+    if (campoAtivo instanceof HTMLInputElement && campoAtivo.hasAttribute("list")) {
+      campoAtivo.blur();
+    }
+
+    const removerProtecao = criarProtecaoVisual(botao);
+    salvamentoProtegido = true;
+
+    let wrapper;
+    const restaurarFuncaoOriginal = () => {
+      if (window.salvarManejoLinha === wrapper) {
+        window.salvarManejoLinha = salvarOriginal;
+      }
+    };
+
+    wrapper = async function salvarManejoLinhaCalcinhaEstavel(...argumentos) {
+      try {
+        return await salvarOriginal.apply(this, argumentos);
+      } finally {
+        restaurarFuncaoOriginal();
+        finalizarProtecao(removerProtecao);
+      }
+    };
+
+    // O onclick original do botão roda depois desta captura e chama este wrapper
+    // apenas para esta gravação. O comportamento normal é restaurado em seguida.
+    window.salvarManejoLinha = wrapper;
+
+    timerSeguranca = window.setTimeout(() => {
+      restaurarFuncaoOriginal();
+      removerProtecao();
+      salvamentoProtegido = false;
+    }, TEMPO_SEGURANCA);
+  }
+
+  document.addEventListener("click", protegerCliqueDeSalvar, true);
+})();
