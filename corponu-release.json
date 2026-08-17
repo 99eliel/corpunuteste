@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-17-calcinha-manejo-sem-piscar-169",
-  "updatedAt": "2026-08-17T08:52:00-03:00",
-  "notes": "AMBIENTE DE TESTE. O salvamento do Manejo Calcinha agora ocorre sem qualquer piscada visual. A tabela permanece exatamente no lugar enquanto o Firestore processa as atualizações por trás e o estado final substitui o anterior no mesmo frame, sem tela branca, sem nomes intermediários e sem reconstruções visíveis. Nenhuma lógica de gravação, filtros, Manejo Sutiã ou outros módulos foi alterada."
+  "version": "2026-08-17-auto-update-definitivo-170",
+  "updatedAt": "2026-08-17T08:57:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Atualização automática reorganizada na entrada do sistema. O index agora é um carregador de rede que consulta a release sem cache, busca o HTML principal sem cache e aplica a versão atual em todos os JS/CSS locais antes de executar a aplicação. Isso elimina a dependência de Ctrl+F5 e evita que o navegador reutilize arquivos antigos após uma nova release."
 }
