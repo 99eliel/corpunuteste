@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-17-auto-update-definitivo-170",
-  "updatedAt": "2026-08-17T08:57:00-03:00",
-  "notes": "AMBIENTE DE TESTE. Atualização automática reorganizada na entrada do sistema. O index agora é um carregador de rede que consulta a release sem cache, busca o HTML principal sem cache e aplica a versão atual em todos os JS/CSS locais antes de executar a aplicação. Isso elimina a dependência de Ctrl+F5 e evita que o navegador reutilize arquivos antigos após uma nova release."
+  "version": "2026-08-17-calcinha-fase-estavel-171",
+  "updatedAt": "2026-08-17T09:04:00-03:00",
+  "notes": "AMBIENTE DE TESTE. Correção pontual no Manejo Calcinha para eliminar a piscada ao alterar a Fase. A tabela agora normaliza Linha e oculta os campos exclusivos de Sutiã antes do próximo frame, impedindo que nomes de Silk/Tecido apareçam temporariamente. Durante a edição da Fase, o observador genérico de classes é pausado por instantes para não interpretar mudanças internas da linha como troca de página. Nenhuma regra de gravação, filtro, pagamento, facção ou Manejo Sutiã foi alterada."
 }
