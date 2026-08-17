@@ -219,11 +219,9 @@
   iniciar();
 })();
 
-// Correção visual isolada do salvamento no Manejo Calcinha.
-// O app principal reconstrói a tabela ao receber snapshots do Firestore. Durante o
-// salvamento isso pode acontecer mais de uma vez e fazer inputs/datalists piscarem.
-// Esta proteção não altera a gravação nem o renderizador: mantém uma cópia visual
-// estável apenas durante o save e revela a tabela real depois que os snapshots assentam.
+// Proteção visual isolada do salvamento no Manejo Calcinha.
+// Não altera a gravação nem o renderizador do sistema. Apenas mantém a tabela
+// visualmente estável enquanto os snapshots do Firestore são processados.
 (() => {
   "use strict";
 
@@ -270,23 +268,23 @@
     const retangulo = tabelaWrap.getBoundingClientRect();
     if (!retangulo.width || !retangulo.height) return () => {};
 
+    const botoesOriginais = [...tabelaWrap.querySelectorAll(".btn-save-manejo")];
+    const indiceBotao = botoesOriginais.indexOf(botao);
+
     const copia = tabelaWrap.cloneNode(true);
     copiarEstadoDosCampos(tabelaWrap, copia);
+
+    const botoesCopia = [...copia.querySelectorAll(".btn-save-manejo")];
+    const botaoCopia = indiceBotao >= 0 ? botoesCopia[indiceBotao] : null;
+    if (botaoCopia) {
+      botaoCopia.textContent = "Salvando...";
+      botaoCopia.disabled = true;
+    }
 
     // Evita IDs duplicados e qualquer ação acidental dentro da cópia visual.
     copia.removeAttribute("id");
     copia.querySelectorAll("[id]").forEach(elemento => elemento.removeAttribute("id"));
     copia.querySelectorAll("[onclick]").forEach(elemento => elemento.removeAttribute("onclick"));
-
-    const codigoBotao = String(botao.getAttribute("onclick") || "");
-    const botaoCopia = [...copia.querySelectorAll(".btn-save-manejo")]
-      .find(item => String(item.getAttribute("onclick") || "") === codigoBotao)
-      || copia.querySelector(".btn-save-manejo");
-
-    if (botaoCopia) {
-      botaoCopia.textContent = "Salvando...";
-      botaoCopia.disabled = true;
-    }
 
     Object.assign(copia.style, {
       position: "fixed",
@@ -361,6 +359,7 @@
     const salvarOriginal = window.salvarManejoLinha;
     if (typeof salvarOriginal !== "function") return;
 
+    // Fecha qualquer lista de nomes aberta antes dos snapshots começarem.
     const campoAtivo = document.activeElement;
     if (campoAtivo instanceof HTMLInputElement && campoAtivo.hasAttribute("list")) {
       campoAtivo.blur();
@@ -385,10 +384,10 @@
       }
     };
 
-    // O onclick original do botão roda depois desta captura e chama este wrapper
-    // apenas para esta gravação. O comportamento normal é restaurado em seguida.
+    // O onclick já existente chama este wrapper somente nesta gravação.
     window.salvarManejoLinha = wrapper;
 
+    // Fallback: nunca deixa a proteção presa se houver uma exceção externa.
     timerSeguranca = window.setTimeout(() => {
       restaurarFuncaoOriginal();
       removerProtecao();
