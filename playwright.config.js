@@ -1,6 +1,6 @@
 const { defineConfig, devices } = require('@playwright/test');
 
-const externalUrl = process.env.E2E_BASE_URL;
+const LOCAL_BASE_URL = 'http://127.0.0.1:4173';
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
@@ -17,7 +17,7 @@ module.exports = defineConfig({
     ['html', { outputFolder: 'playwright-report', open: 'never' }]
   ],
   use: {
-    baseURL: externalUrl || 'http://127.0.0.1:4173',
+    baseURL: LOCAL_BASE_URL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure'
@@ -32,9 +32,9 @@ module.exports = defineConfig({
       use: { ...devices['Pixel 5'] }
     }
   ],
-  webServer: externalUrl ? undefined : {
+  webServer: {
     command: 'python3 -m http.server 4173 --bind 127.0.0.1',
-    url: 'http://127.0.0.1:4173',
+    url: LOCAL_BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 15_000
   }
