@@ -47,6 +47,9 @@ test.describe('Facções - módulo consolidado', () => {
     await expect(observacao).not.toHaveAttribute('required', '');
     await expect(observacao).toHaveAttribute('placeholder', 'Opcional');
 
+    // A chegada manual já faz parte do módulo definitivo.
+    await expect(page.locator('#btnChegadaManualLateralAlca')).toHaveCount(1);
+
     const locais = requisicoes
       .map(url => new URL(url).pathname.split('/').pop())
       .filter(Boolean);

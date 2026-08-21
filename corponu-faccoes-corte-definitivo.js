@@ -57,6 +57,18 @@
   const statusNormalizado = value => norm(value || "PENDENTE");
   const pagamentoPago = pagamento => statusNormalizado(pagamento?.statusPagamento) === "PAGO";
   const movimentoCancelado = movimento => ["CANCELADO", "CANCELADA", "EXCLUIDO", "EXCLUÍDO"].includes(norm(movimento?.status)) || movimento?.cancelado === true || movimento?.excluido === true;
+
+  function processoCanonico(valor) {
+    const chave = norm(valor);
+    if (["ALCA", "ALCAS", "ALÇAS"].includes(chave)) return "ALÇA";
+    if (chave === "LATERAL") return "LATERAL";
+    return String(valor ?? "").trim().toUpperCase();
+  }
+
+  function pertenceLateralAlca(item) {
+    const processo = processoCanonico(item?.processo || item?.servicoNome || item?.processoMovimentacao);
+    return item?.area === AREA || item?.movimentacaoCorte === true || processo === "LATERAL" || processo === "ALÇA";
+  }
   const ehAdmin = () => norm(perfil?.tipo) === "ADMIN";
 
   function dataBR(value) {
@@ -217,6 +229,7 @@
         <div><h3>Corte</h3><p>Registre saídas e chegadas de OPs enviadas para processos externos de corte.</p></div>
         <div class="corte-toolbar">
           <button class="btn btn-primary" id="btnCorteRegistrarSaida" type="button">Registrar saída</button>
+          <button class="btn btn-success" id="btnChegadaManualLateralAlca" type="button">Chegada manual</button>
           <button class="btn" id="btnCorteAtualizar" type="button">Atualizar</button>
           <button class="btn btn-print" id="btnCorteImprimir" type="button">Imprimir</button>
         </div>
@@ -316,9 +329,22 @@
     if (obs) form.insertBefore(box, obs); else form.appendChild(box);
   }
 
+  function garantirProcessosChegadaManual() {
+    const datalist = document.getElementById("chegadaManualProcessoList");
+    if (!(datalist instanceof HTMLDataListElement)) return;
+    ["LATERAL", "ALÇA"].forEach(processo => {
+      const existe = [...datalist.options].some(option => norm(option.value) === norm(processo));
+      if (existe) return;
+      const option = document.createElement("option");
+      option.value = processo;
+      datalist.appendChild(option);
+    });
+  }
+
   function injetarUI() {
     injetarEstilo();
     montarModais();
+    garantirProcessosChegadaManual();
     injetarClassificacaoFaccao();
 
     const page = document.getElementById("faccoes");
@@ -389,16 +415,35 @@
 
   async function carregarMovimentos() {
     const c = await aguardarContexto();
-    try {
-      const snap = await c.fs.getDocs(c.fs.query(c.fs.collection(c.db, "movimentacoesProducao"), c.fs.where("area", "==", AREA)));
-      movimentos = snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-    } catch (error) {
-      const snap = await c.fs.getDocs(c.fs.collection(c.db, "movimentacoesProducao"));
-      movimentos = snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })).filter(item => item.area === AREA || item.movimentacaoCorte === true);
+    const colecao = c.fs.collection(c.db, "movimentacoesProducao");
+    const consultas = [
+      c.fs.query(colecao, c.fs.where("area", "==", AREA)),
+      c.fs.query(colecao, c.fs.where("movimentacaoCorte", "==", true)),
+      c.fs.query(colecao, c.fs.where("processo", "in", ["LATERAL", "ALÇA", "ALCA", "ALÇAS"]))
+    ];
+
+    const resultados = await Promise.allSettled(consultas.map(consulta => c.fs.getDocs(consulta)));
+    const mapa = new Map();
+    let consultasValidas = 0;
+
+    resultados.forEach(resultado => {
+      if (resultado.status !== "fulfilled") return;
+      consultasValidas += 1;
+      resultado.value.docs.forEach(docSnap => {
+        const item = { id: docSnap.id, ...docSnap.data() };
+        if (pertenceLateralAlca(item)) mapa.set(item.id, item);
+      });
+    });
+
+    if (!consultasValidas) {
+      const erro = resultados.find(resultado => resultado.status === "rejected")?.reason;
+      throw erro || new Error("Não foi possível consultar movimentações de Lateral e Alça.");
     }
+
+    movimentos = [...mapa.values()];
     movimentos.sort((a, b) => {
-      const da = a.atualizadoEm?.toMillis?.() || a.criadoEm?.toMillis?.() || Date.parse(a.dataEnvio || "") || 0;
-      const db = b.atualizadoEm?.toMillis?.() || b.criadoEm?.toMillis?.() || Date.parse(b.dataEnvio || "") || 0;
+      const da = a.atualizadoEm?.toMillis?.() || a.criadoEm?.toMillis?.() || Date.parse(a.dataChegada || a.dataEnvio || "") || 0;
+      const db = b.atualizadoEm?.toMillis?.() || b.criadoEm?.toMillis?.() || Date.parse(b.dataChegada || b.dataEnvio || "") || 0;
       return db - da;
     });
   }
@@ -547,7 +592,15 @@
     const currentFaccao = faccaoSelect?.value || "";
 
     if (processSelect) {
-      processSelect.innerHTML = `<option value="">Todos</option>` + processos.map(item => `<option value="${html(item.id)}">${html(item.nome)}</option>`).join("");
+      const opcoes = processos.map(item => ({ value: String(item.id), label: String(item.nome || item.id) }));
+      movimentos.forEach(item => {
+        const nome = processoCanonico(item.processo);
+        if (!nome || !["LATERAL", "ALÇA"].includes(nome)) return;
+        if (opcoes.some(opcao => norm(opcao.label) === norm(nome))) return;
+        opcoes.push({ value: nome, label: nome });
+      });
+      opcoes.sort((a, b) => a.label.localeCompare(b.label, "pt-BR", { numeric: true }));
+      processSelect.innerHTML = `<option value="">Todos</option>` + opcoes.map(item => `<option value="${html(item.value)}">${html(item.label)}</option>`).join("");
       if ([...processSelect.options].some(option => option.value === currentProcess)) processSelect.value = currentProcess;
     }
 
@@ -756,7 +809,7 @@
     const snap = await c.fs.getDocs(c.fs.query(c.fs.collection(c.db, "movimentacoesProducao"), c.fs.where("opId", "==", opId)));
     return snap.docs.some(docSnap => {
       const item = { id: docSnap.id, ...docSnap.data() };
-      const sameArea = item.area === AREA || item.movimentacaoCorte === true;
+      const sameArea = pertenceLateralAlca(item);
       const sameProcess = String(item.processoCorteId || "") === String(process.id) || norm(item.processo) === norm(process.nome);
       return sameArea && sameProcess && !movimentoCancelado(item);
     });
@@ -1081,7 +1134,7 @@
 
   async function marcarLateralPronta(movement) {
     const process = processoPorId(movement.processoCorteId) || processoPorNome(movement.processo);
-    if (!(movement.marcaLateralPronta === true || process?.marcaLateralPronta === true)) return;
+    if (!(movement.marcaLateralPronta === true || process?.marcaLateralPronta === true || processoCanonico(movement.processo) === "LATERAL")) return;
     const c = await aguardarContexto();
     await c.fs.setDoc(c.fs.doc(c.db, "ordensProducao", movement.opId), {
       lateralProntaCorte: true,
@@ -1232,7 +1285,7 @@
     const snap = await c.fs.getDocs(c.fs.query(c.fs.collection(c.db, "movimentacoesProducao"), c.fs.where("opId", "==", opId)));
     const valid = snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })).filter(item => {
       const process = processoPorId(item.processoCorteId) || processoPorNome(item.processo);
-      return (item.area === AREA || item.movimentacaoCorte === true) && !movimentoCancelado(item) && Boolean(item.dataChegada) && (item.marcaLateralPronta === true || process?.marcaLateralPronta === true);
+      return pertenceLateralAlca(item) && !movimentoCancelado(item) && Boolean(item.dataChegada) && (item.marcaLateralPronta === true || process?.marcaLateralPronta === true || processoCanonico(item.processo) === "LATERAL");
     }).sort((a, b) => {
       const da = a.atualizadoEm?.toMillis?.() || Date.parse(a.dataChegada || "") || 0;
       const db = b.atualizadoEm?.toMillis?.() || Date.parse(b.dataChegada || "") || 0;
@@ -1677,6 +1730,11 @@
       const tab = target.closest("[data-area-faccoes]");
       if (tab) { aplicarAba(tab.dataset.areaFaccoes); return; }
       if (target.closest("#btnCorteRegistrarSaida")) return abrirSaida();
+      if (target.closest("#btnChegadaManualLateralAlca")) {
+        garantirProcessosChegadaManual();
+        document.getElementById("btnAbrirChegadaManualFaccao")?.click();
+        return;
+      }
       if (target.closest("#btnCorteAtualizar")) return carregarTudoCorte(true);
       if (target.closest("#btnCorteImprimir")) return imprimirCorte();
       const close = target.closest("[data-fechar-corte]");
