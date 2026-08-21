@@ -1,0 +1,51 @@
+name: Aplicar Finalizacao Lateral e Alca
+
+on:
+  push:
+    branches:
+      - perf/otimizacao-global-v1
+    paths:
+      - scripts/trigger-finalizacao-lateral-alca.txt
+
+permissions:
+  contents: write
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+        with:
+          ref: perf/otimizacao-global-v1
+          fetch-depth: 0
+
+      - name: Aplicar consolidacao
+        run: python3 scripts/finalizar-lateral-alca-consolidada.py
+
+      - name: Validar sintaxe e remocoes
+        shell: bash
+        run: |
+          node --check corponu-faccoes-corte-definitivo.js
+          node --check corponu-faccoes-tres-abas-saida.js
+          node --check tests/e2e/faccoes-consolidado.spec.js
+          ! grep -q 'new MutationObserver' corponu-faccoes-corte-definitivo.js
+          ! grep -q 'corponu-faccoes-lateral-alca-integracao.js' corponu-atualizador.js
+          ! grep -q 'corponu-faccoes-label-lateral.js' corponu-atualizador.js
+          grep -q 'abrirChegadaLegada' corponu-faccoes-corte-definitivo.js
+          grep -q 'Lateral e Alça' corponu-faccoes-tres-abas-saida.js
+          git diff --check
+
+      - name: Salvar resultado e limpar temporarios
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add corponu-faccoes-corte-definitivo.js corponu-faccoes-tres-abas-saida.js tests/e2e/faccoes-consolidado.spec.js
+          git rm scripts/finalizar-lateral-alca-consolidada.py scripts/trigger-finalizacao-lateral-alca.txt
+          git rm .github/workflows/aplicar-finalizacao-lateral-alca.yml .github/workflows/finalizar-lateral-alca-consolidada.yml
+          git diff --cached --check
+          git commit -m 'refactor: concluir consolidacao de lateral e alca'
+          git push origin HEAD:perf/otimizacao-global-v1
