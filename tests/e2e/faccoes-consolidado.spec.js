@@ -28,7 +28,9 @@ test.describe('Facções - módulo consolidado', () => {
     expect(respostaAbas.ok()).toBeTruthy();
     const codigoAbas = await respostaAbas.text();
 
-    expect(codigoAbas).toContain('2026-08-21-faccoes-tres-abas-sem-observer-228');
+    expect(codigoAbas).toContain('2026-08-21-faccoes-processos-na-origem-230');
+    expect(codigoAbas).toContain('PROCESSOS_SAIDA');
+    expect(codigoAbas).toContain('<select id="s3processo"');
     expect(codigoAbas).toContain('Lateral e Alça');
     expect(codigoAbas).not.toContain('new MutationObserver');
 
@@ -97,6 +99,7 @@ test.describe('Facções - módulo consolidado', () => {
       'corponu-faccoes-ocultar-registrar-chegada-topo.js',
       'corponu-faccoes-lateral-alca-integracao.js',
       'corponu-faccoes-label-lateral.js',
+      'corponu-faccoes-processos-cadastrados.js',
       'corponu-faccoes-grupos-processos-integracao.js',
       'corponu-faccoes-grupos-saida-fix.js'
     ];
