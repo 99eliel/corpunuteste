@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const LOCAL_RELEASE = "2026-08-21-modulos-operacionais-sob-demanda-239";
+  const LOCAL_RELEASE = "2026-08-21-revisao-dados-sob-demanda-241";
   const INTERVALO_VERIFICACAO = 60 * 1000;
   const RELOAD_KEY = "corponu_web_release_recarregada";
 
@@ -60,6 +60,10 @@
       ["corponu-sutia-completo-calculo.js", "sutia-completo-calculo", "Não foi possível carregar a configuração do Sutiã Completo."],
       ["corponu-sutia-completo-referencia-especial-integral.js", "sutia-especial-integral", "Não foi possível carregar a regra da referência especial."],
       ["corponu-processos-somente-valores.js", "processos-somente-valores", "Não foi possível simplificar a aba Processos para gestão de valores."]
+    ],
+    "revisao-componentes": [
+      ["corponu-revisao-faccoes.js", "revisao-faccoes", "Não foi possível carregar as facções por processo na revisão."],
+      ["corponu-revisao-historico.js", "revisao-historico", "Não foi possível carregar o histórico consolidado de lateral e bojo."]
     ]
   });
 
@@ -67,8 +71,6 @@
     ["corponu-calcinha-planejamento-opcional-129.js", "calcinha-planejamento-opcional-129", "Não foi possível tornar serviço e facção opcionais nas OPs de calcinha."],
     ["corponu-pagamento-antiduplicidade-isolada.js", "pagamento-antiduplicidade-isolada", "Não foi possível carregar a proteção isolada contra pagamentos duplicados."],
     ["corponu-revisao-lateral-bojo.js", "revisao-lateral-bojo", "Não foi possível carregar a área Revisão lateral e bojo."],
-    ["corponu-revisao-faccoes.js", "revisao-faccoes", "Não foi possível carregar as facções por processo na revisão."],
-    ["corponu-revisao-historico.js", "revisao-historico", "Não foi possível carregar o histórico consolidado de lateral e bojo."],
     ["corponu-saida-sem-confirmacao.js", "saida-sem-confirmacao-dupla", "Não foi possível carregar a proteção contra saída duplicada."],
     ["corponu-faccoes-grupos-processos.js", "faccoes-grupos-processos", "Não foi possível carregar os grupos de processos das facções."],
     ["corponu-faccoes-exclusao-pagamento-vinculado.js", "faccoes-exclusao-pagamento-vinculado", "Não foi possível vincular a exclusão da facção ao pagamento pendente."],
