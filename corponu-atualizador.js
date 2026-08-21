@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const LOCAL_RELEASE = "2026-08-19-manejo-calcinha-fase-lista-real-219";
+  const LOCAL_RELEASE = "2026-08-21-modulos-operacionais-sob-demanda-239";
   const INTERVALO_VERIFICACAO = 60 * 1000;
   const RELOAD_KEY = "corponu_web_release_recarregada";
 
@@ -12,8 +12,27 @@
 
   let verificando = false;
 
+  const PACOTE_SUTIA_FACCOES = [
+    ["corponu-chegada-manual-sutia-pagamento-automatico.js", "chegada-manual-sutia-pagamento-automatico", "Não foi possível ativar o pagamento automático do Sutiã Completo na chegada manual."],
+    ["corponu-chegada-manual-trava-movimentacao.js", "chegada-manual-trava-movimentacao", "Não foi possível carregar a trava de movimentação da chegada manual."],
+    ["corponu-componentes-consolidados-hotfix.js", "componentes-nao-informados", "Não foi possível proteger componentes ainda não informados."],
+    ["corponu-reenvio-sutia-componentes.js", "reenvio-sutia-componentes", "Não foi possível conferir lateral e bojo no reenvio para Sutiã Completo."],
+    ["corponu-sutia-912-fluxo-rapido.js", "sutia-912-fluxo-rapido", "Não foi possível ativar o fluxo rápido da referência 912."],
+    ["corponu-sutia-completo-calculo.js", "sutia-completo-calculo", "Não foi possível carregar o cálculo automático do Sutiã Completo."],
+    ["corponu-sutia-completo-chegada-rapida.js", "sutia-completo-chegada-rapida", "Não foi possível ativar a chegada rápida e atômica do Sutiã Completo."],
+    ["corponu-sutia-completo-fallbacks-off.js", "sutia-completo-fallbacks-off", "Não foi possível desativar as reconciliações antigas do Sutiã Completo."],
+    ["corponu-sutia-completo-reconciliacao-manual.js", "sutia-completo-reconciliacao-manual", "Não foi possível reconciliar o pagamento da chegada manual de Sutiã Completo."],
+    ["corponu-sutia-completo-referencia-especial-integral.js", "sutia-especial-integral", "Não foi possível aplicar o valor integral da referência especial."],
+    ["corponu-sutia-912-chegada-manual-sem-verificacoes.js", "sutia-912-sem-verificacoes", "Não foi possível remover as verificações da referência 912 na chegada manual."],
+    ["corponu-sutia-completo-compatibilidade.js", "sutia-completo-compatibilidade", "Não foi possível desativar a fonte antiga de descontos."],
+    ["corponu-chegada-sem-componentes-duplicados.js", "chegada-sem-componentes-duplicados", "Não foi possível remover a conferência duplicada de lateral e bojo."],
+    ["corponu-chegada-manual-sem-componentes-duplicados.js", "chegada-manual-sem-componentes-duplicados", "Não foi possível remover a conferência duplicada na chegada manual."],
+    ["corponu-chegada-sutia-sync-legado.js", "chegada-sutia-definitiva", "Não foi possível ativar a chegada definitiva do Sutiã Completo."]
+  ];
+
   const MODULOS_POR_PAGINA = Object.freeze({
     pagamentos: [
+      ["corponu-remover-lancamento-manual-pagamentos.js", "remover-lancamento-manual-pagamentos", "Não foi possível remover a criação manual de pagamentos."],
       ["corponu-pagamentos-interface.js", "pagamentos-interface", "Não foi possível carregar a organização visual de Pagamentos."],
       ["corponu-pagamentos-interface-fix.js", "pagamentos-interface-fix", "Não foi possível estabilizar a interface de Pagamentos."],
       ["corponu-pagamentos-manual-op-auto.js", "pagamentos-manual-op-auto", "Não foi possível carregar a busca automática da OP no lançamento manual."],
@@ -26,46 +45,33 @@
       ["corponu-pagamentos-alerta-duplicidades.js", "pagamentos-alerta-duplicidades", "Não foi possível verificar duplicidades nos pagamentos filtrados."],
       ["corponu-pendencias-modal-estavel.js", "pendencias-modal-estavel", "Não foi possível restaurar a abertura das pendências de valores."],
       ["corponu-valores-pendentes-financeiro.js", "valores-pendentes-financeiro", "Não foi possível carregar a área de Valores pendentes."],
-      ["corponu-valores-pendentes-auth-214.js", "valores-pendentes-auth-214", "Não foi possível estabilizar a autenticação de Valores pendentes."]
+      ["corponu-valores-pendentes-auth-214.js", "valores-pendentes-auth-214", "Não foi possível estabilizar a autenticação de Valores pendentes."],
+      ["corponu-pendencias-valor-seguro.js", "pendencias-valor-seguro", "Não foi possível salvar e recalcular os valores pendentes com segurança."],
+      ["corponu-verificacao-sutia-completo.js", "verificacao-sutia-completo-segura", "Não foi possível carregar a verificação segura do Sutiã Completo."]
     ],
     faccoes: [
       ["corponu-faccao-cadastro-recolhido.js", "faccao-cadastro-recolhido", "Não foi possível abrir o cadastro e a edição de facção em card."],
-      ["corponu-chegada-manual-visual.js", "chegada-manual-visual", "Não foi possível carregar a aparência da chegada manual."]
+      ["corponu-chegada-manual-visual.js", "chegada-manual-visual", "Não foi possível carregar a aparência da chegada manual."],
+      ["corponu-faccoes-corte-definitivo.js", "faccoes-corte-definitivo", "Não foi possível carregar a área definitiva de Corte / Lateral e Alça."],
+      ["corponu-faccoes-tres-abas-saida.js", "faccoes-tres-abas-saida", "Não foi possível carregar as três abas de Facções."],
+      ...PACOTE_SUTIA_FACCOES
     ],
     processos: [
+      ["corponu-sutia-completo-calculo.js", "sutia-completo-calculo", "Não foi possível carregar a configuração do Sutiã Completo."],
+      ["corponu-sutia-completo-referencia-especial-integral.js", "sutia-especial-integral", "Não foi possível carregar a regra da referência especial."],
       ["corponu-processos-somente-valores.js", "processos-somente-valores", "Não foi possível simplificar a aba Processos para gestão de valores."]
     ]
   });
 
   const MODULOS_CRITICOS = [
     ["corponu-calcinha-planejamento-opcional-129.js", "calcinha-planejamento-opcional-129", "Não foi possível tornar serviço e facção opcionais nas OPs de calcinha."],
-    ["corponu-remover-lancamento-manual-pagamentos.js", "remover-lancamento-manual-pagamentos", "Não foi possível remover a criação manual de pagamentos."],
-    ["corponu-chegada-manual-sutia-pagamento-automatico.js", "chegada-manual-sutia-pagamento-automatico", "Não foi possível ativar o pagamento automático do Sutiã Completo na chegada manual."],
-    ["corponu-chegada-manual-trava-movimentacao.js", "chegada-manual-trava-movimentacao", "Não foi possível carregar a trava de movimentação da chegada manual."],
     ["corponu-pagamento-antiduplicidade-isolada.js", "pagamento-antiduplicidade-isolada", "Não foi possível carregar a proteção isolada contra pagamentos duplicados."],
     ["corponu-revisao-lateral-bojo.js", "revisao-lateral-bojo", "Não foi possível carregar a área Revisão lateral e bojo."],
     ["corponu-revisao-faccoes.js", "revisao-faccoes", "Não foi possível carregar as facções por processo na revisão."],
     ["corponu-revisao-historico.js", "revisao-historico", "Não foi possível carregar o histórico consolidado de lateral e bojo."],
-    ["corponu-componentes-consolidados-hotfix.js", "componentes-nao-informados", "Não foi possível proteger componentes ainda não informados."],
-    ["corponu-reenvio-sutia-componentes.js", "reenvio-sutia-componentes", "Não foi possível conferir lateral e bojo no reenvio para Sutiã Completo."],
-    ["corponu-sutia-912-fluxo-rapido.js", "sutia-912-fluxo-rapido", "Não foi possível ativar o fluxo rápido da referência 912."],
-    ["corponu-sutia-completo-calculo.js", "sutia-completo-calculo", "Não foi possível carregar o cálculo automático do Sutiã Completo."],
-    ["corponu-sutia-completo-chegada-rapida.js", "sutia-completo-chegada-rapida", "Não foi possível ativar a chegada rápida e atômica do Sutiã Completo."],
-    ["corponu-sutia-completo-fallbacks-off.js", "sutia-completo-fallbacks-off", "Não foi possível desativar as reconciliações antigas do Sutiã Completo."],
-    ["corponu-sutia-completo-reconciliacao-manual.js", "sutia-completo-reconciliacao-manual", "Não foi possível reconciliar o pagamento da chegada manual de Sutiã Completo."],
-    ["corponu-sutia-completo-referencia-especial-integral.js", "sutia-especial-integral", "Não foi possível aplicar o valor integral da referência especial."],
-    ["corponu-sutia-912-chegada-manual-sem-verificacoes.js", "sutia-912-sem-verificacoes", "Não foi possível remover as verificações da referência 912 na chegada manual."],
-    ["corponu-sutia-completo-compatibilidade.js", "sutia-completo-compatibilidade", "Não foi possível desativar a fonte antiga de descontos."],
     ["corponu-saida-sem-confirmacao.js", "saida-sem-confirmacao-dupla", "Não foi possível carregar a proteção contra saída duplicada."],
-    ["corponu-faccoes-corte-definitivo.js", "faccoes-corte-definitivo", "Não foi possível carregar a área definitiva de Corte / Lateral e Alça."],
-    ["corponu-faccoes-tres-abas-saida.js", "faccoes-tres-abas-saida", "Não foi possível carregar as três abas de Facções."],
     ["corponu-faccoes-grupos-processos.js", "faccoes-grupos-processos", "Não foi possível carregar os grupos de processos das facções."],
     ["corponu-faccoes-exclusao-pagamento-vinculado.js", "faccoes-exclusao-pagamento-vinculado", "Não foi possível vincular a exclusão da facção ao pagamento pendente."],
-    ["corponu-chegada-sem-componentes-duplicados.js", "chegada-sem-componentes-duplicados", "Não foi possível remover a conferência duplicada de lateral e bojo."],
-    ["corponu-chegada-manual-sem-componentes-duplicados.js", "chegada-manual-sem-componentes-duplicados", "Não foi possível remover a conferência duplicada na chegada manual."],
-    ["corponu-chegada-sutia-sync-legado.js", "chegada-sutia-definitiva", "Não foi possível ativar a chegada definitiva do Sutiã Completo."],
-    ["corponu-pendencias-valor-seguro.js", "pendencias-valor-seguro", "Não foi possível salvar e recalcular os valores pendentes com segurança."],
-    ["corponu-verificacao-sutia-completo.js", "verificacao-sutia-completo-segura", "Não foi possível carregar a verificação segura do Sutiã Completo."],
     ["corponu-manejo-calcinha-fase-definitivo-216.js", "manejo-calcinha-fase-lista-real-219", "Não foi possível carregar o seletor estável da Fase do Manejo Calcinha."]
   ];
 
