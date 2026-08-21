@@ -1,0 +1,60 @@
+name: Sincronizar teste com producao
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/sync-corpunuteste-from-producao.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositorio de teste
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Espelhar arvore da producao
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git remote remove producao 2>/dev/null || true
+          git remote add producao https://github.com/99eliel/corponu1.git
+          git fetch --depth=1 producao main
+          PROD_COMMIT="$(git rev-parse FETCH_HEAD)"
+          PROD_TREE="$(git rev-parse "${PROD_COMMIT}^{tree}")"
+
+          git rm -r --ignore-unmatch .
+          git checkout "${PROD_COMMIT}" -- .
+
+          TEST_TREE="$(git write-tree)"
+          echo "Arvore producao: ${PROD_TREE}"
+          echo "Arvore teste:    ${TEST_TREE}"
+
+          if [ "${TEST_TREE}" != "${PROD_TREE}" ]; then
+            echo "ERRO: a arvore preparada nao ficou identica a producao."
+            exit 1
+          fi
+
+          if git diff --cached --quiet; then
+            echo "O repositorio de teste ja esta identico a producao."
+            exit 0
+          fi
+
+          git commit -m "sync: espelhar corponu1 main no corpunuteste"
+          git push origin HEAD:main
+
+      - name: Confirmar arvore final
+        if: success()
+        shell: bash
+        run: |
+          echo "Sincronizacao concluida com a mesma arvore da producao capturada no inicio do job."
