@@ -1,0 +1,284 @@
+from pathlib import Path
+import re
+
+MODULO = Path('corponu-faccoes-corte-definitivo.js')
+ABAS = Path('corponu-faccoes-tres-abas-saida.js')
+TESTE = Path('tests/e2e/faccoes-consolidado.spec.js')
+
+for arquivo in (MODULO, ABAS, TESTE):
+    if not arquivo.exists():
+        raise SystemExit(f'Arquivo obrigatório não encontrado: {arquivo}')
+
+
+def one(text, old, new, desc):
+    total = text.count(old)
+    if total != 1:
+        raise SystemExit(f'{desc}: esperado 1 trecho, encontrado {total}')
+    return text.replace(old, new, 1)
+
+
+text = MODULO.read_text(encoding='utf-8')
+text = one(
+    text,
+    'const VERSION = "2026-07-30-faccoes-corte-23";',
+    'const VERSION = "2026-08-21-lateral-alca-consolidada-226";',
+    'versão do módulo'
+)
+
+helper_marker = '''  function pertenceLateralAlca(item) {
+    const processo = processoCanonico(item?.processo || item?.servicoNome || item?.processoMovimentacao);
+    return item?.area === AREA || item?.movimentacaoCorte === true || processo === "LATERAL" || processo === "ALÇA";
+  }
+  const ehAdmin = () => norm(perfil?.tipo) === "ADMIN";'''
+helper_new = '''  function pertenceLateralAlca(item) {
+    const processo = processoCanonico(item?.processo || item?.servicoNome || item?.processoMovimentacao);
+    return item?.area === AREA || item?.movimentacaoCorte === true || processo === "LATERAL" || processo === "ALÇA";
+  }
+
+  const movimentoLegadoForaCorte = item => !(item?.area === AREA || item?.movimentacaoCorte === true);
+
+  function statusDoMovimento(item) {
+    if (movimentoCancelado(item)) return "cancelado";
+    const status = norm(item?.status || item?.statusMovimentacao);
+    if (item?.dataChegada || ["RETORNOU", "FINALIZADO", "FINALIZADA"].includes(status)) return "retornou";
+    return "em_andamento";
+  }
+
+  function abrirChegadaLegada(movementId) {
+    if (typeof window.registrarChegadaMovimentacao === "function") {
+      window.registrarChegadaMovimentacao(movementId);
+      return true;
+    }
+    const botaoOriginal = [...document.querySelectorAll("button[onclick]")].find(botao => {
+      const codigo = botao.getAttribute("onclick") || "";
+      return codigo.includes("registrarChegadaMovimentacao") && codigo.includes(movementId);
+    });
+    if (botaoOriginal instanceof HTMLButtonElement) {
+      botaoOriginal.click();
+      return true;
+    }
+    return false;
+  }
+
+  const ehAdmin = () => norm(perfil?.tipo) === "ADMIN";'''
+text = one(text, helper_marker, helper_new, 'helpers de compatibilidade')
+
+text = one(
+    text,
+    '      const text = norm([item.numeroOP, item.referencia, item.cor, item.processo, item.destino, item.status].join(" "));',
+    '      const text = norm([item.numeroOP, item.referencia, item.cor, item.processo, item.destino || item.faccao, item.status].join(" "));',
+    'busca de movimentações'
+)
+text = one(
+    text,
+    '      if (process && String(item.processoCorteId || item.processo || "") !== process && norm(item.processo) !== norm(processoPorId(process)?.nome)) return false;',
+    '''      if (process) {
+        const nomeFiltro = processoPorId(process)?.nome || process;
+        if (String(item.processoCorteId || "") !== process && processoCanonico(item.processo) !== processoCanonico(nomeFiltro)) return false;
+      }''',
+    'filtro de processo'
+)
+text = one(
+    text,
+    '      if (faccao && String(item.destino || "") !== faccao) return false;',
+    '      if (faccao && String(item.destino || item.faccao || "") !== faccao) return false;',
+    'filtro de facção'
+)
+text = one(
+    text,
+    '''      if (status) {
+        const current = movimentoCancelado(item) ? "cancelado" : (item.status || "em_andamento");
+        if (current !== status) return false;
+      }''',
+    '      if (status && statusDoMovimento(item) !== status) return false;',
+    'filtro de status'
+)
+text = one(
+    text,
+    '''      if (lateral) {
+        const process = processoPorId(item.processoCorteId) || processoPorNome(item.processo);''',
+    '''      if (lateral) {
+        if (processoCanonico(item.processo) === "ALÇA") return false;
+        const process = processoPorId(item.processoCorteId) || processoPorNome(item.processo);''',
+    'filtro de lateral'
+)
+text = one(
+    text,
+    '      const names = [...new Set(movimentos.map(item => item.destino).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));',
+    '      const names = [...new Set(movimentos.map(item => item.destino || item.faccao).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));',
+    'lista de facções'
+)
+text = one(
+    text,
+    '    set("corteTotalSemValor", quantidade(withoutValue));\n',
+    '    set("corteTotalSemValor", quantidade(withoutValue));\n    set("contCorte", quantidade(validos.length));\n',
+    'contador da terceira aba'
+)
+
+novo_render = '''  function renderMovimentos() {
+    const body = document.getElementById("listaFaccoesCorte");
+    if (!body) return;
+    const items = movimentosFiltrados();
+    if (!items.length) {
+      body.innerHTML = `<tr><td colspan="12" class="corte-empty">Nenhuma movimentação de Lateral ou Alça encontrada.</td></tr>`;
+      return;
+    }
+
+    body.innerHTML = items.map(item => {
+      const pagamento = pagamentoDoMovimento(item.id);
+      const legado = movimentoLegadoForaCorte(item);
+      const processoCanonicoItem = processoCanonico(item.processo || item.servicoNome || item.processoMovimentacao);
+      const canCancelBefore = !legado && !movimentoCancelado(item) && !item.dataChegada && (ehAdmin() || String(item.criadoPor || "") === String(user?.uid || ""));
+      const canCancelAfter = !legado && !movimentoCancelado(item) && item.dataChegada && ehAdmin();
+      const canEditArrival = !legado && item.dataChegada && !pagamentoPago(pagamento) && !movimentoCancelado(item);
+      const canArrival = !item.dataChegada && !movimentoCancelado(item);
+      const process = processoPorId(item.processoCorteId) || processoPorNome(item.processo);
+      const marksLateral = processoCanonicoItem === "LATERAL" || item.marcaLateralPronta === true || process?.marcaLateralPronta === true;
+      const actions = [];
+      if (canArrival) actions.push(`<button class="btn btn-sm btn-success" type="button" data-chegada-corte="${html(item.id)}">Registrar chegada</button>`);
+      if (canEditArrival) actions.push(`<button class="btn btn-sm" type="button" data-editar-chegada-corte="${html(item.id)}">Editar chegada</button>`);
+      if (canCancelBefore || canCancelAfter) actions.push(`<button class="btn btn-sm btn-danger" type="button" data-cancelar-corte="${html(item.id)}">Cancelar</button>`);
+
+      let componente = "-";
+      if (processoCanonicoItem === "ALÇA") componente = '<span class="corte-pill lateral">Alça</span>';
+      else if (marksLateral && item.dataChegada && !movimentoCancelado(item)) componente = '<span class="corte-pill lateral">Lateral pronta</span>';
+      else if (processoCanonicoItem === "LATERAL") componente = '<span class="corte-pill lateral">Lateral</span>';
+
+      return `<tr data-movimentacao-id="${html(item.id)}">
+        <td><strong>${html(item.numeroOP || "-")}</strong></td>
+        <td>${html(item.referencia || "-")}</td>
+        <td>${html(item.cor || "-")}</td>
+        <td>${html(processoCanonicoItem || item.processo || "-")}</td>
+        <td>${html(item.destino || item.faccao || "-")}</td>
+        <td>${quantidade(item.quantidadeEnviada)}</td>
+        <td>${html(dataBR(item.dataEnvio))}</td>
+        <td>${html(dataBR(item.dataChegada))}</td>
+        <td>${quantidade(item.falta)}</td>
+        <td>${labelStatus(item)}${pagamento && (pagamento.valorPendente === true || statusNormalizado(pagamento.statusPagamento) === "SEM_VALOR") ? ' <span class="corte-pill valor">Valor a definir</span>' : ""}</td>
+        <td>${componente}</td>
+        <td><div class="corte-actions">${actions.join("") || "-"}</div></td>
+      </tr>`;
+    }).join("");
+  }
+
+  function renderProcessosAdmin()'''
+text, count = re.subn(
+    r'  function renderMovimentos\(\) \{.*?\n  \}\n\n  function renderProcessosAdmin\(\)',
+    novo_render,
+    text,
+    count=1,
+    flags=re.S,
+)
+if count != 1:
+    raise SystemExit(f'renderMovimentos: esperado 1, encontrado {count}')
+
+text = one(
+    text,
+    '''  async function abrirChegada(movementId, editing = false) {
+    movimentoChegada = movimentos.find(item => String(item.id) === String(movementId)) || null;
+    if (!movimentoChegada) return toast("Movimentação não encontrada.", "error");''',
+    '''  async function abrirChegada(movementId, editing = false) {
+    const encontrada = movimentos.find(item => String(item.id) === String(movementId)) || null;
+    if (!encontrada) return toast("Movimentação não encontrada.", "error");
+    if (!editing && movimentoLegadoForaCorte(encontrada)) {
+      if (abrirChegadaLegada(encontrada.id)) return;
+      return toast("Não foi possível abrir a chegada desta movimentação antiga.", "error");
+    }
+    movimentoChegada = encontrada;''',
+    'delegação da chegada antiga'
+)
+text = one(
+    text,
+    '''      if (target.closest("#btnChegadaManualLateralAlca")) {
+        garantirProcessosChegadaManual();
+        document.getElementById("btnAbrirChegadaManualFaccao")?.click();
+        return;
+      }''',
+    '''      if (target.closest("#btnChegadaManualLateralAlca")) {
+        garantirProcessosChegadaManual();
+        document.getElementById("btnAbrirChegadaManualFaccao")?.click();
+        setTimeout(garantirProcessosChegadaManual, 80);
+        return;
+      }''',
+    'chegada manual'
+)
+text = one(
+    text,
+    '      if (form.id === "formRevisaoComponentes") atualizarOrigemAposRevisaoInterna();\n',
+    '''      if (form.id === "formRevisaoComponentes") atualizarOrigemAposRevisaoInterna();
+      if (["formChegadaMovimentacao", "formChegadaManualFaccao", "s3form"].includes(form.id)) {
+        setTimeout(() => {
+          if (abaAtiva === "corte") carregarTudoCorte(true).catch(() => {});
+        }, 1200);
+      }
+''',
+    'atualização após fluxos externos'
+)
+text = one(
+    text,
+    '''
+    new MutationObserver(() => {
+      injetarUI();
+      atualizarVisibilidadeAdmin();
+    }).observe(document.body, { childList: true, subtree: true });''',
+    '',
+    'Observer global'
+)
+
+if 'new MutationObserver' in text:
+    raise SystemExit('Ainda existe MutationObserver no módulo definitivo')
+if 'abrirChegadaLegada' not in text:
+    raise SystemExit('Compatibilidade de chegada antiga não foi incorporada')
+MODULO.write_text(text, encoding='utf-8')
+
+tabs = ABAS.read_text(encoding='utf-8')
+tabs = one(
+    tabs,
+    'b.innerHTML = `Corte <span id="contCorte">0</span>`;',
+    'b.innerHTML = `Lateral e Alça <span id="contCorte">0</span>`;',
+    'nome da terceira aba'
+)
+tabs = one(
+    tabs,
+    'a === "calcinha" ? "Calcinha" : "Corte"',
+    'a === "calcinha" ? "Calcinha" : "Lateral e Alça"',
+    'título do modal da terceira aba'
+)
+tabs = one(
+    tabs,
+    'aba === "calcinha" ? "Calcinha" : "Corte"',
+    'aba === "calcinha" ? "Calcinha" : "Lateral e Alça"',
+    'confirmação da terceira aba'
+)
+ABAS.write_text(tabs, encoding='utf-8')
+
+spec = TESTE.read_text(encoding='utf-8')
+static_marker = 'async function entrar(page) {'
+static_test = '''test('fonte consolidada não usa integração paralela nem Observer global', async ({ request }) => {
+  const resposta = await request.get('/corponu-faccoes-corte-definitivo.js');
+  expect(resposta.ok()).toBeTruthy();
+  const codigo = await resposta.text();
+  expect(codigo).not.toContain('new MutationObserver');
+  expect(codigo).not.toContain('__CORPONU_FACCOES_LATERAL_ALCA__');
+  expect(codigo).toContain('abrirChegadaLegada');
+});
+
+async function entrar(page) {'''
+spec = one(spec, static_marker, static_test, 'teste estático')
+spec = one(
+    spec,
+    '''    await expect.poll(async () => page.locator('#painelFaccoesCorte').count(), {
+      timeout: 15_000
+    }).toBeGreaterThan(0);
+''',
+    '''    await expect.poll(async () => page.locator('#painelFaccoesCorte').count(), {
+      timeout: 15_000
+    }).toBeGreaterThan(0);
+    await expect(page.locator('#painelFaccoesCorte .panel-header h3')).toHaveText('Lateral e Alça');
+    await expect(page.locator('#abaFaccaoCorte')).toContainText('Lateral e Alça');
+''',
+    'teste de rótulos'
+)
+TESTE.write_text(spec, encoding='utf-8')
+
+print('Finalização de Lateral e Alça aplicada com sucesso.')
