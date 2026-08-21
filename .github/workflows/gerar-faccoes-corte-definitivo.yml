@@ -1,0 +1,62 @@
+name: Gerar Faccoes Corte Definitivo
+
+on:
+  push:
+    branches:
+      - perf/otimizacao-global-v1
+    paths:
+      - scripts/gerar-faccoes-corte-definitivo.cjs
+      - corponu-faccoes-corte.js
+      - corponu-faccoes-corte-01.txt
+      - corponu-faccoes-corte-02.txt
+      - corponu-faccoes-corte-03.txt
+      - corponu-faccoes-corte-04.txt
+      - corponu-faccoes-corte-05.txt
+      - .github/workflows/gerar-faccoes-corte-definitivo.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  consolidar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+        with:
+          ref: perf/otimizacao-global-v1
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Gerar modulo definitivo
+        run: node scripts/gerar-faccoes-corte-definitivo.cjs
+
+      - name: Validar sintaxe do modulo consolidado
+        run: node --check corponu-faccoes-corte-definitivo.js
+
+      - name: Conferir que o resultado nao usa o loader legado
+        shell: bash
+        run: |
+          test -s corponu-faccoes-corte-definitivo.js
+          ! grep -q 'corponu-faccoes-corte-01.txt' corponu-faccoes-corte-definitivo.js
+          ! grep -q 'createObjectURL' corponu-faccoes-corte-definitivo.js
+          grep -q '__CORPONU_FACCOES_CORTE__' corponu-faccoes-corte-definitivo.js
+
+      - name: Salvar modulo gerado na branch de otimizacao
+        shell: bash
+        run: |
+          if git diff --quiet -- corponu-faccoes-corte-definitivo.js && git ls-files --error-unmatch corponu-faccoes-corte-definitivo.js >/dev/null 2>&1; then
+            echo 'Modulo definitivo ja esta atualizado.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add corponu-faccoes-corte-definitivo.js
+          git commit -m 'refactor: gerar modulo definitivo de faccoes corte'
+          git push origin HEAD:perf/otimizacao-global-v1
