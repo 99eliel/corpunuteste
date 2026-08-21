@@ -61,7 +61,7 @@ test.describe('Facções - módulo consolidado', () => {
     expect(respostaExclusaoLegada.status()).toBe(404);
   });
 
-  test('abre Facções sem loader, fragmentos ou remendos já incorporados', async ({ page }) => {
+  test('abre Facções sob demanda sem loader, fragmentos ou remendos antigos', async ({ page }) => {
     test.skip(!temCredenciais, 'Configure TEST_EMAIL e TEST_PASSWORD nos GitHub Actions Secrets.');
 
     const requisicoes = [];
@@ -73,12 +73,16 @@ test.describe('Facções - módulo consolidado', () => {
     await entrar(page);
 
     await expect.poll(async () => page.evaluate(() => Boolean(window.__CORPONU_FACCOES_CORTE__)), {
-      timeout: 15_000
-    }).toBeTruthy();
+      timeout: 1_500
+    }).toBeFalsy();
 
     await page.locator('.nav-btn[data-page="faccoes"]').click();
     await expect(page.locator('#faccoes')).toHaveClass(/active/);
     await expect(page.locator('#pageTitle')).toHaveText('Facções');
+
+    await expect.poll(async () => page.evaluate(() => Boolean(window.__CORPONU_FACCOES_CORTE__)), {
+      timeout: 15_000
+    }).toBeTruthy();
 
     await expect.poll(async () => page.locator('#painelFaccoesCorte').count(), {
       timeout: 15_000
