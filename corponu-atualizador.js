@@ -1,9 +1,10 @@
 (() => {
   "use strict";
 
-  const LOCAL_RELEASE = "2026-08-21-revisao-dados-sob-demanda-241";
+  const LOCAL_RELEASE = "2026-08-21-grupos-faccoes-sob-demanda-242";
   const INTERVALO_VERIFICACAO = 60 * 1000;
   const RELOAD_KEY = "corponu_web_release_recarregada";
+  const MODULO_GRUPOS_FACCOES = ["corponu-faccoes-grupos-processos.js", "faccoes-grupos-processos", "Não foi possível carregar os grupos de processos das facções."];
 
   if (window.__CORPONU_ATUALIZADOR_WEB__ === LOCAL_RELEASE) return;
   window.__CORPONU_ATUALIZADOR_WEB__ = LOCAL_RELEASE;
@@ -50,6 +51,7 @@
       ["corponu-verificacao-sutia-completo.js", "verificacao-sutia-completo-segura", "Não foi possível carregar a verificação segura do Sutiã Completo."]
     ],
     faccoes: [
+      MODULO_GRUPOS_FACCOES,
       ["corponu-faccao-cadastro-recolhido.js", "faccao-cadastro-recolhido", "Não foi possível abrir o cadastro e a edição de facção em card."],
       ["corponu-chegada-manual-visual.js", "chegada-manual-visual", "Não foi possível carregar a aparência da chegada manual."],
       ["corponu-faccoes-corte-definitivo.js", "faccoes-corte-definitivo", "Não foi possível carregar a área definitiva de Corte / Lateral e Alça."],
@@ -72,7 +74,6 @@
     ["corponu-pagamento-antiduplicidade-isolada.js", "pagamento-antiduplicidade-isolada", "Não foi possível carregar a proteção isolada contra pagamentos duplicados."],
     ["corponu-revisao-lateral-bojo.js", "revisao-lateral-bojo", "Não foi possível carregar a área Revisão lateral e bojo."],
     ["corponu-saida-sem-confirmacao.js", "saida-sem-confirmacao-dupla", "Não foi possível carregar a proteção contra saída duplicada."],
-    ["corponu-faccoes-grupos-processos.js", "faccoes-grupos-processos", "Não foi possível carregar os grupos de processos das facções."],
     ["corponu-faccoes-exclusao-pagamento-vinculado.js", "faccoes-exclusao-pagamento-vinculado", "Não foi possível vincular a exclusão da facção ao pagamento pendente."],
     ["corponu-manejo-calcinha-fase-definitivo-216.js", "manejo-calcinha-fase-lista-real-219", "Não foi possível carregar o seletor estável da Fase do Manejo Calcinha."]
   ];
@@ -111,14 +112,43 @@
     carregarGrupo(modulos);
   }
 
+  function garantirGruposParaManejo() {
+    const [arquivo, marcador, erro] = MODULO_GRUPOS_FACCOES;
+    const aplicar = () => window.setTimeout(() => {
+      window.CorpoNuFaccoesGrupos?.filtrarManejo?.();
+    }, 0);
+
+    if (window.CorpoNuFaccoesGrupos?.filtrarManejo) {
+      aplicar();
+      return;
+    }
+
+    const script = carregarScript(arquivo, marcador, erro);
+    if (script.dataset.corponuGruposManejoLoad !== "1") {
+      script.dataset.corponuGruposManejoLoad = "1";
+      script.addEventListener("load", aplicar, { once: true });
+    }
+  }
+
   function instalarCarregamentoSobDemanda() {
     if (document.documentElement.dataset.corponuLazyModules === LOCAL_RELEASE) return;
     document.documentElement.dataset.corponuLazyModules = LOCAL_RELEASE;
 
     document.addEventListener("click", event => {
-      const botao = event.target?.closest?.(".nav-btn[data-page]");
-      if (!botao) return;
-      carregarModulosDaPagina(botao.dataset.page);
+      const alvo = event.target instanceof Element ? event.target : null;
+      const botaoPagina = alvo?.closest?.(".nav-btn[data-page]");
+      if (botaoPagina) carregarModulosDaPagina(botaoPagina.dataset.page);
+
+      const botaoAcao = alvo?.closest?.("button,[role='button'],a");
+      const onclick = String(botaoAcao?.getAttribute?.("onclick") || "");
+      const rotulo = String(botaoAcao?.textContent || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toUpperCase();
+      if (onclick.includes("mandarParaFaccao") || rotulo.includes("ENVIAR PARA FACCAO")) {
+        garantirGruposParaManejo();
+      }
     }, true);
   }
 
