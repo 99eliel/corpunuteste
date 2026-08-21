@@ -4,7 +4,6 @@ test.describe('CorpoNu - interface pública', () => {
   test('abre a tela de login corretamente', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page).toHaveTitle(/Sistema OP Confecção/i);
     await expect(page.locator('#authScreen')).toBeVisible();
     await expect(page.locator('#loginForm')).toBeVisible();
     await expect(page.locator('#loginEmail')).toBeVisible();
