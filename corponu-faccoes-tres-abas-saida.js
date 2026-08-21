@@ -179,7 +179,7 @@
         if (a.name.startsWith("data-")) b.removeAttribute(a.name);
       });
       b.classList.remove("active");
-      b.innerHTML = `Corte <span id="contCorte">0</span>`;
+      b.innerHTML = `Lateral e Alça <span id="contCorte">0</span>`;
       x.box.appendChild(b);
     }
 
@@ -216,7 +216,7 @@
     document.getElementById("s3form")?.reset();
     document.getElementById("s3prev")?.classList.add("hidden");
     document.getElementById("s3campos")?.classList.add("hidden");
-    document.getElementById("s3titulo").textContent = `Registrar saída • ${a === "sutia" ? "Sutiã" : a === "calcinha" ? "Calcinha" : "Corte"}`;
+    document.getElementById("s3titulo").textContent = `Registrar saída • ${a === "sutia" ? "Sutiã" : a === "calcinha" ? "Calcinha" : "Lateral e Alça"}`;
     document.getElementById("s3data").value = hoje();
     document.getElementById("modalSaida3").classList.remove("hidden");
     carregarFaccoesRapido().catch(() => {});
@@ -487,7 +487,7 @@
     }
 
     const nop = op.numeroOP || op.numeroOPExterno || op.id;
-    if (!confirm(`Confirmar saída?\nAba: ${aba === "sutia" ? "Sutiã" : aba === "calcinha" ? "Calcinha" : "Corte"}\nOP ${nop}\nProcesso: ${processo}\nFacção: ${faccao}\nQuantidade: ${total.toLocaleString("pt-BR")}`)) return;
+    if (!confirm(`Confirmar saída?\nAba: ${aba === "sutia" ? "Sutiã" : aba === "calcinha" ? "Calcinha" : "Lateral e Alça"}\nOP ${nop}\nProcesso: ${processo}\nFacção: ${faccao}\nQuantidade: ${total.toLocaleString("pt-BR")}`)) return;
 
     const bt = ev.submitter;
     bt.disabled = true;
