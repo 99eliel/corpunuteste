@@ -22,12 +22,16 @@ test.describe('CorpoNu - login autenticado', () => {
 
     const appShell = page.locator('#appShell');
     const toast = page.locator('#toast');
+    const loginStatus = page.locator('#loginStatus');
 
     try {
       await expect(appShell).toBeVisible({ timeout: 20_000 });
     } catch (erro) {
       const toastTexto = await toast.isVisible().catch(() => false)
         ? (await toast.textContent())?.trim()
+        : '';
+      const loginStatusTexto = await loginStatus.count()
+        ? (await loginStatus.textContent())?.trim()
         : '';
       const titulo = await page.title();
       const url = page.url();
@@ -36,6 +40,7 @@ test.describe('CorpoNu - login autenticado', () => {
         'Login de homologação não abriu o sistema.',
         `URL atual: ${url}`,
         `Título atual: ${titulo}`,
+        `Status do login: ${loginStatusTexto || '(nenhum)'}`,
         `Mensagem da tela: ${toastTexto || '(nenhuma)'}`,
         `Erros do navegador: ${errosConsole.length ? errosConsole.join(' | ') : '(nenhum)'}`
       ].join('\n'));
