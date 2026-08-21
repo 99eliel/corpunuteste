@@ -17,7 +17,7 @@ async function dispararNavegacao(page, pagina) {
 }
 
 test.describe('CorpoNu - carregamento sob demanda dos módulos', () => {
-  test('não baixa módulos visuais de Pagamentos no boot', async ({ page }) => {
+  test('boot não baixa módulos pesados de Pagamentos e chegada Sutiã', async ({ page }) => {
     await page.goto('/', { waitUntil: 'load' });
     await page.waitForTimeout(700);
 
@@ -25,6 +25,13 @@ test.describe('CorpoNu - carregamento sob demanda dos módulos', () => {
     await expect(page.locator(scriptCom('corponu-pagamentos-interface.js'))).toHaveCount(0);
     await expect(page.locator(scriptCom('corponu-pagamentos-filtro-op.js'))).toHaveCount(0);
     await expect(page.locator(scriptCom('corponu-valores-pendentes-financeiro.js'))).toHaveCount(0);
+    await expect(page.locator(scriptCom('corponu-verificacao-sutia-completo.js'))).toHaveCount(0);
+
+    await expect(page.locator(scriptCom('corponu-sutia-completo-calculo.js'))).toHaveCount(0);
+    await expect(page.locator(scriptCom('corponu-sutia-completo-chegada-rapida.js'))).toHaveCount(0);
+    await expect(page.locator(scriptCom('corponu-chegada-manual-sutia-pagamento-automatico.js'))).toHaveCount(0);
+    await expect(page.locator(scriptCom('corponu-chegada-sem-componentes-duplicados.js'))).toHaveCount(0);
+    await expect(page.locator(scriptCom('corponu-faccoes-corte-definitivo.js'))).toHaveCount(0);
   });
 
   test('carrega os módulos de Pagamentos quando a aba é solicitada', async ({ page }) => {
@@ -34,10 +41,12 @@ test.describe('CorpoNu - carregamento sob demanda dos módulos', () => {
     const moduloInterface = page.locator(scriptCom('corponu-pagamentos-interface.js'));
     const moduloFiltro = page.locator(scriptCom('corponu-pagamentos-filtro-op.js'));
     const moduloPendencias = page.locator(scriptCom('corponu-valores-pendentes-financeiro.js'));
+    const moduloVerificacaoSutia = page.locator(scriptCom('corponu-verificacao-sutia-completo.js'));
 
     await expect(moduloInterface).toHaveCount(1);
     await expect(moduloFiltro).toHaveCount(1);
     await expect(moduloPendencias).toHaveCount(1);
+    await expect(moduloVerificacaoSutia).toHaveCount(1);
 
     const srcs = await page.locator('script[data-corponu-modulo]').evaluateAll(scripts =>
       scripts.map(script => script.src)
@@ -50,16 +59,35 @@ test.describe('CorpoNu - carregamento sob demanda dos módulos', () => {
     }
   });
 
-  test('Facções e Processos também carregam suas melhorias somente ao abrir', async ({ page }) => {
+  test('Facções carrega interface e pacote Sutiã somente na primeira abertura', async ({ page }) => {
     await page.goto('/', { waitUntil: 'load' });
 
     await expect(page.locator(scriptCom('corponu-faccao-cadastro-recolhido.js'))).toHaveCount(0);
-    await expect(page.locator(scriptCom('corponu-processos-somente-valores.js'))).toHaveCount(0);
+    await expect(page.locator(scriptCom('corponu-faccoes-corte-definitivo.js'))).toHaveCount(0);
+    await expect(page.locator(scriptCom('corponu-sutia-completo-calculo.js'))).toHaveCount(0);
 
     await dispararNavegacao(page, 'faccoes');
+
     await expect(page.locator(scriptCom('corponu-faccao-cadastro-recolhido.js'))).toHaveCount(1);
+    await expect(page.locator(scriptCom('corponu-faccoes-corte-definitivo.js'))).toHaveCount(1);
+    await expect(page.locator(scriptCom('corponu-faccoes-tres-abas-saida.js'))).toHaveCount(1);
+    await expect(page.locator(scriptCom('corponu-sutia-completo-calculo.js'))).toHaveCount(1);
+    await expect(page.locator(scriptCom('corponu-sutia-completo-chegada-rapida.js'))).toHaveCount(1);
+    await expect(page.locator(scriptCom('corponu-chegada-manual-sutia-pagamento-automatico.js'))).toHaveCount(1);
+
+    await dispararNavegacao(page, 'faccoes');
+    await expect(page.locator(scriptCom('corponu-sutia-completo-calculo.js'))).toHaveCount(1);
+    await expect(page.locator(scriptCom('corponu-faccoes-corte-definitivo.js'))).toHaveCount(1);
+  });
+
+  test('Processos carrega configuração de Sutiã e sua melhoria visual ao abrir', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'load' });
+
+    await expect(page.locator(scriptCom('corponu-processos-somente-valores.js'))).toHaveCount(0);
+    await expect(page.locator(scriptCom('corponu-sutia-completo-calculo.js'))).toHaveCount(0);
 
     await dispararNavegacao(page, 'processos');
+    await expect(page.locator(scriptCom('corponu-sutia-completo-calculo.js'))).toHaveCount(1);
     await expect(page.locator(scriptCom('corponu-processos-somente-valores.js'))).toHaveCount(1);
   });
 });
