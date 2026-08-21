@@ -217,7 +217,6 @@
         <div><h3>Corte</h3><p>Registre saídas e chegadas de OPs enviadas para processos externos de corte.</p></div>
         <div class="corte-toolbar">
           <button class="btn btn-primary" id="btnCorteRegistrarSaida" type="button">Registrar saída</button>
-          <button class="btn btn-success" id="btnCorteRegistrarChegada" type="button">Registrar chegada</button>
           <button class="btn" id="btnCorteAtualizar" type="button">Atualizar</button>
           <button class="btn btn-print" id="btnCorteImprimir" type="button">Imprimir</button>
         </div>
@@ -1676,7 +1675,6 @@
       const tab = target.closest("[data-area-faccoes]");
       if (tab) { aplicarAba(tab.dataset.areaFaccoes); return; }
       if (target.closest("#btnCorteRegistrarSaida")) return abrirSaida();
-      if (target.closest("#btnCorteRegistrarChegada")) return abrirSeletorChegada();
       if (target.closest("#btnCorteAtualizar")) return carregarTudoCorte(true);
       if (target.closest("#btnCorteImprimir")) return imprimirCorte();
       const close = target.closest("[data-fechar-corte]");
