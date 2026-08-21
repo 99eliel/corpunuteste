@@ -5,9 +5,13 @@ const path = require('path');
 const raiz = process.cwd();
 const loaderPath = path.join(raiz, 'corponu-faccoes-corte.js');
 const saidaPath = path.join(raiz, 'corponu-faccoes-corte-definitivo.js');
+const atualizadorPath = path.join(raiz, 'corponu-atualizador.js');
 
 if (!fs.existsSync(loaderPath)) {
   throw new Error('corponu-faccoes-corte.js não encontrado.');
+}
+if (!fs.existsSync(atualizadorPath)) {
+  throw new Error('corponu-atualizador.js não encontrado.');
 }
 
 const fonteLoader = fs.readFileSync(loaderPath, 'utf8');
@@ -126,7 +130,28 @@ vm.runInContext(fonteLoader, contexto, {
   ].join('\n');
 
   fs.writeFileSync(saidaPath, cabecalho + fonteGerada.trim() + '\n', 'utf8');
+
+  const entradaLegada = '    ["corponu-faccoes-corte.js", "faccoes-corte", "Não foi possível carregar a área interna das facções."],';
+  const entradasDefinitivas = [
+    '    ["corponu-saida-sem-confirmacao.js", "saida-sem-confirmacao-dupla", "Não foi possível carregar a proteção contra saída duplicada."],',
+    '    ["corponu-faccoes-corte-definitivo.js", "faccoes-corte-definitivo", "Não foi possível carregar a área definitiva de Corte / Lateral e Alça."],',
+    '    ["corponu-faccoes-tres-abas-saida.js", "faccoes-tres-abas-saida", "Não foi possível carregar as três abas de Facções."],',
+    '    ["corponu-faccoes-corte-sem-gerenciamento.js", "faccoes-corte-sem-gerenciamento", "Não foi possível remover o gerenciamento duplicado da área Corte."],',
+    '    ["corponu-faccoes-processos-cadastrados.js", "faccoes-processos-cadastrados", "Não foi possível carregar os processos cadastrados no registro de saída."],',
+    '    ["corponu-faccoes-sem-resumo-processos.js", "faccoes-sem-resumo-processos", "Não foi possível remover o resumo antigo de processos da tela de Facções."],',
+    '    ["corponu-lateral-observacao-opcional.js", "lateral-observacao-opcional", "Não foi possível manter a observação opcional na chegada de Lateral."],'
+  ].join('\n');
+
+  let atualizador = fs.readFileSync(atualizadorPath, 'utf8');
+  if (atualizador.includes(entradaLegada)) {
+    atualizador = atualizador.replace(entradaLegada, entradasDefinitivas);
+    fs.writeFileSync(atualizadorPath, atualizador, 'utf8');
+  } else if (!atualizador.includes('corponu-faccoes-corte-definitivo.js')) {
+    throw new Error('Não encontrei a entrada do loader legado nem a entrada definitiva no atualizador.');
+  }
+
   console.log(`Gerado: ${path.basename(saidaPath)} (${fs.statSync(saidaPath).size} bytes)`);
+  console.log('Atualizador preparado para carregar o módulo definitivo sem Blob/fracionamento.');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
