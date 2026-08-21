@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const VERSION = "2026-08-21-revisao-core-consolidado-232";
+  const VERSION = "2026-08-21-revisao-responsaveis-no-core-233";
   const FB = "10.12.5";
   const PAGINA = "revisaoComponentes";
   const NAV = "revisao-componentes";
@@ -91,7 +91,9 @@
       nome: r.usuarioNome || r.registradoPorNome || r.usuarioEmail || "Usuário",
       em: r.atualizadoEm || r.criadoEm || op?.revisaoComponentesAtualizadaEm,
       criadoEm: r.criadoEm,
-      criadoPor: r.criadoPor || ""
+      criadoPor: r.criadoPor || "",
+      lateralQuem: String(r.lateralFeitaPorNome || r.lateralResponsavel || r.quemFezLateral || op?.lateralFeitaPorNome || op?.revisaoLateralFeitaPor || "").trim(),
+      bojoQuem: String(r.bojoFeitoPorNome || r.bojoResponsavel || r.quemFezBojo || op?.bojoEncapadoPorNome || op?.revisaoBojoFeitoPor || "").trim()
     };
   };
   const ehCalcinha = op => norm([op?.tipoPeca, op?.tipoPecaLabel, op?.produtoNome, op?.nomeProduto, op?.observacoes].join(" ")).includes("CALCINHA");
@@ -107,7 +109,8 @@
       .rev-busca{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}.rev-busca label{margin:0}
       .rev-preview{margin-top:14px;padding:14px;border:1px solid #cbd5e1;border-radius:14px;background:#f8fafc}.rev-preview.hidden,.rev-box.hidden,.rev-admin.hidden{display:none!important}
       .rev-preview-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.rev-info{padding:9px;border:1px solid #e2e8f0;border-radius:9px;background:#fff}.rev-info small{display:block;color:#64748b}.rev-info strong{display:block;margin-top:3px}
-      .rev-opcoes{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px}.rev-opcao{display:flex;gap:10px;padding:14px;border:1px solid #cbd5e1;border-radius:13px;background:#fff;cursor:pointer}.rev-opcao input{width:20px;height:20px;accent-color:#7c3aed}.rev-opcao strong,.rev-opcao span{display:block}.rev-opcao span span{margin-top:4px;color:#64748b;font-size:12px}
+      .rev-opcoes{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px}.rev-opcao{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;padding:14px;border:1px solid #cbd5e1;border-radius:13px;background:#fff}.rev-opcao>input{width:20px;height:20px;accent-color:#7c3aed}.rev-opcao>label{cursor:pointer}.rev-opcao strong,.rev-opcao span{display:block}.rev-opcao span span{margin-top:4px;color:#64748b;font-size:12px}
+      .rev-responsavel-50{grid-column:1/-1;margin-top:3px;padding-top:11px;border-top:1px solid #e2e8f0}.rev-responsavel-50 label{display:block;margin:0;color:#334155;font-size:12px;font-weight:900}.rev-responsavel-50 input,.rev-responsavel-50 select{width:100%;min-height:42px;margin-top:6px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#0f172a;font:700 13px/1.3 inherit;box-sizing:border-box}.rev-responsavel-50.desabilitado{opacity:.55}.rev-responsavel-50 small{display:block;margin-top:5px;color:#64748b;font-size:10px;font-weight:700}
       .rev-resumo{margin-top:12px;padding:11px;border-radius:10px;background:#f5f3ff;color:#5b21b6;font-size:12px;font-weight:800}.rev-config{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.rev-alerta{margin-top:12px;padding:11px;border:1px solid #fed7aa;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:12px}
       .rev-pill{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:900}.rev-pill.sim{background:#dcfce7;color:#166534}.rev-pill.nao{background:#f1f5f9;color:#475569}.rev-vazio{text-align:center!important;color:#64748b;padding:24px!important}
       @media(max-width:980px){.rev-grid{grid-template-columns:1fr}}@media(max-width:720px){.rev-busca,.rev-preview-grid,.rev-opcoes,.rev-config{grid-template-columns:1fr}}
@@ -134,8 +137,8 @@
             <div id="revPreview" class="rev-preview hidden"></div>
             <div id="revBox" class="rev-box hidden">
               <div class="rev-opcoes">
-                <label class="rev-opcao"><input id="revLateral" type="checkbox"><span><strong>Lateral feita pela confecção</strong><span>Desconta o valor configurado por peça.</span></span></label>
-                <label class="rev-opcao"><input id="revBojo" type="checkbox"><span><strong>Bojo encapado/pronto pela confecção</strong><span>Desconta o valor configurado por peça.</span></span></label>
+                <div class="rev-opcao"><input id="revLateral" type="checkbox"><label for="revLateral"><strong>Lateral feita pela confecção</strong><span>Desconta o valor configurado por peça.</span></label><div class="rev-responsavel-50 desabilitado" data-responsavel-componente="lateral"><label for="revLateralQuemFez">Quem fez a lateral?</label><input id="revLateralQuemFez" type="text" maxlength="120" autocomplete="off" placeholder="Selecione ou informe a facção"><small>Esta informação fica registrada junto à OP.</small></div></div>
+                <div class="rev-opcao"><input id="revBojo" type="checkbox"><label for="revBojo"><strong>Bojo encapado/pronto pela confecção</strong><span>Desconta o valor configurado por peça.</span></label><div class="rev-responsavel-50 desabilitado" data-responsavel-componente="bojo"><label for="revBojoQuemFez">Quem fez o bojo?</label><input id="revBojoQuemFez" type="text" maxlength="120" autocomplete="off" placeholder="Selecione ou informe a facção"><small>Esta informação fica registrada junto à OP.</small></div></div>
               </div>
               <div id="revResumo" class="rev-resumo"></div>
               <div class="actions"><button class="btn btn-success" type="submit">Salvar revisão</button><button class="btn" id="btnLimparRev" type="button">Limpar</button></div>
@@ -170,6 +173,35 @@
     });
   }
 
+  function sincronizarResponsavel(tipo) {
+    const checkbox = document.getElementById(tipo === "lateral" ? "revLateral" : "revBojo");
+    const campo = document.getElementById(tipo === "lateral" ? "revLateralQuemFez" : "revBojoQuemFez");
+    const bloco = campo?.closest(".rev-responsavel-50");
+    if (!checkbox || !campo) return;
+    campo.disabled = !checkbox.checked;
+    campo.required = checkbox.checked;
+    campo.setAttribute("aria-required", checkbox.checked ? "true" : "false");
+    bloco?.classList.toggle("desabilitado", !checkbox.checked);
+  }
+
+  function preencherResponsaveis(op) {
+    const r = revisao(op);
+    const lateral = document.getElementById("revLateralQuemFez");
+    const bojo = document.getElementById("revBojoQuemFez");
+    if (lateral && !(lateral instanceof HTMLSelectElement) || lateral?.querySelector?.(`option[value="${CSS.escape(r.lateralQuem)}"]`)) {
+      if (lateral) lateral.value = r.lateralQuem;
+    } else if (lateral && r.lateralQuem) {
+      lateral.dataset.valorAnterior = r.lateralQuem;
+    }
+    if (bojo && !(bojo instanceof HTMLSelectElement) || bojo?.querySelector?.(`option[value="${CSS.escape(r.bojoQuem)}"]`)) {
+      if (bojo) bojo.value = r.bojoQuem;
+    } else if (bojo && r.bojoQuem) {
+      bojo.dataset.valorAnterior = r.bojoQuem;
+    }
+    sincronizarResponsavel("lateral");
+    sincronizarResponsavel("bojo");
+  }
+
   function abrirPagina() {
     restaurarPaginasNormais();
     document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
@@ -187,10 +219,10 @@
     document.getElementById("formRevisaoComponentes")?.reset();
     const i = document.getElementById("revNumeroOP"); if (i) i.value = "";
     document.getElementById("revPreview")?.classList.add("hidden"); document.getElementById("revBox")?.classList.add("hidden");
-    const lateral = document.getElementById("revLateral"), bojo = document.getElementById("revBojo");
-    if (lateral) lateral.checked = false;
-    if (bojo) bojo.checked = false;
-    resumo();
+    const lateral = document.getElementById("revLateralQuemFez"), bojo = document.getElementById("revBojoQuemFez");
+    if (lateral) lateral.value = "";
+    if (bojo) bojo.value = "";
+    sincronizarResponsavel("lateral"); sincronizarResponsavel("bojo"); resumo();
   }
 
   function resumo() {
@@ -207,7 +239,8 @@
     const r = revisao(op), prev = document.getElementById("revPreview");
     prev.innerHTML = `<div class="rev-preview-grid"><div class="rev-info"><small>OP</small><strong>${html(op.numeroOP || op.numeroOPExterno || op.id)}</strong></div><div class="rev-info"><small>Referência</small><strong>${html(op.referencia || "-")}</strong></div><div class="rev-info"><small>Cor</small><strong>${html(op.cor || "-")}</strong></div><div class="rev-info"><small>Quantidade</small><strong>${qtd(op.quantidade || op.quantidadeTotal || 0)}</strong></div></div>${r.ativa ? '<div class="rev-resumo">Esta OP já possui revisão ativa. Você pode atualizar as marcações.</div>' : ""}`;
     prev.classList.remove("hidden"); document.getElementById("revBox").classList.remove("hidden");
-    document.getElementById("revLateral").checked = r.ativa && r.lateral; document.getElementById("revBojo").checked = r.ativa && r.bojo; resumo();
+    document.getElementById("revLateral").checked = r.ativa && r.lateral; document.getElementById("revBojo").checked = r.ativa && r.bojo;
+    preencherResponsaveis(op); resumo();
   }
 
   async function buscarOP(numero) {
@@ -306,16 +339,49 @@
     ev.preventDefault(); if (!opAtual) return toast("Primeiro busque uma OP.", "erro");
     const lateral = document.getElementById("revLateral").checked, bojo = document.getElementById("revBojo").checked;
     if (!lateral && !bojo) return toast("Marque lateral, bojo ou os dois.", "erro");
+    const lateralQuem = lateral ? String(document.getElementById("revLateralQuemFez")?.value || "").trim() : "";
+    const bojoQuem = bojo ? String(document.getElementById("revBojoQuemFez")?.value || "").trim() : "";
+    if (lateral && !lateralQuem) return toast("Informe qual facção fez a lateral.", "erro");
+    if (bojo && !bojoQuem) return toast("Informe qual facção fez o bojo.", "erro");
     const numero = opAtual.numeroOP || opAtual.numeroOPExterno || opAtual.id;
     if (!confirm(`Confirmar a revisão da OP ${numero}?`)) return;
     const botao = ev.submitter; if (botao) { botao.disabled = true; botao.textContent = "Salvando..."; }
     try {
       const c = await aguardarCtx(); user = c.auth.currentUser; if (!perfil) await carregarPerfil();
       const ant = revisao(opAtual), agora = c.fs.serverTimestamp();
-      const r = { ativa: true, lateralFeita: lateral, bojoFeito: bojo, usuarioUid: user.uid, usuarioNome: perfil?.nome || user.displayName || user.email || "Usuário", usuarioEmail: perfil?.email || user.email || "", atualizadoPor: user.uid, atualizadoEm: agora, criadoPor: ant.criadoPor || user.uid, criadoEm: ant.criadoEm || agora, versao: VERSION };
-      await c.fs.setDoc(c.fs.doc(c.db, "ordensProducao", opAtual.id), { revisaoComponentesConfeccao: r, lateralFeitaConfeccao: lateral, bojoEncapadoConfeccao: bojo, revisaoComponentesAtualizadaPor: user.uid, revisaoComponentesAtualizadaEm: agora }, { merge: true });
-      opAtual = { ...opAtual, revisaoComponentesConfeccao: r, lateralFeitaConfeccao: lateral, bojoEncapadoConfeccao: bojo }; cacheOP.set(opAtual.id, opAtual);
-      await log("revisao_lateral_bojo_registrada", opAtual, `OP ${numero} | lateral ${lateral ? "sim" : "não"} | bojo ${bojo ? "sim" : "não"}`);
+      const r = {
+        ativa: true,
+        lateralFeita: lateral,
+        bojoFeito: bojo,
+        lateralFeitaPorNome: lateralQuem,
+        bojoFeitoPorNome: bojoQuem,
+        lateralResponsavel: lateralQuem,
+        bojoResponsavel: bojoQuem,
+        responsaveisAtualizadosPor: user.uid,
+        responsaveisAtualizadosEm: agora,
+        responsaveisVersao: VERSION,
+        usuarioUid: user.uid,
+        usuarioNome: perfil?.nome || user.displayName || user.email || "Usuário",
+        usuarioEmail: perfil?.email || user.email || "",
+        atualizadoPor: user.uid,
+        atualizadoEm: agora,
+        criadoPor: ant.criadoPor || user.uid,
+        criadoEm: ant.criadoEm || agora,
+        versao: VERSION
+      };
+      await c.fs.setDoc(c.fs.doc(c.db, "ordensProducao", opAtual.id), {
+        revisaoComponentesConfeccao: r,
+        lateralFeitaConfeccao: lateral,
+        bojoEncapadoConfeccao: bojo,
+        revisaoLateralFeitaPor: lateralQuem,
+        revisaoBojoFeitoPor: bojoQuem,
+        revisaoResponsaveisAtualizadosPor: user.uid,
+        revisaoResponsaveisAtualizadosEm: agora,
+        revisaoComponentesAtualizadaPor: user.uid,
+        revisaoComponentesAtualizadaEm: agora
+      }, { merge: true });
+      opAtual = { ...opAtual, revisaoComponentesConfeccao: r, lateralFeitaConfeccao: lateral, bojoEncapadoConfeccao: bojo, revisaoLateralFeitaPor: lateralQuem, revisaoBojoFeitoPor: bojoQuem }; cacheOP.set(opAtual.id, opAtual);
+      await log("revisao_lateral_bojo_registrada", opAtual, `OP ${numero} | lateral ${lateral ? lateralQuem : "não"} | bojo ${bojo ? bojoQuem : "não"}`);
       const res = await recalcular(opAtual); await carregarLista();
       const aberto = (lateral && !config.lateralConfigurada) || (bojo && !config.bojoConfigurado);
       limpar();
@@ -431,7 +497,10 @@
   function eventosPagina() {
     const f = document.getElementById("formRevisaoComponentes"); if (f && !f.dataset.rev) {
       f.dataset.rev = VERSION; f.addEventListener("submit", salvarRev); document.getElementById("btnBuscarRevOP").addEventListener("click", acaoBuscar); document.getElementById("btnLimparRev").addEventListener("click", limpar);
-      document.getElementById("revNumeroOP").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); acaoBuscar(); } }); document.getElementById("revLateral").addEventListener("change", resumo); document.getElementById("revBojo").addEventListener("change", resumo);
+      document.getElementById("revNumeroOP").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); acaoBuscar(); } });
+      document.getElementById("revLateral").addEventListener("change", () => { resumo(); sincronizarResponsavel("lateral"); });
+      document.getElementById("revBojo").addEventListener("change", () => { resumo(); sincronizarResponsavel("bojo"); });
+      sincronizarResponsavel("lateral"); sincronizarResponsavel("bojo");
     }
     const fc = document.getElementById("formConfigRev"); if (fc && !fc.dataset.rev) { fc.dataset.rev = VERSION; fc.addEventListener("submit", salvarConfig); }
     const busca = document.getElementById("buscaRevLista"); if (busca && !busca.dataset.rev) { busca.dataset.rev = VERSION; busca.addEventListener("input", renderLista); }
