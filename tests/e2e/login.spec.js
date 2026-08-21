@@ -8,13 +8,39 @@ test.describe('CorpoNu - login autenticado', () => {
   test.skip(!temCredenciais, 'Configure TEST_EMAIL e TEST_PASSWORD nos GitHub Actions Secrets.');
 
   test('faz login e navega por telas sem alterar dados', async ({ page }) => {
+    const errosConsole = [];
+    page.on('console', msg => {
+      if (msg.type() === 'error') errosConsole.push(msg.text());
+    });
+    page.on('pageerror', erro => errosConsole.push(String(erro)));
+
     await page.goto('/');
 
     await page.locator('#loginEmail').fill(email);
     await page.locator('#loginSenha').fill(senha);
     await page.locator('#loginForm button[type="submit"]').click();
 
-    await expect(page.locator('#appShell')).toBeVisible({ timeout: 20_000 });
+    const appShell = page.locator('#appShell');
+    const toast = page.locator('#toast');
+
+    try {
+      await expect(appShell).toBeVisible({ timeout: 20_000 });
+    } catch (erro) {
+      const toastTexto = await toast.isVisible().catch(() => false)
+        ? (await toast.textContent())?.trim()
+        : '';
+      const titulo = await page.title();
+      const url = page.url();
+
+      throw new Error([
+        'Login de homologação não abriu o sistema.',
+        `URL atual: ${url}`,
+        `Título atual: ${titulo}`,
+        `Mensagem da tela: ${toastTexto || '(nenhuma)'}`,
+        `Erros do navegador: ${errosConsole.length ? errosConsole.join(' | ') : '(nenhum)'}`
+      ].join('\n'));
+    }
+
     await expect(page.locator('#authScreen')).toHaveClass(/hidden/);
 
     const telas = [
