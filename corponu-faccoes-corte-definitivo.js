@@ -5,7 +5,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-07-30-faccoes-corte-23";
+  const VERSION = "2026-08-21-lateral-alca-fluxo-legado-227";
   const FB = "10.12.5";
   const CONFIG_ID = "processos-corte";
   const AREA = "corte";
@@ -69,6 +69,47 @@
     const processo = processoCanonico(item?.processo || item?.servicoNome || item?.processoMovimentacao);
     return item?.area === AREA || item?.movimentacaoCorte === true || processo === "LATERAL" || processo === "ALÇA";
   }
+
+  function movimentoLegadoForaCorte(item) {
+    return Boolean(item) && item.area !== AREA && item.movimentacaoCorte !== true;
+  }
+
+  function movimentacaoUsaFluxoLegado(item) {
+    if (!movimentoLegadoForaCorte(item)) return false;
+    const processo = processoCanonico(item?.processo || item?.servicoNome || item?.processoMovimentacao);
+    return processo === "LATERAL" || processo === "ALÇA";
+  }
+
+  function abrirChegadaLegada(movementId) {
+    const id = String(movementId || "");
+    if (!id) return false;
+
+    if (typeof window.registrarChegadaMovimentacao === "function") {
+      const modal = document.getElementById("modalChegadaMovimentacao");
+      window.registrarChegadaMovimentacao(id);
+      if (!modal || !modal.classList.contains("hidden")) return true;
+    }
+
+    const botaoOriginal = [...document.querySelectorAll("button[onclick]")].find(botao => {
+      const codigo = String(botao.getAttribute("onclick") || "");
+      return codigo.includes("registrarChegadaMovimentacao") && codigo.includes(id);
+    });
+    if (botaoOriginal instanceof HTMLButtonElement) {
+      botaoOriginal.click();
+      return true;
+    }
+
+    toast("Não foi possível abrir esta chegada antiga. Atualize os dados de Facções e tente novamente.", "error");
+    return false;
+  }
+
+  function abrirChegadaCompatibilidade(movementId, editing = false) {
+    const movement = movimentos.find(item => String(item.id) === String(movementId));
+    if (!movement) return toast("Movimentação não encontrada.", "error");
+    if (movimentacaoUsaFluxoLegado(movement)) return abrirChegadaLegada(movement.id);
+    return abrirChegada(movement.id, editing);
+  }
+
   const ehAdmin = () => norm(perfil?.tipo) === "ADMIN";
 
   function dataBR(value) {
@@ -256,7 +297,7 @@
 
       <div class="table-wrap">
         <table>
-          <thead><tr><th>OP</th><th>REF</th><th>Cor</th><th>Processo</th><th>Facção</th><th>Qtd.</th><th>Saída</th><th>Chegada</th><th>Falta</th><th>Status</th><th>Lateral</th><th>Ações</th></tr></thead>
+          <thead><tr><th>OP</th><th>REF</th><th>Cor</th><th>Processo</th><th>Facção</th><th>Qtd.</th><th>Saída</th><th>Chegada</th><th>Falta</th><th>Status</th><th>Componente</th><th>Ações</th></tr></thead>
           <tbody id="listaFaccoesCorte"><tr><td colspan="12" class="corte-empty">Carregue os dados de Lateral e Alça.</td></tr></tbody>
         </table>
       </div>
@@ -519,23 +560,16 @@
     };
 
     try {
-      // 1) Mostra imediatamente o que já estiver no cache persistente do navegador.
       await tentarCacheLocalMovimentos();
-
-      // 2) Prioriza somente as movimentações do servidor. A tabela aparece antes
-      // de esperar perfil, processos, facções, preços e pagamentos.
       await carregarMovimentos();
       renderTudo();
 
-      // 3) Completa perfil e processos. Eles refinam permissões, rótulos e filtros.
       const etapaPrincipal = [];
       if (!perfil) etapaPrincipal.push(carregarPerfil());
       etapaPrincipal.push(carregarProcessos());
       await Promise.allSettled(etapaPrincipal);
       renderTudo();
 
-      // 4) Dados auxiliares terminam em segundo plano lógico e só então refinam
-      // cartões financeiros, facções e valores. Não bloqueiam a tabela principal.
       await Promise.allSettled([
         carregarFaccoes(),
         carregarPrecos(),
@@ -562,19 +596,26 @@
     const end = document.getElementById("corteFiltroFim")?.value || "";
 
     return movimentos.filter(item => {
-      const text = norm([item.numeroOP, item.referencia, item.cor, item.processo, item.destino, item.status].join(" "));
-      // Canceladas ficam fora da visão normal e aparecem somente no filtro específico.
+      const destino = item.destino || item.faccao || "";
+      const processoAtual = processoCanonico(item.processo || item.servicoNome || item.processoMovimentacao);
+      const text = norm([item.numeroOP, item.referencia, item.cor, processoAtual, destino, item.status].join(" "));
       if (!status && movimentoCancelado(item)) return false;
       if (search && !text.includes(search)) return false;
-      if (process && String(item.processoCorteId || item.processo || "") !== process && norm(item.processo) !== norm(processoPorId(process)?.nome)) return false;
-      if (faccao && String(item.destino || "") !== faccao) return false;
+      if (process) {
+        const processoFiltro = processoPorId(process)?.nome || process;
+        const mesmoId = String(item.processoCorteId || "") === String(process);
+        const mesmoNome = processoAtual === processoCanonico(processoFiltro);
+        if (!mesmoId && !mesmoNome) return false;
+      }
+      if (faccao && String(destino) !== faccao) return false;
       if (status) {
-        const current = movimentoCancelado(item) ? "cancelado" : (item.status || "em_andamento");
+        const current = movimentoCancelado(item) ? "cancelado" : norm(item.status || "em_andamento").toLowerCase();
         if (current !== status) return false;
       }
       if (lateral) {
-        const process = processoPorId(item.processoCorteId) || processoPorNome(item.processo);
-        const ready = !movimentoCancelado(item) && Boolean(item.dataChegada) && (item.marcaLateralPronta === true || process?.marcaLateralPronta === true);
+        if (processoAtual === "ALÇA") return false;
+        const processConfig = processoPorId(item.processoCorteId) || processoPorNome(item.processo);
+        const ready = !movimentoCancelado(item) && Boolean(item.dataChegada) && (processoAtual === "LATERAL" || item.marcaLateralPronta === true || processConfig?.marcaLateralPronta === true);
         if (lateral === "sim" && !ready) return false;
         if (lateral === "nao" && ready) return false;
       }
@@ -596,7 +637,7 @@
       movimentos.forEach(item => {
         const nome = processoCanonico(item.processo);
         if (!nome || !["LATERAL", "ALÇA"].includes(nome)) return;
-        if (opcoes.some(opcao => norm(opcao.label) === norm(nome))) return;
+        if (opcoes.some(opcao => processoCanonico(opcao.label) === nome)) return;
         opcoes.push({ value: nome, label: nome });
       });
       opcoes.sort((a, b) => a.label.localeCompare(b.label, "pt-BR", { numeric: true }));
@@ -605,7 +646,7 @@
     }
 
     if (faccaoSelect) {
-      const names = [...new Set(movimentos.map(item => item.destino).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+      const names = [...new Set(movimentos.map(item => item.destino || item.faccao).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
       faccaoSelect.innerHTML = `<option value="">Todas</option>` + names.map(name => `<option value="${html(name)}">${html(name)}</option>`).join("");
       if ([...faccaoSelect.options].some(option => option.value === currentFaccao)) faccaoSelect.value = currentFaccao;
     }
@@ -648,28 +689,36 @@
 
     body.innerHTML = items.map(item => {
       const pagamento = pagamentoDoMovimento(item.id);
-      const canCancelBefore = !movimentoCancelado(item) && !item.dataChegada && (ehAdmin() || String(item.criadoPor || "") === String(user?.uid || ""));
-      const canCancelAfter = !movimentoCancelado(item) && item.dataChegada && ehAdmin();
-      const canEditArrival = item.dataChegada && !pagamentoPago(pagamento) && !movimentoCancelado(item);
+      const legado = movimentacaoUsaFluxoLegado(item);
+      const processoAtual = processoCanonico(item.processo || item.servicoNome || item.processoMovimentacao);
+      const canCancelBefore = !legado && !movimentoCancelado(item) && !item.dataChegada && (ehAdmin() || String(item.criadoPor || "") === String(user?.uid || ""));
+      const canCancelAfter = !legado && !movimentoCancelado(item) && item.dataChegada && ehAdmin();
+      const canEditArrival = Boolean(item.dataChegada) && !movimentoCancelado(item) && (legado || !pagamentoPago(pagamento));
       const canArrival = !item.dataChegada && !movimentoCancelado(item);
-      const process = processoPorId(item.processoCorteId) || processoPorNome(item.processo);
-      const marksLateral = item.marcaLateralPronta === true || process?.marcaLateralPronta === true;
+      const processConfig = processoPorId(item.processoCorteId) || processoPorNome(item.processo);
+      const marksLateral = processoAtual === "LATERAL" || item.marcaLateralPronta === true || processConfig?.marcaLateralPronta === true;
       const actions = [];
       if (canArrival) actions.push(`<button class="btn btn-sm btn-success" type="button" data-chegada-corte="${html(item.id)}">Registrar chegada</button>`);
       if (canEditArrival) actions.push(`<button class="btn btn-sm" type="button" data-editar-chegada-corte="${html(item.id)}">Editar chegada</button>`);
       if (canCancelBefore || canCancelAfter) actions.push(`<button class="btn btn-sm btn-danger" type="button" data-cancelar-corte="${html(item.id)}">Cancelar</button>`);
-      return `<tr>
+
+      let componente = "-";
+      if (processoAtual === "ALÇA") componente = '<span class="corte-pill lateral">Alça</span>';
+      else if (marksLateral && item.dataChegada && !movimentoCancelado(item)) componente = '<span class="corte-pill lateral">Lateral pronta</span>';
+      else if (processoAtual === "LATERAL") componente = '<span class="corte-pill lateral">Lateral</span>';
+
+      return `<tr data-movimentacao-id="${html(item.id)}">
         <td><strong>${html(item.numeroOP || "-")}</strong></td>
         <td>${html(item.referencia || "-")}</td>
         <td>${html(item.cor || "-")}</td>
-        <td>${html(item.processo || "-")}</td>
-        <td>${html(item.destino || "-")}</td>
+        <td>${html(processoAtual || item.processo || "-")}</td>
+        <td>${html(item.destino || item.faccao || "-")}</td>
         <td>${quantidade(item.quantidadeEnviada)}</td>
         <td>${html(dataBR(item.dataEnvio))}</td>
         <td>${html(dataBR(item.dataChegada))}</td>
         <td>${quantidade(item.falta)}</td>
         <td>${labelStatus(item)}${pagamento && (pagamento.valorPendente === true || statusNormalizado(pagamento.statusPagamento) === "SEM_VALOR") ? ' <span class="corte-pill valor">Valor a definir</span>' : ""}</td>
-        <td>${marksLateral && item.dataChegada && !movimentoCancelado(item) ? '<span class="corte-pill lateral">Lateral pronta</span>' : "-"}</td>
+        <td>${componente}</td>
         <td><div class="corte-actions">${actions.join("") || "-"}</div></td>
       </tr>`;
     }).join("");
@@ -928,8 +977,8 @@
     const body = document.getElementById("listaSelecionarChegadaCorte");
     if (!body) return;
     const search = norm(document.getElementById("buscaSelecionarChegadaCorte")?.value);
-    const items = movimentos.filter(item => !item.dataChegada && !movimentoCancelado(item) && (!search || norm([item.numeroOP, item.processo, item.destino].join(" ")).includes(search)));
-    body.innerHTML = items.length ? items.map(item => `<tr><td><strong>${html(item.numeroOP || "-")}</strong></td><td>${html(item.processo || "-")}</td><td>${html(item.destino || "-")}</td><td>${html(dataBR(item.dataEnvio))}</td><td><button class="btn btn-sm btn-success" type="button" data-chegada-corte="${html(item.id)}">Selecionar</button></td></tr>`).join("") : `<tr><td colspan="5" class="corte-empty">Nenhuma saída em andamento.</td></tr>`;
+    const items = movimentos.filter(item => !item.dataChegada && !movimentoCancelado(item) && (!search || norm([item.numeroOP, item.processo, item.destino || item.faccao].join(" ")).includes(search)));
+    body.innerHTML = items.length ? items.map(item => `<tr><td><strong>${html(item.numeroOP || "-")}</strong></td><td>${html(processoCanonico(item.processo) || "-")}</td><td>${html(item.destino || item.faccao || "-")}</td><td>${html(dataBR(item.dataEnvio))}</td><td><button class="btn btn-sm btn-success" type="button" data-chegada-corte="${html(item.id)}">Selecionar</button></td></tr>`).join("") : `<tr><td colspan="5" class="corte-empty">Nenhuma saída em andamento.</td></tr>`;
   }
 
   async function abrirChegada(movementId, editing = false) {
@@ -948,7 +997,7 @@
     document.getElementById("chegadaCorteFalta").value = missing;
     document.getElementById("chegadaCorteDefeito").value = numero(movimentoChegada.descontoDefeito ?? movimentoChegada.defeito);
     document.getElementById("chegadaCorteObs").value = movimentoChegada.observacoesChegada || movimentoChegada.observacoes || "";
-    document.getElementById("chegadaCortePreview").innerHTML = `<div class="corte-preview-grid"><div class="corte-preview-item"><small>OP</small><strong>${html(movimentoChegada.numeroOP || "-")}</strong></div><div class="corte-preview-item"><small>Processo</small><strong>${html(movimentoChegada.processo || "-")}</strong></div><div class="corte-preview-item"><small>Facção</small><strong>${html(movimentoChegada.destino || "-")}</strong></div><div class="corte-preview-item"><small>Enviado</small><strong>${quantidade(sent)}</strong></div></div>`;
+    document.getElementById("chegadaCortePreview").innerHTML = `<div class="corte-preview-grid"><div class="corte-preview-item"><small>OP</small><strong>${html(movimentoChegada.numeroOP || "-")}</strong></div><div class="corte-preview-item"><small>Processo</small><strong>${html(processoCanonico(movimentoChegada.processo) || "-")}</strong></div><div class="corte-preview-item"><small>Facção</small><strong>${html(movimentoChegada.destino || movimentoChegada.faccao || "-")}</strong></div><div class="corte-preview-item"><small>Enviado</small><strong>${quantidade(sent)}</strong></div></div>`;
     abrirModal("modalChegadaCorte");
   }
 
@@ -1333,6 +1382,7 @@
   async function cancelarMovimento(movementId) {
     const movement = movimentos.find(item => String(item.id) === String(movementId));
     if (!movement) return toast("Movimentação não encontrada.", "error");
+    if (movimentacaoUsaFluxoLegado(movement)) return toast("Movimentações antigas devem ser canceladas pela listagem original de Facções.", "error");
     const beforeArrival = !movement.dataChegada;
     const isCreator = String(movement.criadoPor || "") === String(user?.uid || "");
     if (beforeArrival && !ehAdmin() && !isCreator) return toast("Somente quem registrou a saída ou o administrador pode cancelar.", "error");
@@ -1506,7 +1556,8 @@
     if (!pending.length) return 0;
     const c = await aguardarContexto();
     let batch = c.fs.writeBatch(c.db);
-    let count = 0;    for (const payment of pending) {
+    let count = 0;
+    for (const payment of pending) {
       const qty = Math.max(0, numero(payment.quantidade));
       const defect = Math.max(0, numero(payment.descontoDefeito ?? payment.defeito));
       const subtotal = arredondar(qty * price);
@@ -1620,7 +1671,7 @@
   function imprimirCorte() {
     const items = movimentosFiltrados();
     if (!items.length) return toast("Nenhuma movimentação filtrada para imprimir.", "error");
-    const rows = items.map(item => `<tr><td>${html(item.numeroOP || "-")}</td><td>${html(item.referencia || "-")}</td><td>${html(item.cor || "-")}</td><td>${html(item.processo || "-")}</td><td>${html(item.destino || "-")}</td><td>${quantidade(item.quantidadeEnviada)}</td><td>${html(dataBR(item.dataEnvio))}</td><td>${html(dataBR(item.dataChegada))}</td><td>${quantidade(item.falta)}</td><td>${html(movimentoCancelado(item) ? "Cancelada" : item.dataChegada ? "Retornou" : "Em andamento")}</td></tr>`).join("");
+    const rows = items.map(item => `<tr><td>${html(item.numeroOP || "-")}</td><td>${html(item.referencia || "-")}</td><td>${html(item.cor || "-")}</td><td>${html(processoCanonico(item.processo) || "-")}</td><td>${html(item.destino || item.faccao || "-")}</td><td>${quantidade(item.quantidadeEnviada)}</td><td>${html(dataBR(item.dataEnvio))}</td><td>${html(dataBR(item.dataChegada))}</td><td>${quantidade(item.falta)}</td><td>${html(movimentoCancelado(item) ? "Cancelada" : item.dataChegada ? "Retornou" : "Em andamento")}</td></tr>`).join("");
     const win = window.open("", "_blank", "width=1100,height=800");
     if (!win) return toast("Permita pop-ups para imprimir.", "error");
     win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório Lateral e Alça</title><style>body{font-family:Arial;margin:18px;color:#0f172a}h1{margin:0}p{color:#475569}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #cbd5e1;padding:6px;text-align:left}th{background:#f1f5f9}@media print{button{display:none}}</style></head><body><h1>Facções — Lateral e Alça</h1><p>Impresso em ${html(new Date().toLocaleString("pt-BR"))}</p><table><thead><tr><th>OP</th><th>REF</th><th>Cor</th><th>Processo</th><th>Facção</th><th>Qtd.</th><th>Saída</th><th>Chegada</th><th>Falta</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`);
@@ -1673,7 +1724,6 @@
     }, 900);
   }
 
-  // Respeita classificações marcadas como falsas, sem reativá-las por dados antigos.
   inferirClassificacaoFaccao = faccao => {
     const processosPermitidos = Array.isArray(faccao?.processosPermitidos) ? faccao.processosPermitidos : [];
     const grupos = Array.isArray(faccao?.gruposPermitidos) ? faccao.gruposPermitidos : [];
@@ -1727,6 +1777,15 @@
       const target = event.target instanceof Element ? event.target : null;
       if (!target) return;
 
+      const navFaccoes = target.closest('.nav-btn[data-page="faccoes"]');
+      if (navFaccoes) {
+        setTimeout(() => {
+          injetarUI();
+          atualizarVisibilidadeAdmin();
+          if (abaAtiva === "corte") carregarTudoCorte();
+        }, 0);
+      }
+
       const tab = target.closest("[data-area-faccoes]");
       if (tab) { aplicarAba(tab.dataset.areaFaccoes); return; }
       if (target.closest("#btnCorteRegistrarSaida")) return abrirSaida();
@@ -1746,9 +1805,9 @@
         return;
       }
       const arrival = target.closest("[data-chegada-corte]");
-      if (arrival) return abrirChegada(arrival.dataset.chegadaCorte, false);
+      if (arrival) return abrirChegadaCompatibilidade(arrival.dataset.chegadaCorte, false);
       const editArrival = target.closest("[data-editar-chegada-corte]");
-      if (editArrival) return abrirChegada(editArrival.dataset.editarChegadaCorte, true);
+      if (editArrival) return abrirChegadaCompatibilidade(editArrival.dataset.editarChegadaCorte, true);
       const cancelMovement = target.closest("[data-cancelar-corte]");
       if (cancelMovement) return cancelarMovimento(cancelMovement.dataset.cancelarCorte);
       const editProcess = target.closest("[data-editar-processo-corte]");
@@ -1862,11 +1921,6 @@
     } catch (error) {
       return setTimeout(iniciar, 1200);
     }
-
-    new MutationObserver(() => {
-      injetarUI();
-      atualizarVisibilidadeAdmin();
-    }).observe(document.body, { childList: true, subtree: true });
   }
 
   window.CorpoNuFaccoesCorte = {
