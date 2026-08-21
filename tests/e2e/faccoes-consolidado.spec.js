@@ -15,7 +15,7 @@ async function entrar(page) {
 test.describe('Facções - módulo consolidado', () => {
   test.skip(!temCredenciais, 'Configure TEST_EMAIL e TEST_PASSWORD nos GitHub Actions Secrets.');
 
-  test('abre Facções sem loader, fragmentos TXT ou Blob legado', async ({ page }) => {
+  test('abre Facções sem loader, fragmentos ou remendos já incorporados', async ({ page }) => {
     const requisicoes = [];
     const errosPagina = [];
 
@@ -36,11 +36,23 @@ test.describe('Facções - módulo consolidado', () => {
       timeout: 15_000
     }).toBeGreaterThan(0);
 
+    // O gerenciamento antigo não deve mais nascer para um script ficar apagando depois.
+    await expect(page.locator('#btnCorteGerenciar')).toHaveCount(0);
+    await expect(page.locator('#cortePainelAdmin')).toHaveCount(0);
+
+    // A observação já nasce opcional; não depende mais de timer/listener corretivo.
+    const observacao = page.locator('#chegadaCorteObs');
+    await expect(observacao).toHaveCount(1);
+    await expect(observacao).not.toHaveAttribute('required', '');
+    await expect(observacao).toHaveAttribute('placeholder', 'Opcional');
+
     const locais = requisicoes
       .map(url => new URL(url).pathname.split('/').pop())
       .filter(Boolean);
 
     expect(locais).not.toContain('corponu-faccoes-corte.js');
+    expect(locais).not.toContain('corponu-faccoes-corte-sem-gerenciamento.js');
+    expect(locais).not.toContain('corponu-lateral-observacao-opcional.js');
     for (let parte = 1; parte <= 5; parte += 1) {
       expect(locais).not.toContain(`corponu-faccoes-corte-0${parte}.txt`);
     }
