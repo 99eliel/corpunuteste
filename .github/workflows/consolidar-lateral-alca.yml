@@ -1,0 +1,165 @@
+name: Consolidar Lateral e Alca
+
+on:
+  push:
+    branches:
+      - perf/otimizacao-global-v1
+    paths:
+      - .github/workflows/consolidar-lateral-alca.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  consolidar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+        with:
+          ref: perf/otimizacao-global-v1
+          fetch-depth: 0
+
+      - name: Consolidar integracao no modulo definitivo
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          modulo = Path('corponu-faccoes-corte-definitivo.js')
+          atualizador = Path('corponu-atualizador.js')
+          teste = Path('tests/e2e/faccoes-consolidado.spec.js')
+
+          fonte = modulo.read_text(encoding='utf-8')
+          upd = atualizador.read_text(encoding='utf-8')
+          tst = teste.read_text(encoding='utf-8')
+
+          # 1) Funções canônicas para incorporar registros antigos de LATERAL/ALÇA.
+          alvo = '''  const movimentoCancelado = movimento => ["CANCELADO", "CANCELADA", "EXCLUIDO", "EXCLUÍDO"].includes(norm(movimento?.status)) || movimento?.cancelado === true || movimento?.excluido === true;\n'''
+          novo = alvo + '''\n  function processoCanonico(valor) {\n    const chave = norm(valor);\n    if (["ALCA", "ALCAS", "ALÇAS"].includes(chave)) return "ALÇA";\n    if (chave === "LATERAL") return "LATERAL";\n    return String(valor ?? "").trim().toUpperCase();\n  }\n\n  function pertenceLateralAlca(item) {\n    const processo = processoCanonico(item?.processo || item?.servicoNome || item?.processoMovimentacao);\n    return item?.area === AREA || item?.movimentacaoCorte === true || processo === "LATERAL" || processo === "ALÇA";\n  }\n'''
+          if 'function processoCanonico(valor)' not in fonte:
+              if alvo not in fonte:
+                  raise SystemExit('Não encontrei o ponto para inserir processoCanonico.')
+              fonte = fonte.replace(alvo, novo, 1)
+
+          # 2) Botão de chegada manual já nasce no painel, sem script que o injeta depois.
+          alvo = '''          <button class="btn btn-primary" id="btnCorteRegistrarSaida" type="button">Registrar saída</button>\n          <button class="btn" id="btnCorteAtualizar" type="button">Atualizar</button>'''
+          novo = '''          <button class="btn btn-primary" id="btnCorteRegistrarSaida" type="button">Registrar saída</button>\n          <button class="btn btn-success" id="btnChegadaManualLateralAlca" type="button">Chegada manual</button>\n          <button class="btn" id="btnCorteAtualizar" type="button">Atualizar</button>'''
+          if 'id="btnChegadaManualLateralAlca"' not in fonte:
+              if alvo not in fonte:
+                  raise SystemExit('Toolbar de Lateral e Alça não encontrada.')
+              fonte = fonte.replace(alvo, novo, 1)
+
+          # 3) Datalist de chegada manual recebe os dois processos uma única vez.
+          marcador = '  function injetarUI() {\n'
+          helper = '''  function garantirProcessosChegadaManual() {\n    const datalist = document.getElementById("chegadaManualProcessoList");\n    if (!(datalist instanceof HTMLDataListElement)) return;\n    ["LATERAL", "ALÇA"].forEach(processo => {\n      const existe = [...datalist.options].some(option => norm(option.value) === norm(processo));\n      if (existe) return;\n      const option = document.createElement("option");\n      option.value = processo;\n      datalist.appendChild(option);\n    });\n  }\n\n'''
+          if 'function garantirProcessosChegadaManual()' not in fonte:
+              if marcador not in fonte:
+                  raise SystemExit('injetarUI não encontrada.')
+              fonte = fonte.replace(marcador, helper + marcador, 1)
+
+          alvo = '''    injetarEstilo();\n    montarModais();\n    injetarClassificacaoFaccao();'''
+          novo = '''    injetarEstilo();\n    montarModais();\n    garantirProcessosChegadaManual();\n    injetarClassificacaoFaccao();'''
+          if novo not in fonte:
+              if alvo not in fonte:
+                  raise SystemExit('Inicialização da UI não encontrada.')
+              fonte = fonte.replace(alvo, novo, 1)
+
+          # 4) Uma única carga de movimentos: área corte + marca antiga + processo legado.
+          padrao = re.compile(r'  async function carregarMovimentos\(\) \{.*?\n  \}\n\n  async function carregarPrecos\(\)', re.S)
+          substituto = '''  async function carregarMovimentos() {\n    const c = await aguardarContexto();\n    const colecao = c.fs.collection(c.db, "movimentacoesProducao");\n    const consultas = [\n      c.fs.query(colecao, c.fs.where("area", "==", AREA)),\n      c.fs.query(colecao, c.fs.where("movimentacaoCorte", "==", true)),\n      c.fs.query(colecao, c.fs.where("processo", "in", ["LATERAL", "ALÇA", "ALCA", "ALÇAS"]))\n    ];\n\n    const resultados = await Promise.allSettled(consultas.map(consulta => c.fs.getDocs(consulta)));\n    const mapa = new Map();\n    let consultasValidas = 0;\n\n    resultados.forEach(resultado => {\n      if (resultado.status !== "fulfilled") return;\n      consultasValidas += 1;\n      resultado.value.docs.forEach(docSnap => {\n        const item = { id: docSnap.id, ...docSnap.data() };\n        if (pertenceLateralAlca(item)) mapa.set(item.id, item);\n      });\n    });\n\n    if (!consultasValidas) {\n      const erro = resultados.find(resultado => resultado.status === "rejected")?.reason;\n      throw erro || new Error("Não foi possível consultar movimentações de Lateral e Alça.");\n    }\n\n    movimentos = [...mapa.values()];\n    movimentos.sort((a, b) => {\n      const da = a.atualizadoEm?.toMillis?.() || a.criadoEm?.toMillis?.() || Date.parse(a.dataChegada || a.dataEnvio || "") || 0;\n      const db = b.atualizadoEm?.toMillis?.() || b.criadoEm?.toMillis?.() || Date.parse(b.dataChegada || b.dataEnvio || "") || 0;\n      return db - da;\n    });\n  }\n\n  async function carregarPrecos()'''
+          fonte_nova, n = padrao.subn(substituto, fonte, count=1)
+          if n != 1:
+              raise SystemExit(f'Esperava substituir carregarMovimentos uma vez; encontrei {n}.')
+          fonte = fonte_nova
+
+          # 5) Filtro de processo inclui processos presentes no histórico antigo.
+          padrao = re.compile(r'  function preencherFiltros\(\) \{.*?\n  \}\n\n  function renderResumo\(\)', re.S)
+          substituto = '''  function preencherFiltros() {\n    const processSelect = document.getElementById("corteFiltroProcesso");\n    const faccaoSelect = document.getElementById("corteFiltroFaccao");\n    const currentProcess = processSelect?.value || "";\n    const currentFaccao = faccaoSelect?.value || "";\n\n    if (processSelect) {\n      const opcoes = processos.map(item => ({ value: String(item.id), label: String(item.nome || item.id) }));\n      movimentos.forEach(item => {\n        const nome = processoCanonico(item.processo);\n        if (!nome || !["LATERAL", "ALÇA"].includes(nome)) return;\n        if (opcoes.some(opcao => norm(opcao.label) === norm(nome))) return;\n        opcoes.push({ value: nome, label: nome });\n      });\n      opcoes.sort((a, b) => a.label.localeCompare(b.label, "pt-BR", { numeric: true }));\n      processSelect.innerHTML = `<option value="">Todos</option>` + opcoes.map(item => `<option value="${html(item.value)}">${html(item.label)}</option>`).join("");\n      if ([...processSelect.options].some(option => option.value === currentProcess)) processSelect.value = currentProcess;\n    }\n\n    if (faccaoSelect) {\n      const names = [...new Set(movimentos.map(item => item.destino).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));\n      faccaoSelect.innerHTML = `<option value="">Todas</option>` + names.map(name => `<option value="${html(name)}">${html(name)}</option>`).join("");\n      if ([...faccaoSelect.options].some(option => option.value === currentFaccao)) faccaoSelect.value = currentFaccao;\n    }\n  }\n\n  function renderResumo()'''
+          fonte_nova, n = padrao.subn(substituto, fonte, count=1)
+          if n != 1:
+              raise SystemExit(f'Esperava substituir preencherFiltros uma vez; encontrei {n}.')
+          fonte = fonte_nova
+
+          # 6) Regras que antes ignoravam registros legados passam a usar pertenceLateralAlca.
+          fonte = fonte.replace(
+              '      const sameArea = item.area === AREA || item.movimentacaoCorte === true;\n',
+              '      const sameArea = pertenceLateralAlca(item);\n',
+              1
+          )
+
+          alvo = '    if (!(movement.marcaLateralPronta === true || process?.marcaLateralPronta === true)) return;'
+          novo = '    if (!(movement.marcaLateralPronta === true || process?.marcaLateralPronta === true || processoCanonico(movement.processo) === "LATERAL")) return;'
+          if alvo in fonte:
+              fonte = fonte.replace(alvo, novo, 1)
+          elif novo not in fonte:
+              raise SystemExit('Regra de marcar lateral pronta não encontrada.')
+
+          alvo = '      return (item.area === AREA || item.movimentacaoCorte === true) && !movimentoCancelado(item) && Boolean(item.dataChegada) && (item.marcaLateralPronta === true || process?.marcaLateralPronta === true);'
+          novo = '      return pertenceLateralAlca(item) && !movimentoCancelado(item) && Boolean(item.dataChegada) && (item.marcaLateralPronta === true || process?.marcaLateralPronta === true || processoCanonico(item.processo) === "LATERAL");'
+          if alvo in fonte:
+              fonte = fonte.replace(alvo, novo, 1)
+          elif novo not in fonte:
+              raise SystemExit('Regra de recálculo da lateral não encontrada.')
+
+          # 7) O botão de chegada manual usa a modal já existente do sistema principal.
+          alvo = '      if (target.closest("#btnCorteRegistrarSaida")) return abrirSaida();\n      if (target.closest("#btnCorteAtualizar")) return carregarTudoCorte(true);'
+          novo = '''      if (target.closest("#btnCorteRegistrarSaida")) return abrirSaida();\n      if (target.closest("#btnChegadaManualLateralAlca")) {\n        garantirProcessosChegadaManual();\n        document.getElementById("btnAbrirChegadaManualFaccao")?.click();\n        return;\n      }\n      if (target.closest("#btnCorteAtualizar")) return carregarTudoCorte(true);'''
+          if alvo in fonte:
+              fonte = fonte.replace(alvo, novo, 1)
+          elif 'btnChegadaManualLateralAlca' not in fonte:
+              raise SystemExit('Handler de clique não encontrado.')
+
+          # 8) Remove a integração paralela do carregador.
+          upd = '\n'.join(
+              linha for linha in upd.split('\n')
+              if 'corponu-faccoes-lateral-alca-integracao.js' not in linha
+          )
+
+          # 9) Travas E2E contra a volta da integração paralela.
+          if "corponu-faccoes-lateral-alca-integracao.js" not in tst:
+              tst = tst.replace(
+                  "    expect(locais).not.toContain('corponu-lateral-observacao-opcional.js');\n",
+                  "    expect(locais).not.toContain('corponu-lateral-observacao-opcional.js');\n    expect(locais).not.toContain('corponu-faccoes-lateral-alca-integracao.js');\n"
+              )
+          if "btnChegadaManualLateralAlca" not in tst:
+              tst = tst.replace(
+                  "    await expect(observacao).toHaveAttribute('placeholder', 'Opcional');\n",
+                  "    await expect(observacao).toHaveAttribute('placeholder', 'Opcional');\n\n    // A chegada manual já faz parte do módulo definitivo.\n    await expect(page.locator('#btnChegadaManualLateralAlca')).toHaveCount(1);\n"
+              )
+
+          modulo.write_text(fonte, encoding='utf-8')
+          atualizador.write_text(upd, encoding='utf-8')
+          teste.write_text(tst, encoding='utf-8')
+          PY
+
+      - name: Validar JavaScript e remocao da integracao paralela
+        shell: bash
+        run: |
+          node --check corponu-faccoes-corte-definitivo.js
+          node --check corponu-atualizador.js
+          node --check tests/e2e/faccoes-consolidado.spec.js
+          ! grep -q 'corponu-faccoes-lateral-alca-integracao.js' corponu-atualizador.js
+          grep -q 'function pertenceLateralAlca' corponu-faccoes-corte-definitivo.js
+          grep -q 'id="btnChegadaManualLateralAlca"' corponu-faccoes-corte-definitivo.js
+          grep -q 'processoCanonico(movement.processo) === "LATERAL"' corponu-faccoes-corte-definitivo.js
+
+      - name: Remover remendo e workflow temporario
+        shell: bash
+        run: |
+          rm -f corponu-faccoes-lateral-alca-integracao.js
+          rm -f .github/workflows/consolidar-lateral-alca.yml
+
+      - name: Salvar consolidacao na branch
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'refactor: consolidar lateral e alca no modulo definitivo'
+          git push origin HEAD:perf/otimizacao-global-v1
