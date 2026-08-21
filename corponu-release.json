@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-21-homologacao-demo-op-mov-226",
-  "updatedAt": "2026-08-21T15:05:00-03:00",
-  "notes": "HOMOLOGAÇÃO. Cria uma OP e uma movimentação de demonstração com IDs fixos somente no projeto Firebase corponuteste: OP 999821, referência 9999, 120 peças, processo SUTIÃ COMPLETO e destino FACÇÃO TESTE. O semeador usa a sessão autenticada do usuário, não contém credenciais e não executa fora do projeto corponuteste."
+  "version": "2026-08-21-homologacao-demo-encerrada-227",
+  "updatedAt": "2026-08-21T15:16:00-03:00",
+  "notes": "HOMOLOGAÇÃO. Remove o semeador temporário usado para criar a OP 999821 e sua movimentação de demonstração. Os registros já criados permanecem no Firebase de teste para conferência manual, mas o sistema não cria novos registros automaticamente."
 }
