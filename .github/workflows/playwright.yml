@@ -1,0 +1,61 @@
+name: CorpoNu - Playwright E2E
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Blindar testes no Firebase de homologacao
+        run: python3 scripts/aplicar-firebase-homologacao.py
+
+      - name: Confirmar que producao nao sera usada
+        shell: bash
+        run: |
+          if grep -q "corponu-b4942" app.js login-core.js; then
+            echo "ERRO: Firebase de producao encontrado no ambiente E2E."
+            exit 1
+          fi
+          grep -q 'projectId: "corponuteste"' app.js
+          grep -q 'projectId: "corponuteste"' login-core.js
+          echo "Ambiente E2E isolado em corponuteste."
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Instalar Chromium do Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Rodar Playwright
+        env:
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          E2E_BASE_URL: ${{ vars.E2E_BASE_URL }}
+        run: npm run test:e2e
+
+      - name: Salvar relatorio, screenshots, videos e traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
