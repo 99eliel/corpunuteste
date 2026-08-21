@@ -13,9 +13,21 @@ async function entrar(page) {
 }
 
 test.describe('Facções - módulo consolidado', () => {
-  test.skip(!temCredenciais, 'Configure TEST_EMAIL e TEST_PASSWORD nos GitHub Actions Secrets.');
+  test('código definitivo não depende da integração paralela nem de MutationObserver global', async ({ request }) => {
+    const resposta = await request.get('/corponu-faccoes-corte-definitivo.js');
+    expect(resposta.ok()).toBeTruthy();
+    const codigo = await resposta.text();
+
+    expect(codigo).toContain('2026-08-21-lateral-alca-fluxo-legado-227');
+    expect(codigo).toContain('movimentacaoUsaFluxoLegado');
+    expect(codigo).toContain('abrirChegadaCompatibilidade');
+    expect(codigo).not.toContain('new MutationObserver');
+    expect(codigo).not.toContain('__CORPONU_FACCOES_LATERAL_ALCA__');
+  });
 
   test('abre Facções sem loader, fragmentos ou remendos já incorporados', async ({ page }) => {
+    test.skip(!temCredenciais, 'Configure TEST_EMAIL e TEST_PASSWORD nos GitHub Actions Secrets.');
+
     const requisicoes = [];
     const errosPagina = [];
 
@@ -36,21 +48,18 @@ test.describe('Facções - módulo consolidado', () => {
       timeout: 15_000
     }).toBeGreaterThan(0);
 
-    // Elementos antigos deixam de nascer; não dependem mais de Observers para serem apagados.
     await expect(page.locator('#btnCorteGerenciar')).toHaveCount(0);
     await expect(page.locator('#cortePainelAdmin')).toHaveCount(0);
     await expect(page.locator('#btnCorteRegistrarChegada')).toHaveCount(0);
 
-    // A observação já nasce opcional; não depende mais de timer/listener corretivo.
     const observacao = page.locator('#chegadaCorteObs');
     await expect(observacao).toHaveCount(1);
     await expect(observacao).not.toHaveAttribute('required', '');
     await expect(observacao).toHaveAttribute('placeholder', 'Opcional');
 
-    // A chegada manual já faz parte do módulo definitivo.
     await expect(page.locator('#btnChegadaManualLateralAlca')).toHaveCount(1);
+    await expect(page.locator('#abaFaccaoCorte')).toContainText('Lateral e Alça');
 
-    // A antiga integração paralela não deve mais existir nem executar no navegador.
     await expect.poll(async () => page.evaluate(() => Boolean(window.__CORPONU_FACCOES_LATERAL_ALCA__)), {
       timeout: 2_000
     }).toBeFalsy();
