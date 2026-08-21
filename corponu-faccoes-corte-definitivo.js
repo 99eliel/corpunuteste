@@ -518,6 +518,8 @@
 
     return movimentos.filter(item => {
       const text = norm([item.numeroOP, item.referencia, item.cor, item.processo, item.destino, item.status].join(" "));
+      // Canceladas ficam fora da visão normal e aparecem somente no filtro específico.
+      if (!status && movimentoCancelado(item)) return false;
       if (search && !text.includes(search)) return false;
       if (process && String(item.processoCorteId || item.processo || "") !== process && norm(item.processo) !== norm(processoPorId(process)?.nome)) return false;
       if (faccao && String(item.destino || "") !== faccao) return false;
@@ -593,8 +595,8 @@
 
     body.innerHTML = items.map(item => {
       const pagamento = pagamentoDoMovimento(item.id);
-      const canCancelBefore = !item.dataChegada && (ehAdmin() || String(item.criadoPor || "") === String(user?.uid || ""));
-      const canCancelAfter = item.dataChegada && ehAdmin();
+      const canCancelBefore = !movimentoCancelado(item) && !item.dataChegada && (ehAdmin() || String(item.criadoPor || "") === String(user?.uid || ""));
+      const canCancelAfter = !movimentoCancelado(item) && item.dataChegada && ehAdmin();
       const canEditArrival = item.dataChegada && !pagamentoPago(pagamento) && !movimentoCancelado(item);
       const canArrival = !item.dataChegada && !movimentoCancelado(item);
       const process = processoPorId(item.processoCorteId) || processoPorNome(item.processo);
