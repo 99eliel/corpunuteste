@@ -21,8 +21,27 @@ const db = getFirestore(app);
 
 function el(id){ return document.getElementById(id); }
 
+function garantirLoginStatus() {
+  let box = el("loginStatus");
+  if (box) return box;
+
+  const form = el("loginForm");
+  if (!form) return null;
+
+  box = document.createElement("div");
+  box.id = "loginStatus";
+  box.className = "notice small login-status hidden";
+  box.setAttribute("role", "status");
+  box.setAttribute("aria-live", "polite");
+
+  const primeiroBotao = form.querySelector('button[type="submit"]');
+  if (primeiroBotao) form.insertBefore(box, primeiroBotao);
+  else form.appendChild(box);
+  return box;
+}
+
 function setStatus(message, type = "info") {
-  const box = el("loginStatus");
+  const box = garantirLoginStatus();
   if (!box) return;
   box.textContent = message || "";
   box.className = `notice small login-status ${type}`;
@@ -81,7 +100,7 @@ async function loginComFirebase() {
     } else if (error?.code === "auth/invalid-credential" || error?.code === "auth/wrong-password" || error?.code === "auth/user-not-found") {
       msg = "E-mail ou senha incorretos no Firebase Authentication.";
     } else if (String(error?.code || "").includes("permission-denied")) {
-      msg = "Entrou no Authentication, mas o Firestore bloqueou a leitura do perfil. Confira as regras.";
+      msg = "Entrou no Authentication, mas o Firestore bloqueou a leitura do perfil. Confira as regras e o documento usuarios/UID.";
     }
     setStatus(msg, "erro");
   } finally {
@@ -93,16 +112,20 @@ async function loginComFirebase() {
 }
 
 function bindLogin() {
+  garantirLoginStatus();
+
   document.querySelectorAll(".toggle-password").forEach(btn => {
     if (btn.dataset.loginCoreReady === "1") return;
     btn.dataset.loginCoreReady = "1";
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
       const input = el(btn.dataset.target);
       if (!input) return;
       const showing = input.type === "text";
       input.type = showing ? "password" : "text";
       btn.textContent = showing ? "Mostrar" : "Ocultar";
-    });
+    }, true);
   });
 
   const form = el("loginForm");
@@ -110,28 +133,38 @@ function bindLogin() {
     form.dataset.loginCoreReady = "1";
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
       loginComFirebase();
     }, true);
   }
 
-  el("btnResetSenha")?.addEventListener("click", async () => {
-    const email = el("loginEmail")?.value?.trim();
-    if (!email) {
-      setStatus("Digite seu e-mail primeiro.", "erro");
-      return;
-    }
-    try {
-      await sendPasswordResetEmail(auth, email);
-      setStatus("E-mail de redefinição enviado.", "sucesso");
-    } catch (error) {
-      console.error(error);
-      setStatus("Não consegui enviar redefinição de senha.", "erro");
-    }
-  });
+  const reset = el("btnResetSenha");
+  if (reset && reset.dataset.loginCoreReady !== "1") {
+    reset.dataset.loginCoreReady = "1";
+    reset.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const email = el("loginEmail")?.value?.trim();
+      if (!email) {
+        setStatus("Digite seu e-mail primeiro.", "erro");
+        return;
+      }
+      try {
+        await sendPasswordResetEmail(auth, email);
+        setStatus("E-mail de redefinição enviado.", "sucesso");
+      } catch (error) {
+        console.error(error);
+        setStatus("Não consegui enviar redefinição de senha.", "erro");
+      }
+    }, true);
+  }
 }
 
-document.addEventListener("DOMContentLoaded", bindLogin);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bindLogin, { once: true });
+} else {
+  bindLogin();
+}
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
