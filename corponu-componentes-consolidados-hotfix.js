@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-07-31-componentes-nao-informados-53";
+  const VERSION = "2026-08-21-componentes-legados-sob-demanda-238";
   const FB = "10.12.5";
 
   if (window.__CORPONU_COMPONENTES_NAO_INFORMADOS__ === VERSION) return;
@@ -10,6 +10,7 @@
   let firebasePromise = null;
   let timerManual = null;
   const limpando = new Set();
+  const limposNaSessao = new Set();
 
   const texto = valor => String(valor ?? "").trim();
 
@@ -56,11 +57,15 @@
     return null;
   }
 
-  async function limparOP(op) {
+  async function limparOP(op, forcar = false) {
     if (!op?.id || limpando.has(op.id)) return false;
+    if (!forcar && limposNaSessao.has(op.id)) return false;
+
     const componentes = op.componentesConsolidados || {};
     const removerLateral = componentes.lateral && componentes.lateral.informado !== true;
     const removerBojo = componentes.bojo && componentes.bojo.informado !== true;
+
+    limposNaSessao.add(op.id);
     if (!removerLateral && !removerBojo) return false;
 
     limpando.add(op.id);
@@ -72,9 +77,12 @@
       patch.componentesConsolidadosHotfixVersao = VERSION;
       patch.componentesConsolidadosHotfixEm = ctx.fs.serverTimestamp();
       await ctx.fs.updateDoc(ctx.fs.doc(ctx.db, "ordensProducao", op.id), patch);
+      document.getElementById("sutCompletoComponentesChegada")?.remove();
+      document.getElementById("sutCompletoComponentesChegadaManual")?.remove();
       return true;
     } catch (error) {
-      console.warn("Status não informado de lateral/bojo não pôde ser limpo.", error);
+      limposNaSessao.delete(op.id);
+      console.warn("Status legado não informado de lateral/bojo não pôde ser limpo.", error);
       return false;
     } finally {
       limpando.delete(op.id);
@@ -95,28 +103,17 @@
       if (opSnap.exists()) op = { id: opSnap.id, ...opSnap.data() };
     }
     if (!op) op = await buscarOPPorNumero(mov.numeroOP);
-
-    const alterou = await limparOP(op);
-    if (alterou) document.getElementById("sutCompletoComponentesChegada")?.remove();
-    return alterou;
+    return limparOP(op);
   }
 
   async function limparPorNumero(numeroOP) {
     const op = await buscarOPPorNumero(numeroOP);
-    const alterou = await limparOP(op);
-    if (alterou) document.getElementById("sutCompletoComponentesChegadaManual")?.remove();
-    return alterou;
+    return limparOP(op);
   }
 
   function idMovimentacaoDoBotao(botao) {
     const onclick = String(botao?.getAttribute("onclick") || "");
     return onclick.match(/registrarChegadaMovimentacao\s*\(\s*['\"]([^'\"]+)['\"]/i)?.[1] || "";
-  }
-
-  function programarLimpezaMovimentacao(id) {
-    [0, 180, 700, 1800, 4200].forEach(atraso => window.setTimeout(() => {
-      limparPorMovimentacao(id).catch(() => {});
-    }, atraso));
   }
 
   function iniciar() {
@@ -125,24 +122,7 @@
       const botao = alvo?.closest('[onclick*="registrarChegadaMovimentacao"]');
       if (!botao) return;
       const id = idMovimentacaoDoBotao(botao);
-      if (id) programarLimpezaMovimentacao(id);
-    }, true);
-
-    document.addEventListener("submit", event => {
-      const form = event.target;
-      if (!(form instanceof HTMLFormElement)) return;
-
-      if (form.id === "formChegadaMovimentacao") {
-        const id = texto(document.getElementById("chegadaMovimentacaoId")?.value);
-        if (id) programarLimpezaMovimentacao(id);
-      }
-
-      if (form.id === "formChegadaManualFaccao") {
-        const numeroOP = texto(document.getElementById("chegadaManualOP")?.value);
-        if (numeroOP) [900, 2200, 4800].forEach(atraso => window.setTimeout(() => {
-          limparPorNumero(numeroOP).catch(() => {});
-        }, atraso));
-      }
+      if (id) void limparPorMovimentacao(id);
     }, true);
 
     document.addEventListener("input", event => {
@@ -151,14 +131,25 @@
       const numeroOP = texto(event.target.value);
       if (!numeroOP) return;
       timerManual = window.setTimeout(() => {
-        limparPorNumero(numeroOP).catch(() => {});
-      }, 120);
+        void limparPorNumero(numeroOP);
+      }, 250);
+    }, true);
+
+    document.addEventListener("click", event => {
+      const alvo = event.target instanceof Element ? event.target : null;
+      if (!alvo?.closest("#btnBuscarChegadaManualOP")) return;
+      const numeroOP = texto(document.getElementById("chegadaManualOP")?.value);
+      if (numeroOP) void limparPorNumero(numeroOP);
     }, true);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", iniciar, { once: true });
-  } else {
-    iniciar();
-  }
+  window.CorpoNuComponentesLegados = {
+    versao: VERSION,
+    limparPorNumero,
+    limparPorMovimentacao,
+    limparOP
+  };
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true });
+  else iniciar();
 })();
