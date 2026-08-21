@@ -43,6 +43,9 @@ test.describe('Facções - módulo consolidado', () => {
     expect(codigoGrupos).toContain('CorpoNuFaccoesGrupos');
     expect(codigoGrupos).not.toContain('stopImmediatePropagation');
     expect(codigoGrupos).not.toContain('setInterval');
+
+    const respostaExclusaoLegada = await request.get('/corponu-faccoes-lateral-alca-exclusao.js');
+    expect(respostaExclusaoLegada.status()).toBe(404);
   });
 
   test('abre Facções sem loader, fragmentos ou remendos já incorporados', async ({ page }) => {
@@ -101,7 +104,8 @@ test.describe('Facções - módulo consolidado', () => {
       'corponu-faccoes-label-lateral.js',
       'corponu-faccoes-processos-cadastrados.js',
       'corponu-faccoes-grupos-processos-integracao.js',
-      'corponu-faccoes-grupos-saida-fix.js'
+      'corponu-faccoes-grupos-saida-fix.js',
+      'corponu-faccoes-lateral-alca-exclusao.js'
     ];
     removidos.forEach(nome => expect(locais).not.toContain(nome));
 
