@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const VERSION = "2026-07-30-revisao-lateral-bojo-18";
+  const VERSION = "2026-08-21-revisao-core-consolidado-232";
   const FB = "10.12.5";
   const PAGINA = "revisaoComponentes";
   const NAV = "revisao-componentes";
@@ -161,8 +161,18 @@
   function mostrarAdmin() { document.querySelectorAll(".rev-admin").forEach(e => e.classList.toggle("hidden", !admin())); renderLista(); }
   function manterNav() { const b = document.querySelector(`[data-page="${NAV}"]`); if (b) { b.hidden = false; b.classList.remove("hidden"); b.style.removeProperty("display"); } }
 
+  function restaurarPaginasNormais() {
+    document.querySelectorAll("#appShell main.main > .page").forEach(p => {
+      if (p.id === PAGINA) return;
+      p.classList.remove("hidden");
+      p.hidden = false;
+      p.style.removeProperty("display");
+    });
+  }
+
   function abrirPagina() {
-    document.querySelectorAll(".page").forEach(p => { p.classList.remove("active"); p.classList.add("hidden"); });
+    restaurarPaginasNormais();
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
     const p = document.getElementById(PAGINA); p.classList.remove("hidden"); p.classList.add("active");
     document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
     document.querySelector(`[data-page="${NAV}"]`)?.classList.add("active");
@@ -174,9 +184,13 @@
 
   function limpar() {
     opAtual = null;
+    document.getElementById("formRevisaoComponentes")?.reset();
     const i = document.getElementById("revNumeroOP"); if (i) i.value = "";
     document.getElementById("revPreview")?.classList.add("hidden"); document.getElementById("revBox")?.classList.add("hidden");
-    document.getElementById("revLateral").checked = false; document.getElementById("revBojo").checked = false; resumo();
+    const lateral = document.getElementById("revLateral"), bojo = document.getElementById("revBojo");
+    if (lateral) lateral.checked = false;
+    if (bojo) bojo.checked = false;
+    resumo();
   }
 
   function resumo() {
@@ -302,9 +316,11 @@
       await c.fs.setDoc(c.fs.doc(c.db, "ordensProducao", opAtual.id), { revisaoComponentesConfeccao: r, lateralFeitaConfeccao: lateral, bojoEncapadoConfeccao: bojo, revisaoComponentesAtualizadaPor: user.uid, revisaoComponentesAtualizadaEm: agora }, { merge: true });
       opAtual = { ...opAtual, revisaoComponentesConfeccao: r, lateralFeitaConfeccao: lateral, bojoEncapadoConfeccao: bojo }; cacheOP.set(opAtual.id, opAtual);
       await log("revisao_lateral_bojo_registrada", opAtual, `OP ${numero} | lateral ${lateral ? "sim" : "não"} | bojo ${bojo ? "sim" : "não"}`);
-      const res = await recalcular(opAtual); await carregarLista(); selecionarOP(opAtual);
+      const res = await recalcular(opAtual); await carregarLista();
       const aberto = (lateral && !config.lateralConfigurada) || (bojo && !config.bojoConfigurado);
-      toast(`Revisão salva. ${res.atualizados} pagamento(s) pendente(s) atualizado(s).${aberto ? " O administrador ainda precisa definir um ou mais valores." : ""}${res.erros ? ` ${res.erros} aguardam permissão.` : ""}`, "ok");
+      limpar();
+      document.getElementById("revNumeroOP")?.focus();
+      toast(`Revisão salva. ${res.atualizados} pagamento(s) pendente(s) atualizado(s).${aberto ? " O administrador ainda precisa definir um ou mais valores." : ""}${res.erros ? ` ${res.erros} aguardam permissão.` : ""} Digite a próxima OP.`, "ok");
     } catch (e) { console.error(e); toast("Não foi possível salvar a revisão.", "erro"); }
     finally { if (botao) { botao.disabled = false; botao.textContent = "Salvar revisão"; } }
   }
@@ -387,7 +403,15 @@
     document.addEventListener("click", e => {
       const a = e.target instanceof Element ? e.target : null; if (!a) return;
       const n = a.closest(`[data-page="${NAV}"]`); if (n) { e.preventDefault(); e.stopImmediatePropagation(); return abrirPagina(); }
-      if (a.closest(".nav-btn[data-page]") && !n) { document.getElementById(PAGINA)?.classList.add("hidden"); document.getElementById(PAGINA)?.classList.remove("active"); }
+      const navNormal = a.closest(".nav-btn[data-page]");
+      if (navNormal && !n) {
+        restaurarPaginasNormais();
+        const revisaoPage = document.getElementById(PAGINA);
+        revisaoPage?.classList.add("hidden");
+        revisaoPage?.classList.remove("active");
+        const destino = document.getElementById(navNormal.dataset.page || "");
+        destino?.classList.remove("hidden");
+      }
       const ed = a.closest("[data-editar-rev]"); if (ed) { const op = cacheOP.get(ed.dataset.editarRev); if (op) { document.getElementById("revNumeroOP").value = op.numeroOP || op.numeroOPExterno || op.id; selecionarOP(op); scrollTo({ top: 0, behavior: "smooth" }); } }
       const ca = a.closest("[data-cancelar-rev]"); if (ca) cancelar(ca.dataset.cancelarRev);
       const envio = a.closest('[onclick*="mandarParaFaccao"],[onclick*="abrirModalMovimentacao"]'); if (envio) { const id = argOnclick(envio); if (id) [150, 550].forEach(ms => setTimeout(async () => preencher(await opPorId(id), "movimentacao"), ms)); }
@@ -421,9 +445,8 @@
     try {
       const c = await aguardarCtx(); c.onAuth(c.auth, async u => { user = u; perfil = null; opAtual = null; lista = []; cacheOP.clear(); if (u) { await carregarPerfil().catch(() => {}); await carregarConfig().catch(() => {}); } });
     } catch (e) { return setTimeout(iniciar, 1200); }
-    new MutationObserver(() => { injetarUI(); eventosPagina(); manterNav(); }).observe(document.body, { childList: true, subtree: true });
   }
 
-  window.CorpoNuRevisaoComponentes = { versao: VERSION, recalcular, buscarOP, carregarConfig };
+  window.CorpoNuRevisaoComponentes = { versao: VERSION, recalcular, buscarOP, carregarConfig, abrirPagina, limpar };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true }); else iniciar();
 })();
