@@ -44,6 +44,19 @@ test.describe('Facções - módulo consolidado', () => {
     expect(codigoGrupos).not.toContain('stopImmediatePropagation');
     expect(codigoGrupos).not.toContain('setInterval');
 
+    const respostaExclusao = await request.get('/corponu-faccoes-exclusao-pagamento-vinculado.js');
+    expect(respostaExclusao.ok()).toBeTruthy();
+    const codigoExclusao = await respostaExclusao.text();
+
+    expect(codigoExclusao).toContain('2026-08-21-exclusao-faccoes-unificada-231');
+    expect(codigoExclusao).toContain('FACCAO CORTE');
+    expect(codigoExclusao).toContain('movimentacaoCorte');
+    expect(codigoExclusao).toContain('pagamentosPendentes');
+    expect(codigoExclusao).toContain('pagos.length');
+    expect(codigoExclusao).not.toContain('setInterval');
+    expect(codigoExclusao).not.toContain('addEventListener("focus"');
+    expect(codigoExclusao).not.toContain('addEventListener("pageshow"');
+
     const respostaExclusaoLegada = await request.get('/corponu-faccoes-lateral-alca-exclusao.js');
     expect(respostaExclusaoLegada.status()).toBe(404);
   });
@@ -115,6 +128,7 @@ test.describe('Facções - módulo consolidado', () => {
 
     expect(locais).toContain('corponu-faccoes-corte-definitivo.js');
     expect(locais).toContain('corponu-faccoes-grupos-processos.js');
+    expect(locais).toContain('corponu-faccoes-exclusao-pagamento-vinculado.js');
     expect(errosPagina, `Erros JavaScript encontrados: ${errosPagina.join(' | ')}`).toEqual([]);
   });
 });
