@@ -64,7 +64,8 @@ test.describe('Facções - módulo consolidado', () => {
       'corponu-faccoes-corte-sem-gerenciamento.js',
       'corponu-lateral-observacao-opcional.js',
       'corponu-faccoes-ocultar-registrar-chegada-topo.js',
-      'corponu-faccoes-lateral-alca-integracao.js'
+      'corponu-faccoes-lateral-alca-integracao.js',
+      'corponu-faccoes-label-lateral.js'
     ];
     removidos.forEach(nome => expect(locais).not.toContain(nome));
 

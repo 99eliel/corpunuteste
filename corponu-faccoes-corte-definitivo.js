@@ -226,7 +226,7 @@
   function montarPainelCorte() {
     return `
       <div class="panel-header">
-        <div><h3>Corte</h3><p>Registre saídas e chegadas de OPs enviadas para processos externos de corte.</p></div>
+        <div><h3>Lateral e Alça</h3><p>Acompanhe saídas e chegadas dos processos de Lateral e Alça.</p></div>
         <div class="corte-toolbar">
           <button class="btn btn-primary" id="btnCorteRegistrarSaida" type="button">Registrar saída</button>
           <button class="btn btn-success" id="btnChegadaManualLateralAlca" type="button">Chegada manual</button>
@@ -257,7 +257,7 @@
       <div class="table-wrap">
         <table>
           <thead><tr><th>OP</th><th>REF</th><th>Cor</th><th>Processo</th><th>Facção</th><th>Qtd.</th><th>Saída</th><th>Chegada</th><th>Falta</th><th>Status</th><th>Lateral</th><th>Ações</th></tr></thead>
-          <tbody id="listaFaccoesCorte"><tr><td colspan="12" class="corte-empty">Carregue os dados da área Corte.</td></tr></tbody>
+          <tbody id="listaFaccoesCorte"><tr><td colspan="12" class="corte-empty">Carregue os dados de Lateral e Alça.</td></tr></tbody>
         </table>
       </div>
 
@@ -270,7 +270,7 @@
     wrapper.innerHTML = `
       <div id="modalSaidaCorte" class="corte-modal hidden">
         <div class="corte-modal-card">
-          <div class="corte-modal-head"><div><h3>Registrar saída de Corte</h3><p>Informe a OP, escolha o processo e quem fará.</p></div><button class="corte-modal-close" type="button" data-fechar-corte="modalSaidaCorte">×</button></div>
+          <div class="corte-modal-head"><div><h3>Registrar saída de Lateral e Alça</h3><p>Informe a OP, escolha o processo e quem fará.</p></div><button class="corte-modal-close" type="button" data-fechar-corte="modalSaidaCorte">×</button></div>
           <form id="formSaidaCorte" class="form">
             <div class="corte-grid-2"><label>Número da OP<input id="saidaCorteOP" type="text" inputmode="numeric" autocomplete="off" required></label><div class="actions" style="align-items:end"><button class="btn" id="btnBuscarOPCorte" type="button">Buscar OP</button></div></div>
             <div id="saidaCortePreview" class="corte-preview hidden"></div>
@@ -289,7 +289,7 @@
 
       <div id="modalChegadaCorte" class="corte-modal hidden">
         <div class="corte-modal-card">
-          <div class="corte-modal-head"><div><h3 id="tituloChegadaCorte">Registrar chegada de Corte</h3><p>Informe o retorno, faltas, defeitos e observações.</p></div><button class="corte-modal-close" type="button" data-fechar-corte="modalChegadaCorte">×</button></div>
+          <div class="corte-modal-head"><div><h3 id="tituloChegadaCorte">Registrar chegada de Lateral e Alça</h3><p>Informe o retorno, faltas, defeitos e observações.</p></div><button class="corte-modal-close" type="button" data-fechar-corte="modalChegadaCorte">×</button></div>
           <form id="formChegadaCorte" class="form">
             <input id="chegadaCorteMovId" type="hidden">
             <div id="chegadaCortePreview" class="corte-preview"></div>
@@ -355,7 +355,7 @@
       const tabs = document.createElement("div");
       tabs.id = "faccoesAbasCorte";
       tabs.className = "corte-tabs";
-      tabs.innerHTML = `<button class="corte-tab active" type="button" data-area-faccoes="geral">Sutiã e Calcinha</button><button class="corte-tab" type="button" data-area-faccoes="corte">Corte</button>`;
+      tabs.innerHTML = `<button class="corte-tab active" type="button" data-area-faccoes="geral">Sutiã e Calcinha</button><button class="corte-tab" type="button" data-area-faccoes="corte">Lateral e Alça</button>`;
       page.insertBefore(tabs, existing);
     }
 
@@ -642,7 +642,7 @@
     if (!body) return;
     const items = movimentosFiltrados();
     if (!items.length) {
-      body.innerHTML = `<tr><td colspan="12" class="corte-empty">Nenhuma movimentação de Corte encontrada.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="12" class="corte-empty">Nenhuma movimentação de Lateral ou Alça encontrada.</td></tr>`;
       return;
     }
 
@@ -941,7 +941,7 @@
     const sent = numero(movimentoChegada.quantidadeEnviada);
     const received = editing ? numero(movimentoChegada.quantidadeRecebida, sent - numero(movimentoChegada.falta)) : sent;
     const missing = editing ? numero(movimentoChegada.falta) : 0;
-    document.getElementById("tituloChegadaCorte").textContent = editing ? "Editar chegada de Corte" : "Registrar chegada de Corte";
+    document.getElementById("tituloChegadaCorte").textContent = editing ? "Editar chegada de Lateral e Alça" : "Registrar chegada de Lateral e Alça";
     document.getElementById("chegadaCorteMovId").value = movimentoChegada.id;
     document.getElementById("chegadaCorteData").value = movimentoChegada.dataChegada || hoje();
     document.getElementById("chegadaCorteRecebida").value = received;
@@ -1623,7 +1623,7 @@
     const rows = items.map(item => `<tr><td>${html(item.numeroOP || "-")}</td><td>${html(item.referencia || "-")}</td><td>${html(item.cor || "-")}</td><td>${html(item.processo || "-")}</td><td>${html(item.destino || "-")}</td><td>${quantidade(item.quantidadeEnviada)}</td><td>${html(dataBR(item.dataEnvio))}</td><td>${html(dataBR(item.dataChegada))}</td><td>${quantidade(item.falta)}</td><td>${html(movimentoCancelado(item) ? "Cancelada" : item.dataChegada ? "Retornou" : "Em andamento")}</td></tr>`).join("");
     const win = window.open("", "_blank", "width=1100,height=800");
     if (!win) return toast("Permita pop-ups para imprimir.", "error");
-    win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório Corte</title><style>body{font-family:Arial;margin:18px;color:#0f172a}h1{margin:0}p{color:#475569}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #cbd5e1;padding:6px;text-align:left}th{background:#f1f5f9}@media print{button{display:none}}</style></head><body><h1>Facções — Corte</h1><p>Impresso em ${html(new Date().toLocaleString("pt-BR"))}</p><table><thead><tr><th>OP</th><th>REF</th><th>Cor</th><th>Processo</th><th>Facção</th><th>Qtd.</th><th>Saída</th><th>Chegada</th><th>Falta</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`);
+    win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório Lateral e Alça</title><style>body{font-family:Arial;margin:18px;color:#0f172a}h1{margin:0}p{color:#475569}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #cbd5e1;padding:6px;text-align:left}th{background:#f1f5f9}@media print{button{display:none}}</style></head><body><h1>Facções — Lateral e Alça</h1><p>Impresso em ${html(new Date().toLocaleString("pt-BR"))}</p><table><thead><tr><th>OP</th><th>REF</th><th>Cor</th><th>Processo</th><th>Facção</th><th>Qtd.</th><th>Saída</th><th>Chegada</th><th>Falta</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`);
     win.document.close();
   }
 
