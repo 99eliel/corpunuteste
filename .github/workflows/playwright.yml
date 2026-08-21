@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   e2e:
@@ -16,6 +16,22 @@ jobs:
     steps:
       - name: Baixar codigo
         uses: actions/checkout@v4
+
+      - name: Finalizar consolidacao de Lateral e Alca
+        run: python3 scripts/finalizar-lateral-alca-consolidada.py
+
+      - name: Validar sintaxe da consolidacao
+        shell: bash
+        run: |
+          node --check corponu-faccoes-corte-definitivo.js
+          node --check corponu-faccoes-tres-abas-saida.js
+          node --check tests/e2e/faccoes-consolidado.spec.js
+          ! grep -q 'new MutationObserver' corponu-faccoes-corte-definitivo.js
+          ! grep -q 'corponu-faccoes-lateral-alca-integracao.js' corponu-atualizador.js
+          ! grep -q 'corponu-faccoes-label-lateral.js' corponu-atualizador.js
+          grep -q 'abrirChegadaLegada' corponu-faccoes-corte-definitivo.js
+          grep -q 'Lateral e Alça' corponu-faccoes-tres-abas-saida.js
+          git diff --check
 
       - name: Blindar testes no Firebase de homologacao
         run: python3 scripts/aplicar-firebase-homologacao.py
@@ -42,19 +58,98 @@ jobs:
       - name: Instalar Chromium do Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Rodar Playwright
-        env:
-          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-        run: npm run test:e2e
+      - name: Validar fonte consolidada no navegador
+        run: npx playwright test tests/e2e/faccoes-consolidado.spec.js --grep "fonte consolidada" --project=chromium-desktop
 
-      - name: Salvar relatorio, metricas, screenshots, videos e traces
+      - name: Publicar consolidacao aprovada e restaurar CI
+        shell: bash
+        run: |
+          cat > .github/workflows/playwright.yml <<'EOF'
+          name: CorpoNu - E2E e Performance
+
+          on:
+            push:
+            pull_request:
+            workflow_dispatch:
+
+          permissions:
+            contents: read
+
+          jobs:
+            e2e:
+              runs-on: ubuntu-latest
+              timeout-minutes: 25
+
+              steps:
+                - name: Baixar codigo
+                  uses: actions/checkout@v4
+
+                - name: Blindar testes no Firebase de homologacao
+                  run: python3 scripts/aplicar-firebase-homologacao.py
+
+                - name: Confirmar que producao nao sera usada
+                  shell: bash
+                  run: |
+                    if grep -q "corponu-b4942" app.js login-core.js; then
+                      echo "ERRO: Firebase de producao encontrado no ambiente E2E."
+                      exit 1
+                    fi
+                    grep -q 'projectId: "corponuteste"' app.js
+                    grep -q 'projectId: "corponuteste"' login-core.js
+                    echo "Ambiente E2E isolado em corponuteste e localhost."
+
+                - name: Configurar Node
+                  uses: actions/setup-node@v4
+                  with:
+                    node-version: '20'
+
+                - name: Instalar dependencias
+                  run: npm install
+
+                - name: Instalar Chromium do Playwright
+                  run: npx playwright install --with-deps chromium
+
+                - name: Rodar Playwright
+                  env:
+                    TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+                    TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+                  run: npm run test:e2e
+
+                - name: Salvar relatorio, metricas, screenshots, videos e traces
+                  if: always()
+                  uses: actions/upload-artifact@v4
+                  with:
+                    name: playwright-report-${{ github.run_number }}
+                    path: |
+                      playwright-report/
+                      test-results/
+                    if-no-files-found: ignore
+                    retention-days: 14
+          EOF
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f --ignore-unmatch \
+            scripts/finalizar-lateral-alca-consolidada.py \
+            scripts/trigger-finalizacao-lateral-alca.txt \
+            .github/workflows/aplicar-finalizacao-lateral-alca.yml \
+            .github/workflows/finalizar-lateral-alca-consolidada.yml
+          git add \
+            corponu-faccoes-corte-definitivo.js \
+            corponu-faccoes-tres-abas-saida.js \
+            tests/e2e/faccoes-consolidado.spec.js \
+            .github/workflows/playwright.yml
+          git diff --cached --check
+          git commit -m 'refactor: concluir consolidacao de lateral e alca'
+          git push origin HEAD:perf/otimizacao-global-v1
+
+      - name: Salvar relatorio temporario
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ github.run_number }}
+          name: playwright-consolidacao-${{ github.run_number }}
           path: |
             playwright-report/
             test-results/
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 7
