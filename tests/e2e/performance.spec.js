@@ -27,6 +27,7 @@ async function coletarMetricas(page, nome, inicioMs) {
     const scripts = recursos.filter(item => item.initiatorType === 'script' || /\.m?js(?:[?#]|$)/i.test(item.name));
     const locais = recursos.filter(item => item.name.startsWith(location.origin));
     const longTasks = window.__corponuLongTasks || [];
+    const modulosDinamicos = [...document.querySelectorAll('script[data-corponu-modulo]')];
     return {
       navigation: nav ? {
         domContentLoadedMs: Math.round(nav.domContentLoadedEventEnd),
@@ -35,6 +36,8 @@ async function coletarMetricas(page, nome, inicioMs) {
       } : null,
       recursosTotal: recursos.length,
       scriptsTotal: scripts.length,
+      modulosDinamicosTotal: modulosDinamicos.length,
+      modulosDinamicos: modulosDinamicos.map(script => new URL(script.src).pathname.split('/').pop()).filter(Boolean),
       bytesTransferidosLocais: Math.round(locais.reduce((soma, item) => soma + (item.transferSize || 0), 0)),
       bytesScriptsLocais: Math.round(scripts.filter(item => item.name.startsWith(location.origin)).reduce((soma, item) => soma + (item.transferSize || 0), 0)),
       longTasksTotal: longTasks.length,
@@ -67,6 +70,7 @@ test.describe('CorpoNu - baseline de desempenho em CPU 4x mais lenta', () => {
     await salvar(testInfo, 'performance-abertura-publica.json', metricas);
 
     expect(metricas.tempoParedeMs).toBeLessThan(30_000);
+    expect(metricas.modulosDinamicosTotal, `Módulos carregados no boot: ${metricas.modulosDinamicos.join(', ')}`).toBeLessThanOrEqual(8);
   });
 
   test('mede login e primeira renderização do Manejo', async ({ page }, testInfo) => {
@@ -87,5 +91,6 @@ test.describe('CorpoNu - baseline de desempenho em CPU 4x mais lenta', () => {
     await salvar(testInfo, 'performance-login-manejo.json', metricas);
 
     expect(metricas.tempoParedeMs).toBeLessThan(35_000);
+    expect(metricas.modulosDinamicosTotal, `Módulos carregados após login no Manejo: ${metricas.modulosDinamicos.join(', ')}`).toBeLessThanOrEqual(8);
   });
 });
