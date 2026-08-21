@@ -1,12 +1,12 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-04-exclusao-faccao-pagamento-vinculado-115";
+  const VERSION = "2026-08-21-exclusao-faccoes-unificada-231";
   const FIREBASE_VERSION = "10.12.5";
   const MODAL_PENDENCIAS_ID = "modalPendenciasValoresFinanceiro";
 
-  if (window.__CORPONU_EXCLUSAO_FACCAO_PAGAMENTO_115__ === VERSION) return;
-  window.__CORPONU_EXCLUSAO_FACCAO_PAGAMENTO_115__ = VERSION;
+  if (window.__CORPONU_EXCLUSAO_FACCOES_SEGURA__ === VERSION) return;
+  window.__CORPONU_EXCLUSAO_FACCOES_SEGURA__ = VERSION;
 
   let firebasePromise = null;
   let perfilPromise = null;
@@ -33,8 +33,8 @@
     toast.textContent = mensagem;
     toast.classList.remove("hidden");
     toast.style.background = erro ? "#991b1b" : "#166534";
-    window.clearTimeout(window.__corponuExcluirFaccao115Toast);
-    window.__corponuExcluirFaccao115Toast = window.setTimeout(() => {
+    window.clearTimeout(window.__corponuExcluirFaccaoToast);
+    window.__corponuExcluirFaccaoToast = window.setTimeout(() => {
       toast.classList.add("hidden");
       toast.style.background = "";
     }, erro ? 7500 : 5600);
@@ -61,20 +61,13 @@
     return firebasePromise;
   }
 
-  async function aguardarUsuario(auth) {
-    for (let tentativa = 0; tentativa < 35 && !auth.currentUser; tentativa += 1) {
-      await new Promise(resolve => window.setTimeout(resolve, 140));
-    }
-    return auth.currentUser || null;
-  }
-
   async function obterAcesso(forcar = false) {
     if (forcar) perfilPromise = null;
     if (perfilPromise) return perfilPromise;
 
     perfilPromise = (async () => {
       const { auth, db, fs } = await firebase();
-      const usuario = await aguardarUsuario(auth);
+      const usuario = auth.currentUser;
       if (!usuario) return { usuario: null, perfil: null, admin: false };
 
       const snap = await fs.getDoc(fs.doc(db, "usuarios", usuario.uid));
@@ -105,6 +98,24 @@
       !["CANCELADO", "CANCELADA", "EXCLUIDO", "EXCLUIDA", "ESTORNADO", "ESTORNADA"].includes(status);
   }
 
+  function movimentacaoEhFaccao(item) {
+    const tipo = normalizar(item?.tipoDestino || "");
+    const area = normalizar(item?.area || item?.setor || "");
+    const processo = normalizar(item?.processo || item?.servicoNome || item?.processoMovimentacao || "");
+
+    if (["FACCAO", "FACCAO CORTE"].includes(tipo)) return true;
+    if (item?.movimentacaoCorte === true || area === "CORTE") return true;
+
+    // Compatibilidade com movimentações antigas de Lateral/Alça que não gravavam tipoDestino.
+    return !tipo && Boolean(texto(item?.destino || item?.faccao)) && ["LATERAL", "ALCA", "ALCAS"].includes(processo);
+  }
+
+  function movimentacaoEhCorte(item) {
+    const tipo = normalizar(item?.tipoDestino || "");
+    const area = normalizar(item?.area || item?.setor || "");
+    return tipo === "FACCAO CORTE" || item?.movimentacaoCorte === true || area === "CORTE";
+  }
+
   async function buscarPagamentosDaMovimentacao(movimentacaoId) {
     const { db, fs } = await firebase();
     const snap = await fs.getDocs(fs.query(
@@ -120,7 +131,13 @@
       try {
         const atualizar = document.getElementById("btnAtualizarServidor");
         if (atualizar instanceof HTMLButtonElement) atualizar.click();
-        else if (typeof window.renderPagamentos === "function") window.renderPagamentos();
+
+        const atualizarCorte = document.getElementById("btnCorteAtualizar");
+        if (atualizarCorte instanceof HTMLButtonElement) atualizarCorte.click();
+
+        if (!(atualizar instanceof HTMLButtonElement) && typeof window.renderPagamentos === "function") {
+          window.renderPagamentos();
+        }
       } catch (error) {
         console.warn("A exclusão foi concluída, mas a tela não atualizou automaticamente.", error);
       }
@@ -174,12 +191,12 @@
       const movSnap = await fs.getDoc(movRef);
 
       if (!movSnap.exists()) {
-        avisar("Essa movimentação já não existe. Abra as pendências financeiras para remover o pagamento órfão vinculado.", true);
+        avisar("Essa movimentação já não existe. Confira as pendências financeiras para remover eventual pagamento órfão.", true);
         return;
       }
 
       const mov = { id: movSnap.id, ...movSnap.data() };
-      if (normalizar(mov.tipoDestino) !== "FACCAO") {
+      if (!movimentacaoEhFaccao(mov)) {
         if (typeof excluirOriginal === "function") return excluirOriginal.call(window, movimentacaoId);
         avisar("A rotina original de exclusão não está disponível. Atualize a página e tente novamente.", true);
         return;
@@ -198,12 +215,13 @@
       const op = texto(mov.numeroOP || "-");
       const faccao = texto(mov.destino || mov.faccao || "-");
       const processo = texto(mov.processo || "-");
+      const contexto = movimentacaoEhCorte(mov) ? "Lateral e Alça" : "facção";
       const complemento = pagamentosPendentes.length
         ? `\nTambém será removido ${pagamentosPendentes.length === 1 ? "o pagamento pendente vinculado" : `${pagamentosPendentes.length} pagamentos pendentes vinculados`}.`
         : "\nNenhum pagamento pendente vinculado foi encontrado.";
 
       const confirmar = window.confirm(
-        `Excluir esta movimentação de facção?\n\nOP: ${op}\nProcesso: ${processo}\nFacção: ${faccao}${complemento}\n\nEssa ação não poderá ser desfeita.`
+        `Excluir esta movimentação de ${contexto}?\n\nOP: ${op}\nProcesso: ${processo}\nFacção: ${faccao}${complemento}\n\nEssa ação não poderá ser desfeita.`
       );
       if (!confirmar) return;
 
@@ -217,7 +235,7 @@
         pagamentos: pagamentosPendentes
       });
 
-      avisar("Movimentação de facção e pagamento pendente vinculados foram excluídos.");
+      avisar("Movimentação e pagamentos pendentes vinculados foram excluídos com segurança.");
       atualizarTelas();
     } catch (error) {
       console.error("Não foi possível excluir a movimentação e o pagamento vinculado.", error);
@@ -264,9 +282,7 @@
 
       for (let inicio = 0; inicio < ids.length; inicio += 20) {
         const bloco = ids.slice(inicio, inicio + 20);
-        const snaps = await Promise.all(
-          bloco.map(id => fs.getDoc(fs.doc(db, "entregasPagamento", id)))
-        );
+        const snaps = await Promise.all(bloco.map(id => fs.getDoc(fs.doc(db, "entregasPagamento", id))));
         snaps.forEach(snap => {
           if (snap.exists()) pagamentos.push({ id: snap.id, ref: snap.ref, ...snap.data() });
         });
@@ -283,9 +299,7 @@
       const idsMovimentos = [...new Set(candidatos.map(item => texto(item.movimentacaoId)))];
       for (let inicio = 0; inicio < idsMovimentos.length; inicio += 20) {
         const bloco = idsMovimentos.slice(inicio, inicio + 20);
-        const snaps = await Promise.all(
-          bloco.map(id => fs.getDoc(fs.doc(db, "movimentacoesProducao", id)))
-        );
+        const snaps = await Promise.all(bloco.map(id => fs.getDoc(fs.doc(db, "movimentacoesProducao", id))));
         snaps.forEach((snap, indice) => movimentos.set(bloco[indice], snap.exists()));
       }
 
@@ -345,13 +359,13 @@
   function instalarSubstituicao() {
     const atual = window.excluirMovimentacao;
     if (typeof atual !== "function") return false;
-    if (atual.__corponuPagamentoVinculado115 === true) return true;
+    if (atual.__corponuExclusaoFaccoesSegura === VERSION) return true;
 
     excluirOriginal = atual;
     const substituta = function(id) {
       return excluirMovimentacaoComPagamento(id);
     };
-    substituta.__corponuPagamentoVinculado115 = true;
+    substituta.__corponuExclusaoFaccoesSegura = VERSION;
     window.excluirMovimentacao = substituta;
     return true;
   }
@@ -363,7 +377,6 @@
 
       if (alvo.id === "btnAtualizarConferenciaPagamentoFinal") {
         window.setTimeout(verificarPagamentosOrfaosVisiveis, 900);
-        window.setTimeout(verificarPagamentosOrfaosVisiveis, 1600);
         return;
       }
 
@@ -376,25 +389,25 @@
 
   function iniciar() {
     instalarEventos();
-    let tentativas = 0;
-    const timer = window.setInterval(() => {
-      tentativas += 1;
-      const instalado = instalarSubstituicao();
-      if (instalado || tentativas >= 80) window.clearInterval(timer);
-    }, 200);
 
-    window.addEventListener("pageshow", instalarSubstituicao);
-    window.addEventListener("focus", instalarSubstituicao);
+    const instalarQuandoAppPronto = () => {
+      if (!instalarSubstituicao()) {
+        console.warn("A exclusão segura de facções não encontrou a rotina principal após o carregamento do app.");
+      }
+    };
+
+    if (document.readyState === "complete") {
+      window.setTimeout(instalarQuandoAppPronto, 0);
+    } else {
+      window.addEventListener("load", instalarQuandoAppPronto, { once: true });
+    }
   }
 
   window.CorpoNuExclusaoFaccaoPagamento = {
     versao: VERSION,
+    excluir: excluirMovimentacaoComPagamento,
     verificarOrfaos: verificarPagamentosOrfaosVisiveis
   };
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", iniciar, { once: true });
-  } else {
-    iniciar();
-  }
+  iniciar();
 })();
