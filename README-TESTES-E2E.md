@@ -52,6 +52,8 @@ Nunca salve a senha do usuário automatizado em arquivos do repositório.
 
 Sem esses Secrets, os testes públicos de interface continuam rodando e o teste de login autenticado é ignorado.
 
+Status da homologação em 20/08/2026: Firebase separado, usuário de teste criado, regras publicadas e os dois Secrets do GitHub cadastrados. Primeiro teste autenticado liberado para execução.
+
 ## URL de homologação
 
 Por padrão o GitHub Actions serve os arquivos localmente durante o teste.
