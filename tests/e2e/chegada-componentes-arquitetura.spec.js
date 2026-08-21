@@ -42,4 +42,17 @@ test.describe('Chegadas - arquitetura de componentes', () => {
     expect(codigo).not.toContain('[900, 2200, 4800]');
     expect(codigo).not.toContain('setInterval');
   });
+
+  test('referência 912 manual não usa scanner nem listener de focus', async ({ request }) => {
+    const resposta = await request.get('/corponu-sutia-912-chegada-manual-sem-verificacoes.js');
+    expect(resposta.ok()).toBeTruthy();
+    const codigo = await resposta.text();
+
+    expect(codigo).toContain('2026-08-21-sutia-912-manual-direto-240');
+    expect(codigo).toContain('observer.observe(form, { childList: true, subtree: true })');
+    expect(codigo).toContain('Referência 912: valor integral');
+    expect(codigo).not.toContain('setInterval');
+    expect(codigo).not.toContain('addEventListener("focus"');
+    expect(codigo).not.toContain('iniciarVarredura');
+  });
 });
