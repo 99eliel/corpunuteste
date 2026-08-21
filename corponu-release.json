@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-19-restantes-pendentes-filtro-op-225",
-  "updatedAt": "2026-08-19T17:58:00-03:00",
-  "notes": "PRODUÇÃO. Adiciona filtro de OP exclusivamente no painel Restantes pendentes para pagamento. A implementação 225 não reativa a antiga 208: não observa document.body, não usa reload e não faz consulta Firestore enquanto o usuário digita. O filtro atua somente nas linhas já carregadas de listaRestantesPagamento e usa um MutationObserver restrito ao tbody, apenas para reaplicar o filtro quando renderRestantes substituir as linhas após Atualizar/recebimentos. Inclui botão Limpar e contagem de resultados. Não altera pagamentos, recebimento do restante, cálculos, Facções, Manejo ou regras do Firebase."
+  "version": "2026-08-21-grupos-faccoes-sob-demanda-242",
+  "updatedAt": "2026-08-21T16:34:00-03:00",
+  "notes": "HOMOLOGAÇÃO / OTIMIZAÇÃO GLOBAL V1. Consolida Facções e Revisão, remove loaders e remendos antigos, reduz polling e Observers globais, carrega Pagamentos, Facções, grupos, Sutiã Completo e dados auxiliares da Revisão somente quando necessários, e mantém testes Playwright de regressão. Não altera o Firebase de produção."
 }
