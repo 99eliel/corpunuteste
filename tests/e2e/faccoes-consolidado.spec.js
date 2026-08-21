@@ -50,6 +50,11 @@ test.describe('Facções - módulo consolidado', () => {
     // A chegada manual já faz parte do módulo definitivo.
     await expect(page.locator('#btnChegadaManualLateralAlca')).toHaveCount(1);
 
+    // A antiga integração paralela não deve mais existir nem executar no navegador.
+    await expect.poll(async () => page.evaluate(() => Boolean(window.__CORPONU_FACCOES_LATERAL_ALCA__)), {
+      timeout: 2_000
+    }).toBeFalsy();
+
     const locais = requisicoes
       .map(url => new URL(url).pathname.split('/').pop())
       .filter(Boolean);
@@ -58,7 +63,8 @@ test.describe('Facções - módulo consolidado', () => {
       'corponu-faccoes-corte.js',
       'corponu-faccoes-corte-sem-gerenciamento.js',
       'corponu-lateral-observacao-opcional.js',
-      'corponu-faccoes-ocultar-registrar-chegada-topo.js'
+      'corponu-faccoes-ocultar-registrar-chegada-topo.js',
+      'corponu-faccoes-lateral-alca-integracao.js'
     ];
     removidos.forEach(nome => expect(locais).not.toContain(nome));
 
