@@ -36,9 +36,10 @@ test.describe('Facções - módulo consolidado', () => {
       timeout: 15_000
     }).toBeGreaterThan(0);
 
-    // O gerenciamento antigo não deve mais nascer para um script ficar apagando depois.
+    // Elementos antigos deixam de nascer; não dependem mais de Observers para serem apagados.
     await expect(page.locator('#btnCorteGerenciar')).toHaveCount(0);
     await expect(page.locator('#cortePainelAdmin')).toHaveCount(0);
+    await expect(page.locator('#btnCorteRegistrarChegada')).toHaveCount(0);
 
     // A observação já nasce opcional; não depende mais de timer/listener corretivo.
     const observacao = page.locator('#chegadaCorteObs');
@@ -50,9 +51,14 @@ test.describe('Facções - módulo consolidado', () => {
       .map(url => new URL(url).pathname.split('/').pop())
       .filter(Boolean);
 
-    expect(locais).not.toContain('corponu-faccoes-corte.js');
-    expect(locais).not.toContain('corponu-faccoes-corte-sem-gerenciamento.js');
-    expect(locais).not.toContain('corponu-lateral-observacao-opcional.js');
+    const removidos = [
+      'corponu-faccoes-corte.js',
+      'corponu-faccoes-corte-sem-gerenciamento.js',
+      'corponu-lateral-observacao-opcional.js',
+      'corponu-faccoes-ocultar-registrar-chegada-topo.js'
+    ];
+    removidos.forEach(nome => expect(locais).not.toContain(nome));
+
     for (let parte = 1; parte <= 5; parte += 1) {
       expect(locais).not.toContain(`corponu-faccoes-corte-0${parte}.txt`);
     }
