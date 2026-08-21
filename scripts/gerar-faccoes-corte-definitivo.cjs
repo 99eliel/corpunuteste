@@ -7,12 +7,8 @@ const loaderPath = path.join(raiz, 'corponu-faccoes-corte.js');
 const saidaPath = path.join(raiz, 'corponu-faccoes-corte-definitivo.js');
 const atualizadorPath = path.join(raiz, 'corponu-atualizador.js');
 
-if (!fs.existsSync(loaderPath)) {
-  throw new Error('corponu-faccoes-corte.js não encontrado.');
-}
-if (!fs.existsSync(atualizadorPath)) {
-  throw new Error('corponu-atualizador.js não encontrado.');
-}
+if (!fs.existsSync(loaderPath)) throw new Error('corponu-faccoes-corte.js não encontrado.');
+if (!fs.existsSync(atualizadorPath)) throw new Error('corponu-atualizador.js não encontrado.');
 
 const fonteLoader = fs.readFileSync(loaderPath, 'utf8');
 let ultimoBlob = null;
@@ -32,12 +28,10 @@ const documentFake = {
     appendChild(elemento) {
       if (!scripts.includes(elemento)) scripts.push(elemento);
       const src = String(elemento.src || '');
-
       if (src.startsWith('blob:corponu-faccoes-corte')) {
         if (!ultimoBlob?.texto) throw new Error('Loader criou script Blob sem conteúdo.');
         fonteGerada = ultimoBlob.texto;
       }
-
       queueMicrotask(() => elemento.onload?.());
       return elemento;
     }
@@ -60,20 +54,10 @@ async function fetchLocal(url) {
     .split('?')[0]
     .split('#')[0];
   const arquivo = path.join(raiz, nome);
-
   if (!arquivo.startsWith(raiz) || !fs.existsSync(arquivo)) {
-    return {
-      ok: false,
-      status: 404,
-      text: async () => ''
-    };
+    return { ok: false, status: 404, text: async () => '' };
   }
-
-  return {
-    ok: true,
-    status: 200,
-    text: async () => fs.readFileSync(arquivo, 'utf8')
-  };
+  return { ok: true, status: 200, text: async () => fs.readFileSync(arquivo, 'utf8') };
 }
 
 const windowFake = {};
@@ -83,9 +67,7 @@ const contexto = {
   fetch: fetchLocal,
   Blob: BlobFake,
   URL: {
-    createObjectURL() {
-      return 'blob:corponu-faccoes-corte-definitivo';
-    },
+    createObjectURL() { return 'blob:corponu-faccoes-corte-definitivo'; },
     revokeObjectURL() {}
   },
   console,
@@ -99,12 +81,31 @@ const contexto = {
   encodeURIComponent,
   decodeURIComponent
 };
-
 contexto.globalThis = contexto;
 vm.createContext(contexto);
-vm.runInContext(fonteLoader, contexto, {
-  filename: 'corponu-faccoes-corte.js'
-});
+vm.runInContext(fonteLoader, contexto, { filename: 'corponu-faccoes-corte.js' });
+
+function incorporarSemGerenciamento(fonte) {
+  let resultado = String(fonte || '');
+
+  const botao = '          <button class="btn corte-admin hidden" id="btnCorteGerenciar" type="button">Gerenciar processos e valores</button>\n';
+  if (!resultado.includes(botao)) throw new Error('Botão de gerenciamento antigo não encontrado no módulo consolidado.');
+  resultado = resultado.replace(botao, '');
+
+  const inicioPainel = resultado.indexOf('      <div id="cortePainelAdmin" class="corte-admin hidden">');
+  const fimTemplate = resultado.indexOf('    `;\n  }\n\n  function montarModais()', inicioPainel);
+  if (inicioPainel < 0 || fimTemplate < 0) throw new Error('Painel de gerenciamento antigo não foi localizado com segurança.');
+  resultado = resultado.slice(0, inicioPainel) + resultado.slice(fimTemplate);
+
+  const handler = `      if (target.closest("#btnCorteGerenciar")) {\n        const panel = document.getElementById("cortePainelAdmin");\n        panel?.classList.toggle("hidden");\n        return;\n      }\n`;
+  if (!resultado.includes(handler)) throw new Error('Handler do gerenciamento antigo não encontrado.');
+  resultado = resultado.replace(handler, '');
+
+  if (resultado.includes('id="btnCorteGerenciar"') || resultado.includes('id="cortePainelAdmin"')) {
+    throw new Error('Gerenciamento antigo ainda existe no módulo definitivo.');
+  }
+  return resultado;
+}
 
 (async () => {
   const limite = Date.now() + 10000;
@@ -112,23 +113,20 @@ vm.runInContext(fonteLoader, contexto, {
     await new Promise(resolve => setTimeout(resolve, 25));
   }
 
-  if (!fonteGerada) {
-    throw new Error('Não foi possível capturar o módulo consolidado gerado pelo loader atual.');
-  }
-
+  if (!fonteGerada) throw new Error('Não foi possível capturar o módulo consolidado gerado pelo loader atual.');
   if (!fonteGerada.includes('__CORPONU_FACCOES_CORTE__')) {
     throw new Error('Saída consolidada não contém o marcador esperado do módulo de Facções/Corte.');
   }
 
+  fonteGerada = incorporarSemGerenciamento(fonteGerada);
+
   const cabecalho = [
     '/*',
     ' * Módulo consolidado de Facções / Corte / Lateral e Alça.',
-    ' * Gerado a partir do comportamento efetivo do loader legado para remover',
-    ' * fetch de fragmentos .txt, alterações de código em runtime e execução via Blob.',
+    ' * As correções válidas do loader legado são incorporadas aqui, sem remendos em runtime.',
     ' */',
     ''
   ].join('\n');
-
   fs.writeFileSync(saidaPath, cabecalho + fonteGerada.trim() + '\n', 'utf8');
 
   const entradaLegada = '    ["corponu-faccoes-corte.js", "faccoes-corte", "Não foi possível carregar a área interna das facções."],';
@@ -136,7 +134,6 @@ vm.runInContext(fonteLoader, contexto, {
     '    ["corponu-saida-sem-confirmacao.js", "saida-sem-confirmacao-dupla", "Não foi possível carregar a proteção contra saída duplicada."],',
     '    ["corponu-faccoes-corte-definitivo.js", "faccoes-corte-definitivo", "Não foi possível carregar a área definitiva de Corte / Lateral e Alça."],',
     '    ["corponu-faccoes-tres-abas-saida.js", "faccoes-tres-abas-saida", "Não foi possível carregar as três abas de Facções."],',
-    '    ["corponu-faccoes-corte-sem-gerenciamento.js", "faccoes-corte-sem-gerenciamento", "Não foi possível remover o gerenciamento duplicado da área Corte."],',
     '    ["corponu-faccoes-processos-cadastrados.js", "faccoes-processos-cadastrados", "Não foi possível carregar os processos cadastrados no registro de saída."],',
     '    ["corponu-faccoes-sem-resumo-processos.js", "faccoes-sem-resumo-processos", "Não foi possível remover o resumo antigo de processos da tela de Facções."],',
     '    ["corponu-lateral-observacao-opcional.js", "lateral-observacao-opcional", "Não foi possível manter a observação opcional na chegada de Lateral."],'
@@ -145,13 +142,18 @@ vm.runInContext(fonteLoader, contexto, {
   let atualizador = fs.readFileSync(atualizadorPath, 'utf8');
   if (atualizador.includes(entradaLegada)) {
     atualizador = atualizador.replace(entradaLegada, entradasDefinitivas);
-    fs.writeFileSync(atualizadorPath, atualizador, 'utf8');
   } else if (!atualizador.includes('corponu-faccoes-corte-definitivo.js')) {
     throw new Error('Não encontrei a entrada do loader legado nem a entrada definitiva no atualizador.');
   }
 
+  atualizador = atualizador
+    .split('\n')
+    .filter(linha => !linha.includes('corponu-faccoes-corte-sem-gerenciamento.js'))
+    .join('\n');
+  fs.writeFileSync(atualizadorPath, atualizador, 'utf8');
+
   console.log(`Gerado: ${path.basename(saidaPath)} (${fs.statSync(saidaPath).size} bytes)`);
-  console.log('Atualizador preparado para carregar o módulo definitivo sem Blob/fracionamento.');
+  console.log('Remendo de gerenciamento antigo incorporado e removido do carregamento.');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
