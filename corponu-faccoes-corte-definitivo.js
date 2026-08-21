@@ -288,7 +288,7 @@
             </div>
             <div class="corte-grid-2">
               <label>Desconto por defeito (R$)<input id="chegadaCorteDefeito" type="number" min="0" step="0.01" value="0" required></label>
-              <label>Observação<textarea id="chegadaCorteObs" rows="2" placeholder="Ex.: Sem observações" required></textarea></label>
+              <label>Observação (opcional)<textarea id="chegadaCorteObs" rows="2" placeholder="Opcional"></textarea></label>
             </div>
             <div class="actions"><button class="btn btn-success" type="submit">Salvar chegada</button><button class="btn" type="button" data-fechar-corte="modalChegadaCorte">Cancelar</button></div>
           </form>

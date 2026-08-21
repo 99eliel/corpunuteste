@@ -64,7 +64,6 @@
     ["corponu-faccoes-tres-abas-saida.js", "faccoes-tres-abas-saida", "Não foi possível carregar as três abas de Facções."],
     ["corponu-faccoes-processos-cadastrados.js", "faccoes-processos-cadastrados", "Não foi possível carregar os processos cadastrados no registro de saída."],
     ["corponu-faccoes-sem-resumo-processos.js", "faccoes-sem-resumo-processos", "Não foi possível remover o resumo antigo de processos da tela de Facções."],
-    ["corponu-lateral-observacao-opcional.js", "lateral-observacao-opcional", "Não foi possível manter a observação opcional na chegada de Lateral."],
     ["corponu-faccoes-grupos-processos.js", "faccoes-grupos-processos", "Não foi possível carregar os grupos de processos das facções."],
     ["corponu-faccoes-grupos-processos-integracao.js", "faccoes-grupos-processos-integracao", "Não foi possível concluir a integração dos grupos de facções."],
     ["corponu-faccoes-grupos-saida-fix.js", "faccoes-grupos-saida-fix", "Não foi possível carregar as facções habilitadas do processo."],
