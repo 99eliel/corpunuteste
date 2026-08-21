@@ -29,7 +29,11 @@ jobs:
           fi
           grep -q 'projectId: "corponuteste"' app.js
           grep -q 'projectId: "corponuteste"' login-core.js
-          echo "Ambiente E2E isolado em corponuteste."
+          if grep -R "E2E_BASE_URL" playwright.config.js tests/e2e .github/workflows/playwright.yml; then
+            echo "ERRO: E2E_BASE_URL nao pode ser usado nesta fase."
+            exit 1
+          fi
+          echo "Ambiente E2E isolado em corponuteste e localhost."
 
       - name: Configurar Node
         uses: actions/setup-node@v4
@@ -46,7 +50,6 @@ jobs:
         env:
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-          E2E_BASE_URL: ${{ vars.E2E_BASE_URL }}
         run: npm run test:e2e
 
       - name: Salvar relatorio, screenshots, videos e traces
