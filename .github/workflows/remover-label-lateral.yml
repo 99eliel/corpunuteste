@@ -1,0 +1,107 @@
+name: Remover remendo de rotulos Lateral
+
+on:
+  push:
+    branches:
+      - perf/otimizacao-global-v1
+    paths:
+      - .github/workflows/remover-label-lateral.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  consolidar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/otimizacao-global-v1
+          fetch-depth: 0
+
+      - name: Incorporar rotulos definitivos
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          modulo = Path('corponu-faccoes-corte-definitivo.js')
+          atualizador = Path('corponu-atualizador.js')
+          teste = Path('tests/e2e/faccoes-consolidado.spec.js')
+
+          fonte = modulo.read_text(encoding='utf-8')
+          upd = atualizador.read_text(encoding='utf-8')
+          tst = teste.read_text(encoding='utf-8')
+
+          substituicoes = {
+              '<div><h3>Corte</h3><p>Registre saídas e chegadas de OPs enviadas para processos externos de corte.</p></div>':
+                  '<div><h3>Lateral e Alça</h3><p>Acompanhe saídas e chegadas dos processos de Lateral e Alça.</p></div>',
+              'Registrar saída de Corte': 'Registrar saída de Lateral e Alça',
+              'Registrar chegada de Corte': 'Registrar chegada de Lateral e Alça',
+              'Editar chegada de Corte': 'Editar chegada de Lateral e Alça',
+              '>Corte</button>`;': '>Lateral e Alça</button>`;',
+              'Nenhuma movimentação de Corte encontrada.': 'Nenhuma movimentação de Lateral ou Alça encontrada.',
+              'Carregue os dados da área Corte.': 'Carregue os dados de Lateral e Alça.',
+              '<title>Relatório Corte</title>': '<title>Relatório Lateral e Alça</title>',
+              '<h1>Facções — Corte</h1>': '<h1>Facções — Lateral e Alça</h1>'
+          }
+
+          for antigo, novo in substituicoes.items():
+              fonte = fonte.replace(antigo, novo)
+
+          if '<h3>Lateral e Alça</h3>' not in fonte:
+              raise SystemExit('Título definitivo não foi aplicado.')
+          if 'data-area-faccoes="corte">Lateral e Alça</button>' not in fonte:
+              raise SystemExit('Rótulo da aba definitiva não foi aplicado.')
+
+          upd = '\n'.join(
+              linha for linha in upd.split('\n')
+              if 'corponu-faccoes-label-lateral.js' not in linha
+          )
+
+          if "corponu-faccoes-label-lateral.js" not in tst:
+              tst = tst.replace(
+                  "      'corponu-faccoes-lateral-alca-integracao.js'\n",
+                  "      'corponu-faccoes-lateral-alca-integracao.js',\n      'corponu-faccoes-label-lateral.js'\n"
+              )
+
+          if "Lateral e Alça" not in tst:
+              pass
+          else:
+              tst = tst.replace(
+                  "    await expect(page.locator('#btnChegadaManualLateralAlca')).toHaveCount(1);\n",
+                  "    await expect(page.locator('#btnChegadaManualLateralAlca')).toHaveCount(1);\n    await expect(page.locator('#painelFaccoesCorte .panel-header h3')).toHaveText('Lateral e Alça');\n"
+              )
+
+          modulo.write_text(fonte, encoding='utf-8')
+          atualizador.write_text(upd, encoding='utf-8')
+          teste.write_text(tst, encoding='utf-8')
+          PY
+
+      - name: Validar
+        shell: bash
+        run: |
+          node --check corponu-faccoes-corte-definitivo.js
+          node --check corponu-atualizador.js
+          node --check tests/e2e/faccoes-consolidado.spec.js
+          ! grep -q 'corponu-faccoes-label-lateral.js' corponu-atualizador.js
+          grep -q '<h3>Lateral e Alça</h3>' corponu-faccoes-corte-definitivo.js
+          grep -q 'data-area-faccoes="corte">Lateral e Alça</button>' corponu-faccoes-corte-definitivo.js
+
+      - name: Remover remendo e workflow temporario
+        shell: bash
+        run: |
+          rm -f corponu-faccoes-label-lateral.js
+          rm -f .github/workflows/remover-label-lateral.yml
+
+      - name: Salvar
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'refactor: incorporar rotulos de lateral e alca'
+          git push origin HEAD:perf/otimizacao-global-v1
