@@ -62,7 +62,6 @@
     ["corponu-saida-sem-confirmacao.js", "saida-sem-confirmacao-dupla", "Não foi possível carregar a proteção contra saída duplicada."],
     ["corponu-faccoes-corte-definitivo.js", "faccoes-corte-definitivo", "Não foi possível carregar a área definitiva de Corte / Lateral e Alça."],
     ["corponu-faccoes-tres-abas-saida.js", "faccoes-tres-abas-saida", "Não foi possível carregar as três abas de Facções."],
-    ["corponu-faccoes-corte-sem-gerenciamento.js", "faccoes-corte-sem-gerenciamento", "Não foi possível remover o gerenciamento duplicado da área Corte."],
     ["corponu-faccoes-processos-cadastrados.js", "faccoes-processos-cadastrados", "Não foi possível carregar os processos cadastrados no registro de saída."],
     ["corponu-faccoes-sem-resumo-processos.js", "faccoes-sem-resumo-processos", "Não foi possível remover o resumo antigo de processos da tela de Facções."],
     ["corponu-lateral-observacao-opcional.js", "lateral-observacao-opcional", "Não foi possível manter a observação opcional na chegada de Lateral."],

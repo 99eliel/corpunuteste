@@ -1,7 +1,6 @@
 /*
  * Módulo consolidado de Facções / Corte / Lateral e Alça.
- * Gerado a partir do comportamento efetivo do loader legado para remover
- * fetch de fragmentos .txt, alterações de código em runtime e execução via Blob.
+ * As correções válidas do loader legado são incorporadas aqui, sem remendos em runtime.
  */
 (() => {
   "use strict";
@@ -221,7 +220,6 @@
           <button class="btn btn-success" id="btnCorteRegistrarChegada" type="button">Registrar chegada</button>
           <button class="btn" id="btnCorteAtualizar" type="button">Atualizar</button>
           <button class="btn btn-print" id="btnCorteImprimir" type="button">Imprimir</button>
-          <button class="btn corte-admin hidden" id="btnCorteGerenciar" type="button">Gerenciar processos e valores</button>
         </div>
       </div>
 
@@ -251,41 +249,6 @@
         </table>
       </div>
 
-      <div id="cortePainelAdmin" class="corte-admin hidden">
-        <div class="panel-subheader"><div><h3>Gerenciar processos e valores</h3><p>Somente o administrador pode cadastrar processos e preços por referência.</p></div></div>
-        <div class="corte-admin-wrap">
-          <div>
-            <form id="formProcessoCorte" class="form">
-              <input id="processoCorteId" type="hidden">
-              <label>Nome do processo<input id="processoCorteNome" type="text" placeholder="Ex.: LATERAL" required></label>
-              <label>Descrição<textarea id="processoCorteDescricao" rows="2" placeholder="Descrição do serviço"></textarea></label>
-              <div class="checks">
-                <label class="check"><input id="processoCorteSutia" type="checkbox"><span>Atende Sutiã</span></label>
-                <label class="check"><input id="processoCorteCalcinha" type="checkbox"><span>Atende Calcinha</span></label>
-                <label class="check"><input id="processoCorteLateral" type="checkbox"><span>Ao concluir, marcar lateral pronta</span></label>
-                <label class="check"><input id="processoCorteAtivo" type="checkbox" checked><span>Processo ativo</span></label>
-              </div>
-              <label>Observações<textarea id="processoCorteObs" rows="2" placeholder="Opcional"></textarea></label>
-              <div class="actions"><button class="btn btn-primary" type="submit">Salvar processo</button><button class="btn" id="btnCancelarProcessoCorte" type="button">Limpar</button></div>
-            </form>
-            <div class="corte-warning">Somente um processo ativo pode marcar lateral pronta. Processos com pagamentos não podem ser apagados; apenas desativados.</div>
-          </div>
-          <div>
-            <div id="listaProcessosCorteAdmin" class="corte-admin-list"></div>
-            <hr>
-            <form id="formPrecoCorte" class="form">
-              <h4>Valor por referência</h4>
-              <div class="corte-grid-3">
-                <label>Processo<select id="precoCorteProcesso" required><option value="">Selecione</option></select></label>
-                <label>Referência<input id="precoCorteReferencia" type="text" placeholder="Ex.: 414" required></label>
-                <label>Valor por peça<input id="precoCorteValor" type="number" min="0.01" step="0.01" placeholder="0,00" required></label>
-              </div>
-              <div class="actions"><button class="btn btn-success" type="submit">Salvar valor e recalcular pendentes</button></div>
-            </form>
-            <div id="listaPrecosCorteAdmin" class="corte-admin-list"></div>
-          </div>
-        </div>
-      </div>
     `;
   }
 
@@ -1716,11 +1679,6 @@
       if (target.closest("#btnCorteRegistrarChegada")) return abrirSeletorChegada();
       if (target.closest("#btnCorteAtualizar")) return carregarTudoCorte(true);
       if (target.closest("#btnCorteImprimir")) return imprimirCorte();
-      if (target.closest("#btnCorteGerenciar")) {
-        const panel = document.getElementById("cortePainelAdmin");
-        panel?.classList.toggle("hidden");
-        return;
-      }
       const close = target.closest("[data-fechar-corte]");
       if (close) return fecharModal(close.dataset.fecharCorte);
       if (target.closest("#btnBuscarOPCorte")) return acaoBuscarOPSaida();
