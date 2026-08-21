@@ -13,7 +13,7 @@ async function entrar(page) {
 }
 
 test.describe('Facções - módulo consolidado', () => {
-  test('código definitivo não depende da integração paralela nem de MutationObserver global', async ({ request }) => {
+  test('código definitivo não depende de integrações paralelas nem Observers globais', async ({ request }) => {
     const respostaCorte = await request.get('/corponu-faccoes-corte-definitivo.js');
     expect(respostaCorte.ok()).toBeTruthy();
     const codigoCorte = await respostaCorte.text();
@@ -31,6 +31,16 @@ test.describe('Facções - módulo consolidado', () => {
     expect(codigoAbas).toContain('2026-08-21-faccoes-tres-abas-sem-observer-228');
     expect(codigoAbas).toContain('Lateral e Alça');
     expect(codigoAbas).not.toContain('new MutationObserver');
+
+    const respostaGrupos = await request.get('/corponu-faccoes-grupos-processos.js');
+    expect(respostaGrupos.ok()).toBeTruthy();
+    const codigoGrupos = await respostaGrupos.text();
+
+    expect(codigoGrupos).toContain('2026-08-21-faccoes-grupos-consolidados-229');
+    expect(codigoGrupos).toContain('preencherSelectFaccoesPorProcesso');
+    expect(codigoGrupos).toContain('CorpoNuFaccoesGrupos');
+    expect(codigoGrupos).not.toContain('stopImmediatePropagation');
+    expect(codigoGrupos).not.toContain('setInterval');
   });
 
   test('abre Facções sem loader, fragmentos ou remendos já incorporados', async ({ page }) => {
@@ -72,6 +82,10 @@ test.describe('Facções - módulo consolidado', () => {
       timeout: 2_000
     }).toBeFalsy();
 
+    await expect.poll(async () => page.evaluate(() => Boolean(window.CorpoNuFaccoesGrupos)), {
+      timeout: 10_000
+    }).toBeTruthy();
+
     const locais = requisicoes
       .map(url => new URL(url).pathname.split('/').pop())
       .filter(Boolean);
@@ -82,7 +96,9 @@ test.describe('Facções - módulo consolidado', () => {
       'corponu-lateral-observacao-opcional.js',
       'corponu-faccoes-ocultar-registrar-chegada-topo.js',
       'corponu-faccoes-lateral-alca-integracao.js',
-      'corponu-faccoes-label-lateral.js'
+      'corponu-faccoes-label-lateral.js',
+      'corponu-faccoes-grupos-processos-integracao.js',
+      'corponu-faccoes-grupos-saida-fix.js'
     ];
     removidos.forEach(nome => expect(locais).not.toContain(nome));
 
@@ -91,6 +107,7 @@ test.describe('Facções - módulo consolidado', () => {
     }
 
     expect(locais).toContain('corponu-faccoes-corte-definitivo.js');
+    expect(locais).toContain('corponu-faccoes-grupos-processos.js');
     expect(errosPagina, `Erros JavaScript encontrados: ${errosPagina.join(' | ')}`).toEqual([]);
   });
 });
