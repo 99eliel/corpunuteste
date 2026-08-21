@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const V = "2026-08-14-faccoes-busca-calcinha-rapida-201";
+  const V = "2026-08-21-faccoes-tres-abas-sem-observer-228";
   const FB = "10.12.5";
 
   if (window.__FACCOES_3_ABAS__ === V) return;
@@ -451,7 +451,7 @@
       document.getElementById("s3prev").classList.remove("hidden");
       document.getElementById("s3campos").classList.remove("hidden");
       document.getElementById("s3processo").focus();
-      console.info(`[Facções 201] OP ${v} localizada em ${Math.round(performance.now() - inicio)} ms (${tp}).`);
+      console.info(`[Facções 228] OP ${v} localizada em ${Math.round(performance.now() - inicio)} ms (${tp}).`);
     } catch (e) {
       console.error(e);
       toast("Erro ao buscar a OP.");
@@ -544,6 +544,14 @@
   document.addEventListener("click", e => {
     const t = e.target instanceof Element ? e.target : null;
     if (!t) return;
+
+    if (t.closest('.nav-btn[data-page="faccoes"]')) {
+      setTimeout(() => {
+        preparar();
+        marcar(aba);
+      }, 0);
+    }
+
     const x = abas();
 
     if (t.closest("#abaFaccaoCorte")) {
@@ -582,14 +590,9 @@
     }
   }, true);
 
-  const ob = new MutationObserver(preparar);
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      preparar();
-      ob.observe(document.body, { childList: true, subtree: true });
-    }, { once: true });
+    document.addEventListener("DOMContentLoaded", preparar, { once: true });
   } else {
     preparar();
-    ob.observe(document.body, { childList: true, subtree: true });
   }
 })();
