@@ -1,0 +1,69 @@
+name: Preparar homologacao Firebase
+
+on:
+  push:
+    branches:
+      - test/firebase-homologacao-playwright
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  preparar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Aplicar Firebase de homologacao
+        run: python3 scripts/aplicar-firebase-homologacao.py
+
+      - name: Conferir diff
+        run: git diff --check
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Instalar Chromium do Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Rodar testes Playwright
+        env:
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: npm run test:e2e
+
+      - name: Salvar relatorio Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-preparacao
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Gravar configuracao segura na branch
+        if: success()
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- app.js login-core.js
+          if git diff --cached --quiet; then
+            echo "Firebase de homologacao ja estava aplicado."
+          else
+            git commit -m "test: isolar corpunuteste no Firebase de homologacao"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
