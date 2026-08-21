@@ -13,7 +13,7 @@ async function entrar(page) {
 }
 
 test.describe('Revisão lateral e bojo consolidada', () => {
-  test('carrega núcleo e facções diretas sem os remendos antigos', async ({ request }) => {
+  test('carrega núcleo, facções e histórico sem os remendos antigos', async ({ request }) => {
     const resposta = await request.get('/corponu-revisao-lateral-bojo.js');
     expect(resposta.ok()).toBeTruthy();
     const codigo = await resposta.text();
@@ -37,17 +37,32 @@ test.describe('Revisão lateral e bojo consolidada', () => {
     expect(codigoFaccoes).not.toContain('addEventListener("focus"');
     expect(codigoFaccoes).not.toContain('stopImmediatePropagation');
 
+    const historico = await request.get('/corponu-revisao-historico.js');
+    expect(historico.ok()).toBeTruthy();
+    const codigoHistorico = await historico.text();
+    expect(codigoHistorico).toContain('2026-08-21-revisao-historico-direto-235');
+    expect(codigoHistorico).toContain('observerTabela.observe(tbody, { childList: true })');
+    expect(codigoHistorico).toContain('LATERAL');
+    expect(codigoHistorico).toContain('ENCAPAR BOJO');
+    expect(codigoHistorico).not.toContain('setInterval');
+    expect(codigoHistorico).not.toContain('.observe(document.body');
+    expect(codigoHistorico).not.toContain('addEventListener("pageshow"');
+    expect(codigoHistorico).not.toContain('addEventListener("focus"');
+
     const updater = await request.get('/corponu-atualizador.js');
     expect(updater.ok()).toBeTruthy();
     const codigoUpdater = await updater.text();
     expect(codigoUpdater).toContain('corponu-revisao-lateral-bojo.js');
     expect(codigoUpdater).toContain('corponu-revisao-faccoes.js');
+    expect(codigoUpdater).toContain('corponu-revisao-historico.js');
+    expect(codigoUpdater).not.toContain('corponu-revisao-lista-estavel.js');
     expect(codigoUpdater).not.toContain('corponu-revisao-lateral-bojo-fix.js');
     expect(codigoUpdater).not.toContain('corponu-revisao-limpar-apos-salvar.js');
     expect(codigoUpdater).not.toContain('corponu-revisao-responsaveis.js');
     expect(codigoUpdater).not.toContain('corponu-revisao-faccoes-select.js');
 
     for (const arquivo of [
+      'corponu-revisao-lista-estavel.js',
       'corponu-revisao-lateral-bojo-fix.js',
       'corponu-revisao-limpar-apos-salvar.js',
       'corponu-revisao-responsaveis.js',
@@ -77,6 +92,11 @@ test.describe('Revisão lateral e bojo consolidada', () => {
 
     await expect(page.locator('#revLateralQuemFez')).toHaveCount(1);
     await expect(page.locator('#revBojoQuemFez')).toHaveCount(1);
+    await expect(page.locator('#revHistoricoFiltros')).toHaveCount(1);
+
+    await expect.poll(async () => page.evaluate(() => Boolean(window.CorpoNuRevisaoHistorico)), {
+      timeout: 10_000
+    }).toBeTruthy();
 
     await page.locator('.nav-btn[data-page="manejo"]').click();
     await expect(page.locator('#manejo')).toHaveClass(/active/);
