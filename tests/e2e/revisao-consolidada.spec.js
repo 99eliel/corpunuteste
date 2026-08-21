@@ -52,6 +52,7 @@ test.describe('Revisão lateral e bojo consolidada', () => {
     const updater = await request.get('/corponu-atualizador.js');
     expect(updater.ok()).toBeTruthy();
     const codigoUpdater = await updater.text();
+    expect(codigoUpdater).toContain('"revisao-componentes"');
     expect(codigoUpdater).toContain('corponu-revisao-lateral-bojo.js');
     expect(codigoUpdater).toContain('corponu-revisao-faccoes.js');
     expect(codigoUpdater).toContain('corponu-revisao-historico.js');
@@ -73,7 +74,7 @@ test.describe('Revisão lateral e bojo consolidada', () => {
     }
   });
 
-  test('entra e sai da Revisão sem deixar as páginas normais escondidas', async ({ page }) => {
+  test('carrega facções e histórico somente quando a Revisão é aberta', async ({ page }) => {
     test.skip(!temCredenciais, 'Configure TEST_EMAIL e TEST_PASSWORD nos GitHub Actions Secrets.');
 
     const erros = [];
@@ -83,6 +84,14 @@ test.describe('Revisão lateral e bojo consolidada', () => {
 
     const navRevisao = page.locator('.nav-btn[data-page="revisao-componentes"]');
     await expect(navRevisao).toBeVisible({ timeout: 15_000 });
+
+    await expect.poll(async () => page.evaluate(() => Boolean(window.CorpoNuRevisaoFaccoes)), {
+      timeout: 1_500
+    }).toBeFalsy();
+    await expect.poll(async () => page.evaluate(() => Boolean(window.CorpoNuRevisaoHistorico)), {
+      timeout: 1_500
+    }).toBeFalsy();
+
     await navRevisao.click();
 
     const revisao = page.locator('#revisaoComponentes');
@@ -90,13 +99,16 @@ test.describe('Revisão lateral e bojo consolidada', () => {
     await expect(revisao).not.toHaveClass(/hidden/);
     await expect(page.locator('#pageTitle')).toHaveText('Revisão lateral e bojo');
 
-    await expect(page.locator('#revLateralQuemFez')).toHaveCount(1);
-    await expect(page.locator('#revBojoQuemFez')).toHaveCount(1);
-    await expect(page.locator('#revHistoricoFiltros')).toHaveCount(1);
-
+    await expect.poll(async () => page.evaluate(() => Boolean(window.CorpoNuRevisaoFaccoes)), {
+      timeout: 10_000
+    }).toBeTruthy();
     await expect.poll(async () => page.evaluate(() => Boolean(window.CorpoNuRevisaoHistorico)), {
       timeout: 10_000
     }).toBeTruthy();
+
+    await expect(page.locator('#revLateralQuemFez')).toHaveCount(1);
+    await expect(page.locator('#revBojoQuemFez')).toHaveCount(1);
+    await expect(page.locator('#revHistoricoFiltros')).toHaveCount(1);
 
     await page.locator('.nav-btn[data-page="manejo"]').click();
     await expect(page.locator('#manejo')).toHaveClass(/active/);
