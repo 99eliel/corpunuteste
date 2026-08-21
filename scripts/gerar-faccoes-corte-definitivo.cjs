@@ -107,6 +107,17 @@ function incorporarSemGerenciamento(fonte) {
   return resultado;
 }
 
+function incorporarObservacaoOpcional(fonte) {
+  const antiga = '<label>Observação<textarea id="chegadaCorteObs" rows="2" placeholder="Ex.: Sem observações" required></textarea></label>';
+  const nova = '<label>Observação (opcional)<textarea id="chegadaCorteObs" rows="2" placeholder="Opcional"></textarea></label>';
+  if (!fonte.includes(antiga)) throw new Error('Campo antigo de observação obrigatória não encontrado.');
+  const resultado = fonte.replace(antiga, nova);
+  if (/id="chegadaCorteObs"[^>]*required/.test(resultado)) {
+    throw new Error('Observação de Lateral ainda ficou obrigatória no módulo definitivo.');
+  }
+  return resultado;
+}
+
 (async () => {
   const limite = Date.now() + 10000;
   while (!fonteGerada && Date.now() < limite) {
@@ -119,6 +130,7 @@ function incorporarSemGerenciamento(fonte) {
   }
 
   fonteGerada = incorporarSemGerenciamento(fonteGerada);
+  fonteGerada = incorporarObservacaoOpcional(fonteGerada);
 
   const cabecalho = [
     '/*',
@@ -135,8 +147,7 @@ function incorporarSemGerenciamento(fonte) {
     '    ["corponu-faccoes-corte-definitivo.js", "faccoes-corte-definitivo", "Não foi possível carregar a área definitiva de Corte / Lateral e Alça."],',
     '    ["corponu-faccoes-tres-abas-saida.js", "faccoes-tres-abas-saida", "Não foi possível carregar as três abas de Facções."],',
     '    ["corponu-faccoes-processos-cadastrados.js", "faccoes-processos-cadastrados", "Não foi possível carregar os processos cadastrados no registro de saída."],',
-    '    ["corponu-faccoes-sem-resumo-processos.js", "faccoes-sem-resumo-processos", "Não foi possível remover o resumo antigo de processos da tela de Facções."],',
-    '    ["corponu-lateral-observacao-opcional.js", "lateral-observacao-opcional", "Não foi possível manter a observação opcional na chegada de Lateral."],'
+    '    ["corponu-faccoes-sem-resumo-processos.js", "faccoes-sem-resumo-processos", "Não foi possível remover o resumo antigo de processos da tela de Facções."],'
   ].join('\n');
 
   let atualizador = fs.readFileSync(atualizadorPath, 'utf8');
@@ -149,11 +160,12 @@ function incorporarSemGerenciamento(fonte) {
   atualizador = atualizador
     .split('\n')
     .filter(linha => !linha.includes('corponu-faccoes-corte-sem-gerenciamento.js'))
+    .filter(linha => !linha.includes('corponu-lateral-observacao-opcional.js'))
     .join('\n');
   fs.writeFileSync(atualizadorPath, atualizador, 'utf8');
 
   console.log(`Gerado: ${path.basename(saidaPath)} (${fs.statSync(saidaPath).size} bytes)`);
-  console.log('Remendo de gerenciamento antigo incorporado e removido do carregamento.');
+  console.log('Remendos de gerenciamento antigo e observação obrigatória incorporados na origem.');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
