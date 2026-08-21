@@ -87,7 +87,6 @@ vm.runInContext(fonteLoader, contexto, { filename: 'corponu-faccoes-corte.js' })
 
 function incorporarSemGerenciamento(fonte) {
   let resultado = String(fonte || '');
-
   const botao = '          <button class="btn corte-admin hidden" id="btnCorteGerenciar" type="button">Gerenciar processos e valores</button>\n';
   if (!resultado.includes(botao)) throw new Error('Botão de gerenciamento antigo não encontrado no módulo consolidado.');
   resultado = resultado.replace(botao, '');
@@ -112,25 +111,31 @@ function incorporarObservacaoOpcional(fonte) {
   const nova = '<label>Observação (opcional)<textarea id="chegadaCorteObs" rows="2" placeholder="Opcional"></textarea></label>';
   if (!fonte.includes(antiga)) throw new Error('Campo antigo de observação obrigatória não encontrado.');
   const resultado = fonte.replace(antiga, nova);
-  if (/id="chegadaCorteObs"[^>]*required/.test(resultado)) {
-    throw new Error('Observação de Lateral ainda ficou obrigatória no módulo definitivo.');
-  }
+  if (/id="chegadaCorteObs"[^>]*required/.test(resultado)) throw new Error('Observação de Lateral ainda ficou obrigatória.');
+  return resultado;
+}
+
+function incorporarChegadaSemBotaoTopo(fonte) {
+  let resultado = String(fonte || '');
+  const botao = '          <button class="btn btn-success" id="btnCorteRegistrarChegada" type="button">Registrar chegada</button>\n';
+  const handler = '      if (target.closest("#btnCorteRegistrarChegada")) return abrirSeletorChegada();\n';
+  if (!resultado.includes(botao)) throw new Error('Botão superior de chegada antigo não encontrado.');
+  if (!resultado.includes(handler)) throw new Error('Handler do botão superior de chegada não encontrado.');
+  resultado = resultado.replace(botao, '').replace(handler, '');
+  if (resultado.includes('id="btnCorteRegistrarChegada"')) throw new Error('Botão superior de chegada ainda existe.');
   return resultado;
 }
 
 (async () => {
   const limite = Date.now() + 10000;
-  while (!fonteGerada && Date.now() < limite) {
-    await new Promise(resolve => setTimeout(resolve, 25));
-  }
+  while (!fonteGerada && Date.now() < limite) await new Promise(resolve => setTimeout(resolve, 25));
 
   if (!fonteGerada) throw new Error('Não foi possível capturar o módulo consolidado gerado pelo loader atual.');
-  if (!fonteGerada.includes('__CORPONU_FACCOES_CORTE__')) {
-    throw new Error('Saída consolidada não contém o marcador esperado do módulo de Facções/Corte.');
-  }
+  if (!fonteGerada.includes('__CORPONU_FACCOES_CORTE__')) throw new Error('Saída consolidada sem marcador esperado.');
 
   fonteGerada = incorporarSemGerenciamento(fonteGerada);
   fonteGerada = incorporarObservacaoOpcional(fonteGerada);
+  fonteGerada = incorporarChegadaSemBotaoTopo(fonteGerada);
 
   const cabecalho = [
     '/*',
@@ -151,21 +156,19 @@ function incorporarObservacaoOpcional(fonte) {
   ].join('\n');
 
   let atualizador = fs.readFileSync(atualizadorPath, 'utf8');
-  if (atualizador.includes(entradaLegada)) {
-    atualizador = atualizador.replace(entradaLegada, entradasDefinitivas);
-  } else if (!atualizador.includes('corponu-faccoes-corte-definitivo.js')) {
-    throw new Error('Não encontrei a entrada do loader legado nem a entrada definitiva no atualizador.');
-  }
+  if (atualizador.includes(entradaLegada)) atualizador = atualizador.replace(entradaLegada, entradasDefinitivas);
+  else if (!atualizador.includes('corponu-faccoes-corte-definitivo.js')) throw new Error('Entrada definitiva não encontrada no atualizador.');
 
-  atualizador = atualizador
-    .split('\n')
-    .filter(linha => !linha.includes('corponu-faccoes-corte-sem-gerenciamento.js'))
-    .filter(linha => !linha.includes('corponu-lateral-observacao-opcional.js'))
-    .join('\n');
+  const remendosIncorporados = [
+    'corponu-faccoes-corte-sem-gerenciamento.js',
+    'corponu-lateral-observacao-opcional.js',
+    'corponu-faccoes-ocultar-registrar-chegada-topo.js'
+  ];
+  atualizador = atualizador.split('\n').filter(linha => !remendosIncorporados.some(nome => linha.includes(nome))).join('\n');
   fs.writeFileSync(atualizadorPath, atualizador, 'utf8');
 
   console.log(`Gerado: ${path.basename(saidaPath)} (${fs.statSync(saidaPath).size} bytes)`);
-  console.log('Remendos de gerenciamento antigo e observação obrigatória incorporados na origem.');
+  console.log('Três remendos de Facções incorporados diretamente no módulo definitivo.');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
