@@ -29,8 +29,8 @@ jobs:
           fi
           grep -q 'projectId: "corponuteste"' app.js
           grep -q 'projectId: "corponuteste"' login-core.js
-          if grep -R "E2E_BASE_URL" playwright.config.js tests/e2e .github/workflows/playwright.yml; then
-            echo "ERRO: E2E_BASE_URL nao pode ser usado nesta fase."
+          if grep -R "E2E_BASE_URL" playwright.config.js tests/e2e; then
+            echo "ERRO: URL externa nao pode ser usada nesta fase."
             exit 1
           fi
           echo "Ambiente E2E isolado em corponuteste e localhost."
