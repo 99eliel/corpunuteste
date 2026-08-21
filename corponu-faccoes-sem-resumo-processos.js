@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-11-faccoes-sem-resumo-processos-175";
+  const VERSION = "2026-08-11-faccoes-sem-resumo-processos-173";
   const STYLE_ID = "corponuFaccoesCanceladas159Style";
   const CLASSE_MOSTRAR = "corponu-mostrar-canceladas-159";
 

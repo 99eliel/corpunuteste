@@ -1,0 +1,5 @@
+{
+  "version": "2026-08-19-faccoes-lateral-alca-pc-lento-224",
+  "updatedAt": "2026-08-19T13:10:00-03:00",
+  "notes": "PRODUÇÃO. Corrige o modal Registrar saída da aba Lateral e Alça em computadores mais lentos. O processo LATERAL ou ALÇA agora fica memorizado durante a abertura do modal e é restaurado automaticamente se alguma rotina atrasada reconstruir o seletor. Ao restaurar o processo, o sistema dispara novamente a atualização das facções habilitadas, evitando que o campo Quem vai fazer fique vazio. O observer da correção foi reduzido ao modal e ao seletor específicos, sem observar o body inteiro. Não altera pagamentos, cálculos, Manejo, Sutiã, Calcinha ou regras de movimentação."
+}

@@ -1,0 +1,5 @@
+{
+  "version": "2026-08-19-manejo-calcinha-fase-sem-piscar-223",
+  "updatedAt": "2026-08-19T12:31:00-03:00",
+  "notes": "PRODUÇÃO. Mantém a persistência definitiva da Fase do Manejo Calcinha da versão 222 e remove apenas o refresh forçado da tabela após o ACK do Firestore, que causava o piscar da tela. Depois de salvar, a linha é marcada localmente como concluída, o botão verde volta ao estado normal e o listener natural do Firestore continua atualizando os dados sem uma reconstrução extra da tela. Não altera a gravação da fase, lista oficial da Calcinha, Sutiã, pagamentos, facções, chegada, regras ou cálculos."
+}

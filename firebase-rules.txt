@@ -27,11 +27,8 @@ service cloud.firestore {
     }
 
     function usuarioComum() {
-      // Todo perfil autenticado e ativo pode executar as rotinas operacionais.
-      // O tipo "admin" continua necessário somente nas áreas administrativas.
       return ativo();
     }
-
 
     function financeiroPodeDefinirValor() {
       return admin() || (
@@ -77,7 +74,6 @@ service cloud.firestore {
           "observacoes"
         ]);
     }
-
 
     function dadosPrecoPadraoAlcaValidos() {
       return request.resource.data.referencia == "TODAS"
@@ -184,6 +180,62 @@ service cloud.firestore {
         ]);
     }
 
+    function pagamentoProcessoRevisaoSutia() {
+      return (
+        resource.data.keys().hasAny(["processo"])
+        && resource.data.processo in [
+          "SUTIÃ MONTAGEM",
+          "SUTIA MONTAGEM",
+          "SUTIÃ COMPLETO",
+          "SUTIA COMPLETO"
+        ]
+      ) || (
+        resource.data.keys().hasAny(["servicoNome"])
+        && resource.data.servicoNome in [
+          "SUTIÃ MONTAGEM",
+          "SUTIA MONTAGEM",
+          "SUTIÃ COMPLETO",
+          "SUTIA COMPLETO"
+        ]
+      ) || (
+        resource.data.keys().hasAny(["processoMovimentacao"])
+        && resource.data.processoMovimentacao in [
+          "SUTIÃ MONTAGEM",
+          "SUTIA MONTAGEM",
+          "SUTIÃ COMPLETO",
+          "SUTIA COMPLETO"
+        ]
+      );
+    }
+
+    function alteracaoRevisaoComponentesPermitida() {
+      return usuarioComum()
+        && pagamentoProcessoRevisaoSutia()
+        && resource.data.statusPagamento != "pago"
+        && request.resource.data.statusPagamento == resource.data.statusPagamento
+        && request.resource.data.atualizadoPor == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "valorUnitario",
+          "subtotal",
+          "total",
+          "valorUnitarioBaseRevisao",
+          "valorTotalBaseRevisao",
+          "revisaoComponentesAplicada",
+          "revisaoLateralAtiva",
+          "revisaoBojoAtiva",
+          "descontoRevisaoLateralUnitario",
+          "descontoRevisaoBojoUnitario",
+          "descontoRevisaoComponentesUnitario",
+          "descontoRevisaoComponentesTotal",
+          "revisaoComponentesTotalCalculado",
+          "revisaoComponentesValorUnitarioCalculado",
+          "revisaoComponentesVersao",
+          "revisaoComponentesAtualizadaEm",
+          "atualizadoPor",
+          "atualizadoEm"
+        ]);
+    }
+
     function pagamentoDoUsuario() {
       return usuarioComum()
         && resource.data.criadoPor == request.auth.uid;
@@ -249,11 +301,7 @@ service cloud.firestore {
 
     match /logsAlteracoes/{logId} {
       allow read: if admin();
-
-      // As rotinas atuais usam usuarioUid, usuarioId ou criadoPor,
-      // dependendo da tela. Todos precisam apontar para o usuário logado.
       allow create: if novoLogDoUsuario();
-
       allow update, delete: if false;
     }
 
@@ -275,47 +323,58 @@ service cloud.firestore {
 
     match /precosReferencia/{precoId} {
       allow read: if usuarioComum();
-
-      // O valor padrão da Alça pode ser definido pelo administrador ou pelo
-      // financeiro autorizado. Os demais preços continuam administrativos.
       allow create: if admin() || novoPrecoPadraoAlcaPermitido(precoId);
       allow update: if admin() || alteracaoPrecoPadraoAlcaPermitida(precoId);
       allow delete: if admin();
     }
 
     match /entregasPagamento/{entregaId} {
-      // A chegada precisa pesquisar pagamentos ligados à movimentação para
-      // impedir duplicidade, inclusive quando o lançamento foi criado por
-      // outro usuário. Por isso, todo usuário ativo pode consultar a coleção.
       allow read: if usuarioComum();
-
-      // Usuário operacional cria somente pagamentos vinculados ao próprio UID.
       allow create: if admin() || novoPagamentoDoUsuario();
-
-      // Financeiro autorizado pode informar o valor total de Sutiã Montagem/
-      // Sutiã Completo. A regra limita exatamente os campos financeiros alterados.
-      // Usuário operacional continua podendo corrigir apenas o próprio pagamento.
       allow update: if admin()
         || alteracaoValorTotalManualPermitida()
         || alteracaoPagamentoAlcaPermitida()
+        || alteracaoRevisaoComponentesPermitida()
         || (
           pagamentoDoUsuario()
           && resource.data.statusPagamento != "pago"
           && novoPagamentoDoUsuario()
           && request.resource.data.statusPagamento != "pago"
         );
-
-      // Exclusão pelo usuário é permitida somente para o próprio lançamento
-      // pendente/sem valor. Pagamentos quitados continuam restritos ao ADM.
       allow delete: if admin() || (
         pagamentoDoUsuario()
         && resource.data.statusPagamento != "pago"
       );
     }
 
+    match /ajustesFinanceirosFaccoes/{ajusteId} {
+      allow read: if financeiroPodeDefinirValor();
+
+      allow create: if financeiroPodeDefinirValor()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.faccao is string
+        && request.resource.data.faccao.size() > 0
+        && request.resource.data.tipo in ["faccao_deve_empresa", "empresa_deve_faccao"]
+        && request.resource.data.valor is number
+        && request.resource.data.valor > 0
+        && request.resource.data.status == "pendente";
+
+      allow update: if financeiroPodeDefinirValor()
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.status in ["pendente", "quitado"]
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status",
+          "updatedAt",
+          "updatedBy",
+          "quitadoAt",
+          "quitadoPor"
+        ]);
+
+      allow delete: if financeiroPodeDefinirValor()
+        && resource.data.status == "pendente";
+    }
+
     match /ajustesMigracao/{ajusteId} {
-      // Administrador acessa todos os ajustes. Usuário comum cria e lê
-      // somente o histórico das próprias correções de local.
       allow read: if admin() || (
         usuarioComum()
         && resource.data.criadoPor == request.auth.uid
@@ -342,20 +401,12 @@ service cloud.firestore {
       allow create, update, delete: if admin();
     }
 
-
     match /travasOperacionais/{travaId} {
-      // Trava curta usada para impedir que duas abas/usuários confirmem
-      // o mesmo envio, chegada ou pagamento ao mesmo tempo.
       allow read: if usuarioComum();
-
       allow create: if usuarioComum()
         && request.resource.data.criadoPor == request.auth.uid;
-
-      // Uma trava expirada pode ser assumida por outro usuário ativo.
-      // A lógica do sistema só faz isso quando o prazo já terminou.
       allow update: if usuarioComum()
         && request.resource.data.criadoPor == request.auth.uid;
-
       allow delete: if admin() || (
         usuarioComum()
         && resource.data.criadoPor == request.auth.uid

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-10-alca-recalculo-pendentes-163";
+  const VERSION = "2026-08-19-valores-pendentes-auth-214";
   if (window.__CORPONU_PENDENCIAS_VALOR_BOOTSTRAP__ === VERSION) return;
   window.__CORPONU_PENDENCIAS_VALOR_BOOTSTRAP__ = VERSION;
 
@@ -63,12 +63,25 @@
     "lateral-unificada-118",
     () => carregarScript(
       "./corponu-pendencias-valor-seguro-117.js",
-      "pendencias-valor-seguro-117"
+      "pendencias-valor-seguro-117",
+      () => carregarScript(
+        "./corponu-precos-recalcular-pendencias-189.js",
+        "precos-recalcular-pendencias-189"
+      )
     )
   );
 
   carregarScript(
     "./corponu-chegada-manual-faccoes-processo-119-seguro.js",
     "chegada-manual-faccoes-processo-119"
+  );
+
+  carregarScript(
+    "./corponu-valores-pendentes-financeiro.js",
+    "valores-pendentes-financeiro-213",
+    () => carregarScript(
+      "./corponu-valores-pendentes-auth-214.js",
+      "valores-pendentes-auth-214"
+    )
   );
 })();

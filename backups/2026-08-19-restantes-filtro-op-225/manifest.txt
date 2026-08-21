@@ -1,0 +1,11 @@
+BACKUP PRÉ-V225 — FILTRO DE OP EM RESTANTES PENDENTES
+Data: 19/08/2026
+
+Estado anterior de produção:
+- Release: 2026-08-19-faccoes-lateral-alca-pc-lento-224
+- corponu-release.json blob SHA: 62df51a125334e434b2f8c91bd93e52a23614291
+- corponu-auto-update-runtime-203.js blob SHA: 85dc9a729214f0fd69b149557f2857b9cb7eabb3
+- corponu-pagamentos-pendentes-busca-op-208.js blob SHA: 6a10ddaa68ace0c1da9768eb93e7edacb9c4380b
+
+Observação:
+A antiga 208 NÃO será reativada. Ela tinha observer amplo em document.body e mirava modalPendenciasValoresFinanceiro/listaPendenciasValores. A nova implementação deve atuar somente em painelRestantesPagamento/listaRestantesPagamento, sem reload e sem nova consulta Firestore ao digitar.

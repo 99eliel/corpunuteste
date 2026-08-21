@@ -1,37 +1,71 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-01-processos-somente-valores-61";
+  const VERSION = "2026-08-14-op-salvamento-rapido-199";
   const PAGINA_ID = "processos";
   const CLASSE_OCULTA = "cn61-processos-oculto";
-  const PROCESSOS_PERMITIDOS = new Set(["LATERAL", "ENCAPAR BOJO"]);
+  const CABECALHO_CALCINHA = "corponu-manejo-cabecalho-calcinha-191.js";
+  const EXCLUIR_PROCESSO = "corponu-processos-excluir-195.js";
+  const SALVAR_OP_RAPIDO = "corponu-op-salvamento-rapido-199.js";
+
+  function carregarSalvarOp199() {
+    if (window.__CORPONU_OP_SALVAMENTO_RAPIDO_199__ === VERSION) return;
+    if ([...document.scripts].some(script => String(script.src || "").includes(SALVAR_OP_RAPIDO))) return;
+    const script = document.createElement("script");
+    script.src = `./${SALVAR_OP_RAPIDO}?v=${encodeURIComponent(VERSION)}&t=${Date.now()}`;
+    script.async = false;
+    script.dataset.corponuModulo = "op-salvamento-rapido-199";
+    script.onerror = () => console.error("Não foi possível carregar o salvamento rápido de OP.");
+    document.head.appendChild(script);
+  }
+
+  function carregarCabecalhoCalcinha191() {
+    if ([...document.scripts].some(script => String(script.src || "").includes(CABECALHO_CALCINHA))) return;
+    const script = document.createElement("script");
+    script.src = `./${CABECALHO_CALCINHA}?v=2026-08-13-fase-calcinha-nao-reverter-194&t=${Date.now()}`;
+    script.async = false;
+    script.dataset.corponuModulo = "manejo-cabecalho-calcinha-191";
+    script.onerror = () => console.error("Não foi possível estabilizar o cabeçalho do Manejo Calcinha.");
+    document.head.appendChild(script);
+  }
+
+  function carregarExcluirProcesso195() {
+    if ([...document.scripts].some(script => String(script.src || "").includes(EXCLUIR_PROCESSO))) return;
+    const script = document.createElement("script");
+    script.src = `./${EXCLUIR_PROCESSO}?v=${encodeURIComponent(VERSION)}&t=${Date.now()}`;
+    script.async = false;
+    script.dataset.corponuModulo = "processos-excluir-195";
+    script.onerror = () => console.error("Não foi possível carregar a exclusão segura de processo.");
+    document.head.appendChild(script);
+  }
+
+  carregarSalvarOp199();
+  carregarCabecalhoCalcinha191();
+  carregarExcluirProcesso195();
 
   if (window.__CORPONU_PROCESSOS_SOMENTE_VALORES__ === VERSION) return;
   window.__CORPONU_PROCESSOS_SOMENTE_VALORES__ = VERSION;
 
-  let observadorLista = null;
-  let listaObservada = null;
   let aplicando = false;
 
-  const texto = valor => String(valor ?? "").trim();
-  const normalizar = valor => texto(valor)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .toUpperCase();
-
-  function processoPermitido(valor) {
-    const nome = normalizar(valor);
-    return nome === "LATERAL" || nome.includes("ENCAPAR BOJO");
+  function carregarRelatorioGeral() {
+    const arquivo = "corponu-relatorio-geral-valores-190.js";
+    if ([...document.scripts].some(script => String(script.src || "").includes(arquivo))) return;
+    const script = document.createElement("script");
+    script.src = `./${arquivo}?v=${encodeURIComponent(VERSION)}&t=${Date.now()}`;
+    script.async = false;
+    script.dataset.corponuModulo = "relatorio-geral-valores-190";
+    script.onerror = () => console.error("Não foi possível carregar o relatório geral de valores.");
+    document.head.appendChild(script);
   }
 
   function injetarEstilo() {
-    if (document.getElementById("styleProcessosSomenteValores61")) return;
+    document.getElementById("styleProcessosSomenteValores61")?.remove();
+
     const style = document.createElement("style");
     style.id = "styleProcessosSomenteValores61";
     style.textContent = `
       #${PAGINA_ID} > .${CLASSE_OCULTA}{display:none!important}
-      #${PAGINA_ID} .cn61-processo-nao-usado{display:none!important}
       #${PAGINA_ID} .cn61-intro{margin-bottom:16px;padding:15px 17px;border:1px solid #c4b5fd;border-radius:15px;background:linear-gradient(135deg,#faf5ff,#fff);color:#4c1d95}
       #${PAGINA_ID} .cn61-intro h3{margin:0 0 5px;color:#3b0764;font-size:17px}
       #${PAGINA_ID} .cn61-intro p{margin:0;color:#6b21a8;font-size:12px;line-height:1.45}
@@ -50,16 +84,59 @@
 
   function garantirIntroducao(pagina) {
     let intro = document.getElementById("processosValoresIntro61");
-    if (intro) return intro;
+    if (!intro) {
+      intro = document.createElement("div");
+      intro.id = "processosValoresIntro61";
+      intro.className = "cn61-intro";
+      pagina.prepend(intro);
+    }
 
-    intro = document.createElement("div");
-    intro.id = "processosValoresIntro61";
-    intro.className = "cn61-intro";
-    intro.innerHTML = `
-      <h3>Gestão de valores da produção</h3>
-      <p>Configure os valores gerais do Sutiã Completo e os valores por referência de LATERAL e ENCAPAR BOJO. Os demais processos continuam preservados no banco, mas não aparecem nesta tela.</p>`;
-    pagina.prepend(intro);
+    let titulo = intro.querySelector(":scope > h3");
+    if (!titulo) {
+      titulo = document.createElement("h3");
+      intro.prepend(titulo);
+    }
+    titulo.textContent = "Gestão de valores da produção";
+
+    let descricao = intro.querySelector(":scope > p");
+    if (!descricao) {
+      descricao = document.createElement("p");
+      titulo.insertAdjacentElement("afterend", descricao);
+    }
+    descricao.textContent = "Gerencie os valores por referência de todos os processos cadastrados. A escolha do processo permanece livre e não é alterada automaticamente.";
+
     return intro;
+  }
+
+  function restaurarTodosOsProcessos() {
+    document.querySelectorAll(`#${PAGINA_ID} .cn61-processo-nao-usado`).forEach(item => {
+      item.classList.remove("cn61-processo-nao-usado");
+    });
+
+    const lista = document.getElementById("listaProcessosValores");
+    const titulo = lista?.closest("aside")?.querySelector(".processos-valores-title");
+    const forte = titulo?.querySelector("strong");
+    const ajuda = titulo?.querySelector("span");
+    if (forte) forte.textContent = "Processos cadastrados";
+    if (ajuda) ajuda.textContent = "Clique para selecionar.";
+
+    const busca = document.getElementById("buscaProcessoValor");
+    if (busca && /Lateral|Encapar Bojo/i.test(busca.placeholder || "")) {
+      busca.placeholder = "Buscar processo...";
+    }
+
+    const selectProcesso = document.getElementById("precoReferenciaProcesso");
+    if (selectProcesso instanceof HTMLSelectElement) {
+      [...selectProcesso.options].forEach(option => {
+        option.hidden = false;
+        option.disabled = false;
+      });
+    }
+
+    const tituloTabela = document.getElementById("tituloTabelaValores");
+    if (tituloTabela && /Lateral e Encapar Bojo/i.test(tituloTabela.textContent || "")) {
+      tituloTabela.textContent = "Valores cadastrados por referência";
+    }
   }
 
   function focarEstrutura() {
@@ -91,125 +168,51 @@
       const subtitulo = document.getElementById("pageSubtitle");
       if (pagina.classList.contains("active")) {
         if (titulo) titulo.textContent = "Valores de produção";
-        if (subtitulo) subtitulo.textContent = "Gerencie Sutiã Completo, referência 912, fecho, ponto de luz, Lateral e Encapar Bojo.";
+        if (subtitulo) subtitulo.textContent = "Gerencie os valores por referência dos processos cadastrados.";
       }
 
-      filtrarControles();
-      observarLista();
+      restaurarTodosOsProcessos();
       return permitidos.size > 1;
     } finally {
       aplicando = false;
     }
   }
 
-  function filtrarLista() {
-    const lista = document.getElementById("listaProcessosValores");
-    if (!lista) return;
-
-    [...lista.children].forEach(item => {
-      const permitido = processoPermitido(item.textContent);
-      item.classList.toggle("cn61-processo-nao-usado", !permitido);
-    });
-
-    const titulo = lista.closest("aside")?.querySelector(".processos-valores-title");
-    const forte = titulo?.querySelector("strong");
-    const ajuda = titulo?.querySelector("span");
-    if (forte) forte.textContent = "Valores por referência";
-    if (ajuda) ajuda.textContent = "Escolha Lateral ou Encapar Bojo.";
-
-    const selecionado = normalizar(document.getElementById("valorProcessoSelecionadoLabel")?.textContent);
-    if (!processoPermitido(selecionado)) {
-      const primeiro = [...lista.children].find(item => !item.classList.contains("cn61-processo-nao-usado"));
-      const botao = primeiro?.matches("button") ? primeiro : primeiro?.querySelector("button");
-      if (botao && botao.dataset.cn61Selecionado !== "1") {
-        botao.dataset.cn61Selecionado = "1";
-        window.setTimeout(() => botao.click(), 0);
-      }
-    }
-  }
-
-  function filtrarSelectProcesso() {
-    const select = document.getElementById("precoReferenciaProcesso");
-    if (!(select instanceof HTMLSelectElement)) return;
-
-    [...select.options].forEach(option => {
-      const valor = normalizar(option.value || option.textContent);
-      const auxiliar = !valor || valor.includes("SELECIONE") || valor.includes("ESCOLHA");
-      option.hidden = !auxiliar && !processoPermitido(valor);
-      option.disabled = !auxiliar && !processoPermitido(valor);
-    });
-
-    if (select.value && !processoPermitido(select.value)) {
-      select.value = "";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-  }
-
-  function filtrarControles() {
-    filtrarLista();
-    filtrarSelectProcesso();
-
-    const busca = document.getElementById("buscaProcessoValor");
-    if (busca) busca.placeholder = "Buscar Lateral ou Encapar Bojo...";
-
-    const tituloTabela = document.getElementById("tituloTabelaValores");
-    if (tituloTabela && /VALOR|PROCESSO/i.test(tituloTabela.textContent)) {
-      tituloTabela.textContent = "Valores de Lateral e Encapar Bojo por referência";
-    }
-  }
-
-  function observarLista() {
-    const lista = document.getElementById("listaProcessosValores");
-    if (!lista || listaObservada === lista) return;
-
-    observadorLista?.disconnect();
-    listaObservada = lista;
-    observadorLista = new MutationObserver(() => {
-      window.setTimeout(() => {
-        filtrarLista();
-        filtrarSelectProcesso();
-      }, 0);
-    });
-    observadorLista.observe(lista, { childList: true });
-  }
-
-  function aplicarDepois(atrasos = [80, 300, 750]) {
+  function aplicarDepois(atrasos = [60, 250, 700]) {
     atrasos.forEach(atraso => window.setTimeout(focarEstrutura, atraso));
   }
 
   function instalarEventos() {
     document.addEventListener("click", event => {
       const alvo = event.target instanceof Element ? event.target : null;
-      if (!alvo) return;
-
-      if (alvo.closest('[data-page="processos"]')) aplicarDepois([50, 250, 650, 1200]);
-      if (alvo.closest("#listaProcessosValores")) aplicarDepois([20, 150]);
-    }, true);
-
-    document.addEventListener("change", event => {
-      if (event.target?.id === "precoReferenciaProcesso") filtrarSelectProcesso();
+      if (alvo?.closest('[data-page="processos"]')) aplicarDepois();
     }, true);
 
     document.addEventListener("submit", event => {
       if (event.target?.id === "formPrecoReferencia" || event.target?.id === "configSutiaCompleto51") {
-        aplicarDepois([300, 900]);
+        aplicarDepois([150, 500]);
       }
     }, true);
   }
 
   function iniciar() {
+    carregarSalvarOp199();
+    carregarCabecalhoCalcinha191();
+    carregarExcluirProcesso195();
+    carregarRelatorioGeral();
     instalarEventos();
-    let tentativas = 0;
-    const intervalo = window.setInterval(() => {
-      tentativas += 1;
-      focarEstrutura();
-      if (tentativas >= 35 || (document.getElementById("configSutiaCompleto51") && document.getElementById("formPrecoReferencia"))) {
-        window.clearInterval(intervalo);
-        aplicarDepois([300, 900]);
-      }
-    }, 300);
+    focarEstrutura();
+    aplicarDepois([250, 800]);
   }
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true });
-  else iniciar();
+  carregarSalvarOp199();
+  carregarCabecalhoCalcinha191();
+  carregarExcluirProcesso195();
+  carregarRelatorioGeral();
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", iniciar, { once: true });
+  } else {
+    iniciar();
+  }
 })();

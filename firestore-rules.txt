@@ -347,6 +347,33 @@ service cloud.firestore {
       );
     }
 
+    match /ajustesFinanceirosFaccoes/{ajusteId} {
+      allow read: if financeiroPodeDefinirValor();
+
+      allow create: if financeiroPodeDefinirValor()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.faccao is string
+        && request.resource.data.faccao.size() > 0
+        && request.resource.data.tipo in ["faccao_deve_empresa", "empresa_deve_faccao"]
+        && request.resource.data.valor is number
+        && request.resource.data.valor > 0
+        && request.resource.data.status == "pendente";
+
+      allow update: if financeiroPodeDefinirValor()
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.status in ["pendente", "quitado"]
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status",
+          "updatedAt",
+          "updatedBy",
+          "quitadoAt",
+          "quitadoPor"
+        ]);
+
+      allow delete: if financeiroPodeDefinirValor()
+        && resource.data.status == "pendente";
+    }
+
     match /ajustesMigracao/{ajusteId} {
       allow read: if admin() || (
         usuarioComum()

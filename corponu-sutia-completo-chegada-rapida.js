@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-11-componentes-opcionais-chegada-170";
+  const VERSION = "2026-08-11-chegada-sutia-rapida-180";
   const FIREBASE_VERSION = "10.12.5";
   const PROCESSO_COMPLETO = "SUTIÃ COMPLETO";
   const PROCESSO_LATERAL = "LATERAL";
@@ -674,8 +674,23 @@
     bloquearForm(form, true);
 
     try {
-      const movOriginal = await buscarMovimentacao(id);
-      if (!movOriginal || processoCanonico(movOriginal.processo) !== PROCESSO_COMPLETO) return;
+      const movEmMemoria = window.__CORPONU_CHEGADA_MOV_CARREGADA__;
+      const movOriginal = movEmMemoria && texto(movEmMemoria.id) === id
+        ? movEmMemoria
+        : await buscarMovimentacao(id);
+      if (!movOriginal) return;
+
+      const processoConfirmado = processoCanonico(
+        form.dataset.corponuSutiaConfirmacaoProcesso ||
+        document.getElementById("chegadaConfirmarProcesso")?.value ||
+        movOriginal.processo
+      );
+      const faccaoConfirmada = texto(
+        form.dataset.corponuSutiaConfirmacaoFaccao ||
+        document.getElementById("chegadaConfirmarFaccao")?.value ||
+        movOriginal.destino
+      ).toUpperCase();
+      if (processoConfirmado !== PROCESSO_COMPLETO || !faccaoConfirmada) return;
 
       const especial = form.dataset.sutia912Rapido === "1";
       const dados = validarPainel("sc51", especial);
@@ -696,8 +711,19 @@
       const conferencia = montarConferencia(dados, memoria, usuario, quantidade);
       conferencia.confirmadoEm = agora;
 
+      const corrigiuProcessoFaccao =
+        normalizar(movOriginal.processo || "") !== normalizar(PROCESSO_COMPLETO) ||
+        normalizar(movOriginal.destino || "") !== normalizar(faccaoConfirmada);
       const mov = {
         ...movOriginal,
+        processoEnvioOriginal: movOriginal.processoEnvioOriginal || movOriginal.processo || "",
+        destinoEnvioOriginal: movOriginal.destinoEnvioOriginal || movOriginal.destino || "",
+        processo: PROCESSO_COMPLETO,
+        destino: faccaoConfirmada,
+        processoConfirmadoNaChegada: PROCESSO_COMPLETO,
+        faccaoConfirmadaNaChegada: faccaoConfirmada,
+        confirmacaoProcessoFaccaoNaChegada: true,
+        dadosEnvioCorrigidosNaChegada: corrigiuProcessoFaccao,
         dataChegada,
         falta,
         descontoDefeito,
@@ -716,6 +742,14 @@
       const batch = fs.writeBatch(db);
 
       batch.set(fs.doc(db, "movimentacoesProducao", id), {
+        processoEnvioOriginal: movOriginal.processoEnvioOriginal || movOriginal.processo || "",
+        destinoEnvioOriginal: movOriginal.destinoEnvioOriginal || movOriginal.destino || "",
+        processo: PROCESSO_COMPLETO,
+        destino: faccaoConfirmada,
+        processoConfirmadoNaChegada: PROCESSO_COMPLETO,
+        faccaoConfirmadaNaChegada: faccaoConfirmada,
+        confirmacaoProcessoFaccaoNaChegada: true,
+        dadosEnvioCorrigidosNaChegada: corrigiuProcessoFaccao,
         dataChegada,
         falta,
         descontoDefeito,
@@ -740,6 +774,9 @@
       }
       batch.set(fs.doc(fs.collection(db, "logsAlteracoes")), montarLog(mov, quantidade, falta, descontoDefeito, dados, memoria, usuario, agora));
       await batch.commit();
+      window.__CORPONU_CHEGADA_MOV_CARREGADA__ = null;
+      delete form.dataset.corponuSutiaConfirmacaoProcesso;
+      delete form.dataset.corponuSutiaConfirmacaoFaccao;
 
       document.getElementById("modalChegadaMovimentacao")?.classList.add("hidden");
       form.reset();

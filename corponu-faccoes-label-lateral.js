@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-10-faccoes-label-lateral-alca-161";
+  const VERSION = "2026-08-18-faccoes-label-escopo-211";
 
   if (window.__CORPONU_FACCOES_LABEL_LATERAL__ === VERSION) return;
   window.__CORPONU_FACCOES_LABEL_LATERAL__ = VERSION;
@@ -121,14 +121,24 @@
   function iniciar() {
     aplicarNomeLateral();
 
-    const observer = new MutationObserver(agendarAplicacao);
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true
-    });
+    // Antes este observador ficava preso no document.body inteiro e acordava
+    // a cada alteração de qualquer tela do sistema. Agora acompanha somente
+    // Facções, que é a única área que este módulo precisa corrigir.
+    const raizFaccoes = document.getElementById("faccoes");
+    if (raizFaccoes) {
+      const observer = new MutationObserver(agendarAplicacao);
+      observer.observe(raizFaccoes, {
+        childList: true,
+        subtree: true,
+        characterData: true
+      });
+    }
 
-    document.addEventListener("click", agendarAplicacao, true);
+    document.addEventListener("click", event => {
+      const alvo = event.target instanceof Element ? event.target : null;
+      if (alvo?.closest("#faccoes")) agendarAplicacao();
+    }, true);
+
     window.addEventListener("pageshow", agendarAplicacao);
   }
 

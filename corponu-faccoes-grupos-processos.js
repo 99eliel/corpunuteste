@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-07-31-faccoes-grupos-processos-43";
+  const VERSION = "2026-08-12-faccoes-otimizadas-183";
   const FB = "10.12.5";
   const CONFIG_ID = "grupos-faccoes-processos";
   const FORM_ID = "formFaccao";
@@ -13,6 +13,7 @@
     { nome: "ENCAPAR BOJO", atendeSutia: true, atendeCalcinha: false },
     { nome: "ALÇA", atendeSutia: true, atendeCalcinha: false },
     { nome: "LATERAL", atendeSutia: true, atendeCalcinha: false },
+    { nome: "INTERLOCK", atendeSutia: true, atendeCalcinha: true },
     { nome: "SUTIÃ MONTAGEM", atendeSutia: true, atendeCalcinha: false },
     { nome: "SUTIÃ COMPLETO", atendeSutia: true, atendeCalcinha: false },
     { nome: "CALCINHA MONTAGEM", atendeSutia: false, atendeCalcinha: true },

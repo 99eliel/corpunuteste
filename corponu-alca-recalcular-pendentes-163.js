@@ -118,6 +118,8 @@
       firestore.query(col, firestore.where("processo", "in", ALIASES_ALCA)),
       firestore.query(col, firestore.where("servicoNome", "in", ALIASES_ALCA)),
       firestore.query(col, firestore.where("processoMovimentacao", "in", ALIASES_ALCA)),
+      // Registros antigos da área Lateral/Alça eram gravados como Corte.
+      // Esta consulta é executada somente quando o administrador clica no recálculo.
       firestore.query(col, firestore.where("origem", "==", "movimentacao_corte"))
     ];
 
@@ -137,6 +139,7 @@
     const quantidade = quantidadeSutias(item);
     const quantidadeAlcas = arredondar4(quantidade * ALCAS_POR_SUTIA);
     const desconto = descontoDefeito(item);
+    // Mantém a mesma regra da geração normal da área: total financeiro em centavos.
     const subtotal = arredondar2(quantidade * VALOR_POR_SUTIA);
     const total = arredondar2(Math.max(subtotal - desconto, 0));
 

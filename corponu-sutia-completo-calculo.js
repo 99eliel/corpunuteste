@@ -1,9 +1,9 @@
 (() => {
   "use strict";
 
-  const LOADER_VERSION = "2026-08-11-admin-edita-componentes-chegada-177b";
-  const BASE_FILE = "corponu-sutia-completo-calculo-base-176.js";
-  const GUARD = "__CORPONU_SUTIA_COMPLETO_ADMIN_LOADER_177B__";
+  const LOADER_VERSION = "2026-08-11-admin-edita-componentes-chegada-175b";
+  const BASE_FILE = "corponu-sutia-completo-calculo-base-174.js";
+  const GUARD = "__CORPONU_SUTIA_COMPLETO_ADMIN_LOADER_175B__";
 
   if (window[GUARD] === LOADER_VERSION) return;
   window[GUARD] = LOADER_VERSION;
@@ -38,7 +38,7 @@
 
     substituir(
       'const VERSION = "2026-08-11-componentes-opcionais-calculo-170";',
-      'const VERSION = "2026-08-11-admin-edita-componentes-chegada-177b";',
+      'const VERSION = "2026-08-11-admin-edita-componentes-chegada-175b";',
       "versão interna"
     );
 
@@ -88,8 +88,8 @@
       : parcial
         ? \`${'${numero(info.quantidade).toLocaleString("pt-BR")}'} de ${'${numero(info.quantidadeTotal || 0).toLocaleString("pt-BR")}'} peças registradas. Confirme esta chegada.\`
         : "Nenhuma informação registrada na OP.";
-    const responsavelAtual = adminEdita 
-      ? ((valorAtual === "faccao") ? escapar(info.responsavel || "") : "")
+    const responsavelAtual = adminEdita && valorAtual === "faccao"
+      ? escapar(info.responsavel || "")
       : parcial
         ? escapar(info.responsavel || "")
         : "";
@@ -261,7 +261,7 @@
         executarFonte(fonteCorrigida, LOADER_VERSION);
       } catch (error) {
         console.error("A edição administrativa de Lateral/Bojo não foi aplicada; carregando a base estável.", error);
-        executarFonte(fonteOriginal, "base-estavel-176");
+        executarFonte(fonteOriginal, "base-estavel-174");
       }
     })
     .catch(error => {

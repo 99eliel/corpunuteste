@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-17-main-bootstrap-auto-update-181",
-  "updatedAt": "2026-08-17T09:24:00-03:00",
-  "notes": "BOOTSTRAP DO ATUALIZADOR. O version.json foi avançado de propósito para que abas antigas, que ainda executam o update.js legado, detectem uma versão diferente e façam uma recarga automática. Após essa recarga, o runtime novo da main assume a verificação por corponu-release.json e elimina a dependência de Ctrl+F5 nas próximas versões."
+  "version": "2026-08-12-precos-selecao-estavel-187",
+  "updatedAt": "2026-08-12T16:21:00-03:00",
+  "notes": "Mantem o processo selecionado no gerenciamento de valores, remove a selecao automatica de ENCAPAR BOJO, evita reconstruir o seletor ao renderizar a tabela e libera a interface antes do log de auditoria."
 }

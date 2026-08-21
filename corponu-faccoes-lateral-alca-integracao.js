@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-03-chegada-manual-otimizada-97";
+  const VERSION = "2026-08-18-lateral-alca-sob-demanda-211";
   const FIREBASE_VERSION = "10.12.5";
   const VALOR_FILTRO_ALCA = "__CORPONU_ALCA__";
   const CACHE_MS = 12000;
@@ -54,6 +54,13 @@
     return processo === "LATERAL" || processo === "ALÇA";
   }
 
+  function painelLateralAtivo() {
+    return Boolean(
+      document.getElementById("faccoes")?.classList.contains("active") &&
+      document.getElementById("abaFaccaoCorte")?.classList.contains("active")
+    );
+  }
+
   function movimentoCancelado(item) {
     const status = normalizar(item?.status || item?.statusMovimentacao || "");
     return item?.cancelado === true || item?.excluido === true || [
@@ -100,7 +107,7 @@
       ];
 
       const mapa = new Map();
-      for (const consulta of consultas) {
+      await Promise.all(consultas.map(async consulta => {
         try {
           const snap = await fs.getDocs(consulta);
           snap.docs.forEach(docSnap => {
@@ -110,7 +117,7 @@
         } catch (error) {
           console.warn("Uma consulta de Lateral e Alça não pôde ser executada.", error);
         }
-      }
+      }));
 
       const movimentos = [...mapa.values()].sort((a, b) => {
         const ta = a.atualizadoEm?.toMillis?.() || a.criadoEm?.toMillis?.() || Date.parse(a.dataChegada || a.dataEnvio || "") || 0;
@@ -270,6 +277,10 @@
   }
 
   async function renderizar(forcar = false) {
+    // Esta integração não consulta mais o Firestore enquanto a aba estiver oculta.
+    // Isso evita leituras e processamento concorrendo com cadastro de OP e outras facções.
+    if (!painelLateralAtivo()) return;
+
     corrigirNomeAba();
     garantirBotaoChegadaManual();
     garantirProcessosChegadaManual();
@@ -317,7 +328,7 @@
     observerTabela?.disconnect();
 
     observerTabela = new MutationObserver(mutations => {
-      if (renderizandoExtras) return;
+      if (renderizandoExtras || !painelLateralAtivo()) return;
       const alteracaoBase = mutations.some(mutation =>
         [...mutation.addedNodes].some(node => !(node instanceof HTMLElement) || node.dataset?.lateralAlcaExtra !== "1")
       );
@@ -362,14 +373,20 @@
       }
 
       if (alvo.closest("#abaFaccaoCorte")) {
-        agendarRender(true, 650);
-        window.setTimeout(() => agendarRender(false, 0), 1500);
+        cache.expiraEm = 0;
+        agendarRender(true, 350);
         return;
       }
 
-      if (alvo.closest("#btnCorteAtualizar, #btnAtualizarServidor")) {
+      if (alvo.closest("#btnCorteAtualizar")) {
         cache.expiraEm = 0;
-        agendarRender(true, 750);
+        agendarRender(true, 250);
+        return;
+      }
+
+      if (alvo.closest("#btnAtualizarServidor") && painelLateralAtivo()) {
+        cache.expiraEm = 0;
+        agendarRender(true, 250);
       }
     }, true);
 
@@ -395,19 +412,31 @@
         if (!processoEhLateralAlca(processo)) return;
 
         cache.expiraEm = 0;
-        window.setTimeout(() => agendarRender(true, 0), 1800);
+        window.setTimeout(() => agendarRender(true, 0), 1200);
         return;
       }
 
-      if (["formChegadaMovimentacao", "s3form"].includes(form.id)) {
+      if (form.id === "s3form") {
+        const processo = document.getElementById("s3processo")?.value;
+        if (!processoEhLateralAlca(processo)) return;
+
         cache.expiraEm = 0;
         window.setTimeout(() => agendarRender(true, 0), 1000);
-        window.setTimeout(() => agendarRender(true, 0), 2800);
+        return;
+      }
+
+      if (form.id === "formChegadaMovimentacao" && painelLateralAtivo()) {
+        cache.expiraEm = 0;
+        window.setTimeout(() => agendarRender(true, 0), 1000);
       }
     }, true);
 
-    window.addEventListener("focus", () => agendarRender(false, 180));
-    window.addEventListener("pageshow", () => agendarRender(true, 250));
+    window.addEventListener("focus", () => {
+      if (painelLateralAtivo()) agendarRender(false, 180);
+    });
+    window.addEventListener("pageshow", () => {
+      if (painelLateralAtivo()) agendarRender(true, 250);
+    });
   }
 
   function iniciar() {
@@ -419,7 +448,7 @@
       garantirBotaoChegadaManual();
       garantirProcessosChegadaManual();
       observarTabela();
-      if (document.getElementById("abaFaccaoCorte")) agendarRender(tentativas === 1, 0);
+      if (painelLateralAtivo()) agendarRender(tentativas === 1, 0);
       if (tentativas >= 50 || document.getElementById("abaFaccaoCorte")) window.clearInterval(timer);
     }, 200);
   }

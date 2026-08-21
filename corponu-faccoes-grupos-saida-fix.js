@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-07-31-faccoes-saida-unificada-47";
+  const VERSION = "2026-08-12-faccoes-otimizadas-183";
   const FB = "10.12.5";
 
   if (window.__CORPONU_FACCOES_GRUPOS_SAIDA_FIX__ === VERSION) return;
@@ -115,7 +115,7 @@
   async function faccoesDoProcesso(processo) {
     const processoNormalizado = processoCanonico(processo);
     if (!processoNormalizado) return [];
-    const faccoes = await carregarFaccoes(true);
+    const faccoes = await carregarFaccoes(false);
     return faccoes.filter(faccao => processosDaFaccao(faccao).includes(processoNormalizado));
   }
 

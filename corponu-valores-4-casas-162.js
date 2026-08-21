@@ -53,19 +53,26 @@
     if (!raiz) return;
     const walker = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
     const alterar = [];
+
     while (walker.nextNode()) {
       const no = walker.currentNode;
       if (deveIgnorarNo(no) || !String(no.nodeValue || "").includes("R$")) continue;
       const novo = formatarMoedasNoTexto(no.nodeValue);
       if (novo !== no.nodeValue) alterar.push([no, novo]);
     }
+
     alterar.forEach(([no, novo]) => { no.nodeValue = novo; });
   }
 
   function campoMonetario(input) {
     if (!(input instanceof HTMLInputElement) || input.type !== "number") return false;
     const label = input.closest("label")?.textContent || "";
-    const chave = normalizar([input.id, input.name, input.placeholder, label].join(" "));
+    const chave = normalizar([
+      input.id,
+      input.name,
+      input.placeholder,
+      label
+    ].join(" "));
     return /VALOR|PRECO|PREÇO|DESCONTO|DEFEITO/.test(chave);
   }
 
@@ -83,16 +90,28 @@
     aplicando = true;
     try {
       const pagina = document.querySelector(".page.active");
-      if (pagina) { formatarTextos(pagina); prepararCampos(pagina); }
-      document.querySelectorAll(".modal-backdrop:not(.hidden), .corte-modal:not(.hidden), #modalPendenciasValoresFinanceiro:not(.hidden)").forEach(modal => {
-        formatarTextos(modal); prepararCampos(modal);
+      if (pagina) {
+        formatarTextos(pagina);
+        prepararCampos(pagina);
+      }
+
+      document.querySelectorAll(
+        ".modal-backdrop:not(.hidden), .corte-modal:not(.hidden), #modalPendenciasValoresFinanceiro:not(.hidden)"
+      ).forEach(modal => {
+        formatarTextos(modal);
+        prepararCampos(modal);
       });
-    } finally { aplicando = false; }
+    } finally {
+      aplicando = false;
+    }
   }
 
   function agendar() {
     if (raf) return;
-    raf = requestAnimationFrame(() => { raf = 0; aplicar(); });
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      aplicar();
+    });
   }
 
   function instalarEventos() {
@@ -103,6 +122,7 @@
       if (!Number.isFinite(valor)) return;
       input.value = valor.toFixed(4);
     }, true);
+
     document.addEventListener("click", agendar, true);
     document.addEventListener("change", agendar, true);
   }
@@ -110,12 +130,22 @@
   function iniciar() {
     aplicar();
     instalarEventos();
+
+    // Observa somente criação/remoção de conteúdo. Não observa atributos e não
+    // interfere em listeners, filtros ou cálculos do sistema.
     observer = new MutationObserver(agendar);
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
   }
 
-  window.CorpoNuValores4Casas = { versao: VERSION, formatar: valor => `R$ ${formatar4(valor)}`, aplicar };
+  window.CorpoNuValores4Casas = {
+    versao: VERSION,
+    formatar: valor => `R$ ${formatar4(valor)}`,
+    aplicar
+  };
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true });
-  else iniciar();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", iniciar, { once: true });
+  } else {
+    iniciar();
+  }
 })();

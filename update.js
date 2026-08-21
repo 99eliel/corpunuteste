@@ -1,5 +1,5 @@
 (() => {
-  const APP_VERSION = "2026-07-30-modo-web-sem-pwa-15";
+  const APP_VERSION = "2026-08-12-precos-selecao-estavel-187";
   const metaVersion = document.querySelector('meta[name="app-version"]');
   if (metaVersion) metaVersion.setAttribute("content", APP_VERSION);
 
@@ -173,6 +173,7 @@
     "ALÇA": [
       "JANAINA", "IVONE", "LUANA", "KARYTA", "SIMEI", "SIMONE"
     ],
+    "INTERLOCK": [],
     "CALCINHA MONTAGEM": [
       "ANA FLAVIA", "KAUANE", "LIANA", "DAIANA", "LEIDIANE", "ANDREZA"
     ],
@@ -3382,6 +3383,7 @@
 
   async function buscarPrecoMovUsuario(referencia, processo) {
     const { firestore, db } = contextoMovUsuario;
+    if (processoPagamentoInterlock(processo)) return precoPadraoInterlock();
     if (processoPagamentoAlca(processo)) {
       return buscarPrecoPadraoAlca(firestore, db);
     }
@@ -9365,6 +9367,7 @@
   const PROCESSOS_FACCOES_ORDEM_PADRAO = [
     "ENCAPAR BOJO",
     "ALÇA",
+    "INTERLOCK",
     "CALCINHA MONTAGEM",
     "CALCINHA COMPLETA",
     "SUTIÃ MONTAGEM",
@@ -9540,7 +9543,12 @@
     const origem = configuracaoProcessosFaccoesExiste
       ? processosFaccoesConfigurados
       : construirConfiguracaoInferidaProcessosFaccoes();
-    return origem.filter(item => item?.ativo !== false && item?.nome);
+    const ativos = origem.filter(item => item?.ativo !== false && item?.nome);
+    const temInterlock = ativos.some(item => normalizarComparacao(item.nome) === "INTERLOCK");
+    if (!temInterlock) {
+      ativos.push({ nome: "INTERLOCK", setor: "ambos", faccoes: [], ativo: true });
+    }
+    return ativos;
   }
 
   function getNomesProcessosFaccoesAtivos(setor = "") {
@@ -10838,6 +10846,7 @@
   }
 
   async function buscarPrecoChegadaManualSimplificada(firestore, db, referencia, processo) {
+    if (processoPagamentoInterlock(processo)) return precoPadraoInterlock();
     if (processoPagamentoAlca(processo)) {
       return buscarPrecoPadraoAlca(firestore, db);
     }
@@ -11682,6 +11691,7 @@
       }
 
       const mov = { id: snapshot.id, ...snapshot.data() };
+      window.__CORPONU_CHEGADA_MOV_CARREGADA__ = mov;
       if (normalizarComparacao(mov.tipoDestino) !== 'FACCAO') {
         bloco.classList.add('hidden');
         confirmacaoChegadaFaccaoAtual = null;
@@ -11711,6 +11721,7 @@
 
   function limparConfirmacaoChegadaFaccao() {
     confirmacaoChegadaFaccaoAtual = null;
+    window.__CORPONU_CHEGADA_MOV_CARREGADA__ = null;
     const bloco = document.getElementById('grupoConfirmacaoChegadaFaccao');
     if (bloco) {
       bloco.classList.add('hidden');
@@ -11735,6 +11746,7 @@
   }
 
   async function buscarPrecoConfirmacaoChegada(firestore, db, referencia, processo) {
+    if (processoPagamentoInterlock(processo)) return precoPadraoInterlock();
     if (processoPagamentoAlca(processo)) {
       return buscarPrecoPadraoAlca(firestore, db);
     }
@@ -11754,6 +11766,20 @@
     const bloco = document.getElementById('grupoConfirmacaoChegadaFaccao');
     const form = document.getElementById('formChegadaMovimentacao');
     if (!form || !bloco || bloco.classList.contains('hidden')) return;
+
+    // SUTIÃ COMPLETO usa exclusivamente o fluxo atual. O bloco antigo continua
+    // servindo para reconfirmar processo/facção, mas não valida nem grava Lateral/Bojo.
+    const processoFluxoAtual = normalizarComparacao(document.getElementById('chegadaConfirmarProcesso')?.value || '');
+    if (
+      processoFluxoAtual === 'SUTIA COMPLETO' &&
+      document.getElementById('sutCompletoComponentesChegada') &&
+      window.CorpoNuSutiaChegadaRapida?.fluxoRapidoAtivo === true
+    ) {
+      form.dataset.sc107ReenvioSubmit = '1';
+      form.dataset.corponuSutiaConfirmacaoProcesso = String(document.getElementById('chegadaConfirmarProcesso')?.value || '').trim();
+      form.dataset.corponuSutiaConfirmacaoFaccao = String(document.getElementById('chegadaConfirmarFaccao')?.value || '').trim();
+      return;
+    }
 
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -12644,6 +12670,28 @@
 
   function processoPagamentoAlca(valor) {
     return normalizarComparacao(valor) === 'ALCA';
+  }
+
+  const VALOR_PADRAO_INTERLOCK = 0.18;
+  const ID_PRECO_PADRAO_INTERLOCK = 'valor-padrao-interlock';
+
+  function processoPagamentoInterlock(valor) {
+    return normalizarComparacao(valor) === 'INTERLOCK';
+  }
+
+  function precoPadraoInterlock() {
+    return {
+      id: ID_PRECO_PADRAO_INTERLOCK,
+      referencia: '*',
+      processo: 'INTERLOCK',
+      servicoNome: 'INTERLOCK',
+      setor: 'ambos',
+      setorLabel: 'Todos',
+      valor: VALOR_PADRAO_INTERLOCK,
+      ativo: true,
+      tipoValor: 'padrao_global_interlock',
+      valorPadraoGlobalInterlock: true
+    };
   }
 
   function precoPadraoAlcaValido(preco) {
