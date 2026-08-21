@@ -13,3 +13,11 @@ for (const arquivo of ['app.js', 'login-core.js']) {
     expect(codigo).not.toContain(PROJETO_PRODUCAO);
   });
 }
+
+test('E2E roda somente no servidor local da branch', async ({ page }) => {
+  await page.goto('/');
+  const url = new URL(page.url());
+
+  expect(url.hostname).toBe('127.0.0.1');
+  expect(url.port).toBe('4173');
+});
