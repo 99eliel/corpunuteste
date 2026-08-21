@@ -24,7 +24,7 @@
     const existente = [...document.scripts].find(script => String(script.src || "").includes(nomeArquivo));
     if (existente) return existente;
     const script = document.createElement("script");
-    script.src = `./${nomeArquivo}?v=${encodeURIComponent(LOCAL_RELEASE)}&t=${Date.now()}`;
+    script.src = `./${nomeArquivo}?v=${encodeURIComponent(LOCAL_RELEASE)}`;
     script.async = false;
     script.dataset.corponuModulo = marcador;
     script.onerror = () => console.error(mensagemErro);
@@ -146,7 +146,6 @@
 
   async function iniciar() {
     reservarModoCalcinhaOpcional();
-    carregarModulos();
     removerAvisosAntigos();
     await removerPwaAntigo();
     await verificarRelease();
