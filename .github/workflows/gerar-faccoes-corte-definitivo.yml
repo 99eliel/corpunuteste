@@ -40,23 +40,25 @@ jobs:
       - name: Validar sintaxe do modulo consolidado
         run: node --check corponu-faccoes-corte-definitivo.js
 
-      - name: Conferir que o resultado nao usa o loader legado
+      - name: Conferir substituicao do loader legado
         shell: bash
         run: |
           test -s corponu-faccoes-corte-definitivo.js
           ! grep -q 'corponu-faccoes-corte-01.txt' corponu-faccoes-corte-definitivo.js
           ! grep -q 'createObjectURL' corponu-faccoes-corte-definitivo.js
           grep -q '__CORPONU_FACCOES_CORTE__' corponu-faccoes-corte-definitivo.js
+          grep -q 'corponu-faccoes-corte-definitivo.js' corponu-atualizador.js
+          ! grep -Fq '["corponu-faccoes-corte.js", "faccoes-corte"' corponu-atualizador.js
 
-      - name: Salvar modulo gerado na branch de otimizacao
+      - name: Salvar consolidacao na branch de otimizacao
         shell: bash
         run: |
-          if git diff --quiet -- corponu-faccoes-corte-definitivo.js && git ls-files --error-unmatch corponu-faccoes-corte-definitivo.js >/dev/null 2>&1; then
-            echo 'Modulo definitivo ja esta atualizado.'
+          if git diff --quiet -- corponu-faccoes-corte-definitivo.js corponu-atualizador.js && git ls-files --error-unmatch corponu-faccoes-corte-definitivo.js >/dev/null 2>&1; then
+            echo 'Consolidacao definitiva ja esta atualizada.'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add corponu-faccoes-corte-definitivo.js
-          git commit -m 'refactor: gerar modulo definitivo de faccoes corte'
+          git add corponu-faccoes-corte-definitivo.js corponu-atualizador.js
+          git commit -m 'refactor: ativar modulo definitivo de faccoes corte'
           git push origin HEAD:perf/otimizacao-global-v1
