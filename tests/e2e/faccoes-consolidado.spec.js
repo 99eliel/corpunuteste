@@ -14,15 +14,23 @@ async function entrar(page) {
 
 test.describe('Facções - módulo consolidado', () => {
   test('código definitivo não depende da integração paralela nem de MutationObserver global', async ({ request }) => {
-    const resposta = await request.get('/corponu-faccoes-corte-definitivo.js');
-    expect(resposta.ok()).toBeTruthy();
-    const codigo = await resposta.text();
+    const respostaCorte = await request.get('/corponu-faccoes-corte-definitivo.js');
+    expect(respostaCorte.ok()).toBeTruthy();
+    const codigoCorte = await respostaCorte.text();
 
-    expect(codigo).toContain('2026-08-21-lateral-alca-fluxo-legado-227');
-    expect(codigo).toContain('movimentacaoUsaFluxoLegado');
-    expect(codigo).toContain('abrirChegadaCompatibilidade');
-    expect(codigo).not.toContain('new MutationObserver');
-    expect(codigo).not.toContain('__CORPONU_FACCOES_LATERAL_ALCA__');
+    expect(codigoCorte).toContain('2026-08-21-lateral-alca-fluxo-legado-227');
+    expect(codigoCorte).toContain('movimentacaoUsaFluxoLegado');
+    expect(codigoCorte).toContain('abrirChegadaCompatibilidade');
+    expect(codigoCorte).not.toContain('new MutationObserver');
+    expect(codigoCorte).not.toContain('__CORPONU_FACCOES_LATERAL_ALCA__');
+
+    const respostaAbas = await request.get('/corponu-faccoes-tres-abas-saida.js');
+    expect(respostaAbas.ok()).toBeTruthy();
+    const codigoAbas = await respostaAbas.text();
+
+    expect(codigoAbas).toContain('2026-08-21-faccoes-tres-abas-sem-observer-228');
+    expect(codigoAbas).toContain('Lateral e Alça');
+    expect(codigoAbas).not.toContain('new MutationObserver');
   });
 
   test('abre Facções sem loader, fragmentos ou remendos já incorporados', async ({ page }) => {
