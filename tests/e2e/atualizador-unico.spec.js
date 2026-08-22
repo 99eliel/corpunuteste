@@ -6,7 +6,7 @@ test.describe('Atualização e módulos legados', () => {
     expect(principal.ok()).toBeTruthy();
     const codigoPrincipal = await principal.text();
 
-    expect(codigoPrincipal).toContain('2026-08-21-dual-ready-pos-login-250');
+    expect(codigoPrincipal).toContain('2026-08-22-otimizacao-v2-273');
     expect(codigoPrincipal).toContain('INTERVALO_VERIFICACAO = 60 * 1000');
     expect(codigoPrincipal).toContain('MODULOS_APOS_LOGIN');
     expect(codigoPrincipal).toContain('corponu-dual-ready-bridge.js');
@@ -14,6 +14,7 @@ test.describe('Atualização e módulos legados', () => {
     expect(codigoPrincipal).toContain('corponu-sutia-completo-ponto-luz-411-206.js');
     expect(codigoPrincipal).toContain('corponu-manejo-calcinha-estavel-204.js');
     expect(codigoPrincipal).not.toContain('corponu-faccoes-lateral-select-212.js');
+    expect(codigoPrincipal).not.toContain('corponu-chegada-manual-sutia-pagamento-automatico.js');
 
     const compat = await request.get('/corponu-auto-update-runtime-203.js');
     expect(compat.ok()).toBeTruthy();
