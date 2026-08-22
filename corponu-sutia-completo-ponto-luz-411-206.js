@@ -1,14 +1,15 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-17-ponto-luz-somente-411-207";
+  const VERSION = "2026-08-21-ponto-luz-411-eventos-246";
   const REFERENCIA_PONTO_LUZ = "411";
 
   if (window.__CORPONU_PONTO_LUZ_SOMENTE_411__ === VERSION) return;
   window.__CORPONU_PONTO_LUZ_SOMENTE_411__ = VERSION;
 
   let aplicacaoAgendada = false;
-  let intervaloInicial = 0;
+  let observer = null;
+  const alvosObservados = new WeakSet();
 
   const texto = valor => String(valor ?? "").trim();
   const normalizar = valor => texto(valor)
@@ -90,7 +91,6 @@
     if (!(select instanceof HTMLSelectElement) || !(wrapper instanceof HTMLElement)) return false;
 
     const mudou = select.dataset.corponuPontoLuzAuto206 !== "1" || select.value !== "sim";
-
     select.value = "sim";
     select.required = false;
     select.disabled = true;
@@ -107,9 +107,7 @@
     }
     if (form instanceof HTMLFormElement) form.dataset.corponuPontoLuzAplicavel = "0";
 
-    if (mudou) {
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    }
+    if (mudou) select.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   }
 
@@ -156,29 +154,14 @@
     queueMicrotask(aplicar);
   }
 
-  function instalar() {
-    aplicar();
-
-    ["input", "change"].forEach(tipo => {
-      document.getElementById("chegadaManualRef")?.addEventListener(tipo, agendarAplicacao, true);
-      document.getElementById("chegadaManualProcesso")?.addEventListener(tipo, agendarAplicacao, true);
-    });
-
-    document.addEventListener("click", event => {
-      if (event.target?.closest?.("[onclick*='chegada'], [id*='Chegada'], [id*='chegada']")) {
-        setTimeout(aplicar, 0);
-        setTimeout(aplicar, 80);
-        setTimeout(aplicar, 250);
-      }
-    }, true);
-
-    const observer = new MutationObserver(agendarAplicacao);
+  function observarAlvos() {
+    if (!observer) observer = new MutationObserver(agendarAplicacao);
     [
       document.getElementById("modalChegadaMovimentacao"),
-      document.getElementById("modalChegadaManualFaccao"),
-      document.getElementById("sutCompletoComponentesChegada"),
-      document.getElementById("sutCompletoComponentesChegadaManual")
+      document.getElementById("modalChegadaManualFaccao")
     ].filter(Boolean).forEach(alvo => {
+      if (alvosObservados.has(alvo)) return;
+      alvosObservados.add(alvo);
       observer.observe(alvo, {
         childList: true,
         subtree: true,
@@ -186,26 +169,37 @@
         attributeFilter: ["class", "data-sutia912-rapido"]
       });
     });
+  }
 
-    let tentativas = 0;
-    intervaloInicial = window.setInterval(() => {
-      tentativas += 1;
-      aplicar();
-      if (tentativas >= 130) {
-        clearInterval(intervaloInicial);
-        intervaloInicial = 0;
-      }
-    }, 200);
+  function instalar() {
+    observarAlvos();
+    aplicar();
 
-    window.addEventListener("focus", aplicar);
-    window.addEventListener("pageshow", aplicar);
+    document.addEventListener("input", event => {
+      if (["chegadaManualRef", "chegadaManualProcesso", "chegadaConfirmarProcesso"].includes(event.target?.id)) agendarAplicacao();
+    }, true);
+    document.addEventListener("change", event => {
+      if (["chegadaManualRef", "chegadaManualProcesso", "chegadaConfirmarProcesso"].includes(event.target?.id)) agendarAplicacao();
+    }, true);
+
+    document.addEventListener("click", event => {
+      const alvo = event.target instanceof Element ? event.target : null;
+      if (!alvo?.closest("[onclick*='chegada'], [id*='Chegada'], [id*='chegada']")) return;
+      queueMicrotask(() => {
+        observarAlvos();
+        agendarAplicacao();
+      });
+    });
+
+    document.addEventListener("submit", event => {
+      if (["formChegadaMovimentacao", "formChegadaManualFaccao"].includes(event.target?.id)) aplicar();
+    }, true);
 
     console.info(`[CorpoNu] Ponto de luz somente na REF ${REFERENCIA_PONTO_LUZ}: ${VERSION}`);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", instalar, { once: true });
-  } else {
-    instalar();
-  }
+  window.CorpoNuPontoLuz411 = { versao: VERSION, aplicar };
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", instalar, { once: true });
+  else instalar();
 })();

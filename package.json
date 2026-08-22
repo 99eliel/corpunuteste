@@ -1,0 +1,15 @@
+{
+  "name": "corponu-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Testes E2E e de desempenho do ambiente de homologação CorpoNu",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:desktop": "playwright test --project=chromium-desktop",
+    "test:e2e:performance": "playwright test tests/e2e/performance.spec.js --project=chromium-desktop",
+    "test:e2e:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}

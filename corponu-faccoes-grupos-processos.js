@@ -1,13 +1,14 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-12-faccoes-otimizadas-183";
+  const VERSION = "2026-08-21-faccoes-grupos-consolidados-229";
   const FB = "10.12.5";
   const CONFIG_ID = "grupos-faccoes-processos";
   const FORM_ID = "formFaccao";
   const PAINEL_ID = "painelGerenciarFaccoes";
   const GERENCIADOR_ID = "gerenciadorGruposFaccoesProcessos";
   const FORM_PROCESSOS_ID = "processosPermitidosFaccao43";
+  const CACHE_MS = 25 * 1000;
 
   const PROCESSOS_PADRAO = [
     { nome: "ENCAPAR BOJO", atendeSutia: true, atendeCalcinha: false },
@@ -36,9 +37,11 @@
   let dadosCache = null;
   let cacheEm = 0;
   let processoAtual = "";
-  let observadorTabela = null;
   let salvandoGrupo = false;
   let salvandoFormulario = false;
+  let observadorTabela = null;
+  let tabelaObservada = null;
+  const sequenciasFiltro = new WeakMap();
 
   const normalizar = valor => String(valor ?? "")
     .normalize("NFD")
@@ -57,37 +60,34 @@
   function processoCanonico(valor) {
     const texto = normalizar(valor);
     const aliases = {
-      "BOJO": "ENCAPAR BOJO",
-      "ENCAPAR": "ENCAPAR BOJO",
+      BOJO: "ENCAPAR BOJO",
+      ENCAPAR: "ENCAPAR BOJO",
       "ENCAPA BOJO": "ENCAPAR BOJO",
       "ENCAPAR BOJOS": "ENCAPAR BOJO",
-      "ALCA": "ALÇA",
-      "ALCAS": "ALÇA",
+      ALCA: "ALÇA",
+      ALCAS: "ALÇA",
       "ALÇAS": "ALÇA",
       "SUTIA MONTAGEM": "SUTIÃ MONTAGEM",
       "SUTIA COMPLETO": "SUTIÃ COMPLETO",
-      "MONTAGEM CALCINHA": "CALCINHA MONTAGEM"
+      "MONTAGEM CALCINHA": "CALCINHA MONTAGEM",
+      "CALCINHA PRONTA": "CALCINHA COMPLETA"
     };
     return aliases[texto] || texto;
   }
 
-  function slug(valor) {
-    return normalizar(valor)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "processo";
-  }
+  const slug = valor => normalizar(valor)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "processo";
 
-  function docIdSeguro(valor) {
-    return String(valor || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-zA-Z0-9_-]+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "")
-      .toLowerCase()
-      .slice(0, 180) || `faccao-${Date.now()}`;
-  }
+  const docIdSeguro = valor => String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase()
+    .slice(0, 180) || `faccao-${Date.now()}`;
 
   function nomeFaccaoCanonico(valor) {
     const texto = normalizar(valor);
@@ -95,7 +95,7 @@
       "LARA CRISTINA KAKA": "KAKA",
       "LARA CRISTINA (KAKA)": "KAKA",
       "LARA CRISTINA/KAKA": "KAKA",
-      "GISLAINE": "GISLAINY"
+      GISLAINE: "GISLAINY"
     };
     return aliases[texto] || texto;
   }
@@ -145,8 +145,8 @@
     const setor = normalizar(metadados.setor || metadados.area || metadados.tipoPeca || valor?.setor || valor?.area || "");
     const atendeSutia = metadados.atendeSutia === true || valor?.atendeSutia === true || setor.includes("SUTIA") || /SUTIA|BOJO|ALCA|LATERAL/.test(normalizar(nome));
     const atendeCalcinha = metadados.atendeCalcinha === true || valor?.atendeCalcinha === true || setor.includes("CALCINHA") || normalizar(nome).includes("CALCINHA");
-    atual.atendeSutia = atual.atendeSutia || atendeSutia;
-    atual.atendeCalcinha = atual.atendeCalcinha || atendeCalcinha;
+    atual.atendeSutia ||= atendeSutia;
+    atual.atendeCalcinha ||= atendeCalcinha;
     if (!atual.atendeSutia && !atual.atendeCalcinha) {
       atual.atendeSutia = true;
       atual.atendeCalcinha = true;
@@ -155,22 +155,32 @@
   }
 
   function processosDaFaccao(faccao) {
-    return [...new Set((Array.isArray(faccao?.processosPermitidos) ? faccao.processosPermitidos : [])
-      .map(processoCanonico)
-      .filter(Boolean))];
+    const campos = [
+      faccao?.processosPermitidos,
+      faccao?.processos,
+      faccao?.servicosPermitidos,
+      faccao?.servicos,
+      faccao?.processo
+    ];
+    const processos = new Set();
+    campos.forEach(campo => {
+      const itens = Array.isArray(campo) ? campo : (campo ? [campo] : []);
+      itens.forEach(item => {
+        const nome = processoCanonico(typeof item === "string" ? item : item?.nome || item?.processo || item?.servicoNome || item?.label || "");
+        if (nome) processos.add(nome);
+      });
+    });
+    return [...processos];
   }
 
   function grupoDerivado(processo, faccoes) {
     const nome = processoCanonico(processo);
     const nomesPadrao = new Set((FACCOES_PADRAO[nome] || []).map(nomeFaccaoCanonico));
-    return faccoes.filter(faccao => {
-      const permitidos = processosDaFaccao(faccao);
-      return permitidos.includes(nome) || nomesPadrao.has(nomeFaccaoCanonico(faccao.nome));
-    }).map(faccao => faccao.id);
+    return faccoes.filter(faccao => processosDaFaccao(faccao).includes(nome) || nomesPadrao.has(nomeFaccaoCanonico(faccao.nome))).map(faccao => faccao.id);
   }
 
   async function carregarDados(forcar = false) {
-    if (!forcar && dadosCache && Date.now() - cacheEm < 25000) return dadosCache;
+    if (!forcar && dadosCache && Date.now() - cacheEm < CACHE_MS) return dadosCache;
     const { auth, db, fs } = await contexto();
     const usuario = await aguardarUsuario(auth);
     const [perfilSnap, faccoesSnap, precosSnap, processosCorteSnap, gruposSnap] = await Promise.all([
@@ -191,13 +201,11 @@
     faccoes.forEach(faccao => processosDaFaccao(faccao).forEach(nome => adicionarProcesso(mapaProcessos, nome)));
     precosSnap.docs.forEach(item => {
       const preco = item.data();
-      if (preco.ativo === false) return;
-      adicionarProcesso(mapaProcessos, preco.processo || preco.servicoNome, preco);
+      if (preco.ativo !== false) adicionarProcesso(mapaProcessos, preco.processo || preco.servicoNome, preco);
     });
     const configCorte = processosCorteSnap.exists() ? processosCorteSnap.data() : {};
     (Array.isArray(configCorte.processos) ? configCorte.processos : []).forEach(item => {
-      if (item?.ativo === false) return;
-      adicionarProcesso(mapaProcessos, item, item);
+      if (item?.ativo !== false) adicionarProcesso(mapaProcessos, item, item);
     });
 
     const processos = [...mapaProcessos.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { numeric: true }));
@@ -207,12 +215,10 @@
     processos.forEach(processo => {
       const chave = slug(processo.nome);
       const salvo = gruposSalvos[chave];
-      const ids = Array.isArray(salvo?.faccaoIds) ? salvo.faccaoIds.filter(id => faccoes.some(faccao => faccao.id === id)) : grupoDerivado(processo.nome, faccoes);
-      grupos[chave] = {
-        processo: processo.nome,
-        faccaoIds: [...new Set(ids)],
-        configurado: Boolean(salvo?.configurado)
-      };
+      const ids = Array.isArray(salvo?.faccaoIds)
+        ? salvo.faccaoIds.filter(id => faccoes.some(faccao => faccao.id === id))
+        : grupoDerivado(processo.nome, faccoes);
+      grupos[chave] = { processo: processo.nome, faccaoIds: [...new Set(ids)], configurado: Boolean(salvo?.configurado) };
     });
 
     dadosCache = { usuario, perfil, faccoes, processos, grupos, gruposSalvos };
@@ -220,9 +226,7 @@
     return dadosCache;
   }
 
-  function ehAdmin(dados = dadosCache) {
-    return normalizar(dados?.perfil?.tipo) === "ADMIN" && dados?.perfil?.ativo !== false;
-  }
+  const ehAdmin = (dados = dadosCache) => normalizar(dados?.perfil?.tipo) === "ADMIN" && dados?.perfil?.ativo !== false;
 
   function injetarEstilos() {
     if (document.getElementById("styleFaccoesGruposProcessos43")) return;
@@ -439,7 +443,7 @@
   }
 
   async function salvarProcessosDoFormulario(snapshot) {
-    if (salvandoFormulario || !snapshot.nome || !snapshot.cidade) return;
+    if (salvandoFormulario || !snapshot.nome) return;
     salvandoFormulario = true;
     try {
       const dados = await carregarDados(true);
@@ -482,7 +486,6 @@
       }, { merge: true });
       await registrarLog(fs, db, usuario, "processos_faccao_atualizados", `${snapshot.nome} | ${selecionados.join(", ") || "sem processos"}`);
       dadosCache = null;
-      window.setTimeout(() => inicializarDados(true), 350);
     } catch (error) {
       console.error("Erro ao salvar os processos da facção.", error);
       toast("A facção foi salva, mas não foi possível atualizar os grupos de processos.");
@@ -543,10 +546,11 @@
     });
   }
 
-  function instalarObservadorTabela() {
+  function observarTabelaFaccoes() {
     const tbody = document.getElementById("listaFaccoes");
-    if (!tbody) return;
+    if (!tbody || tabelaObservada === tbody) return;
     observadorTabela?.disconnect();
+    tabelaObservada = tbody;
     observadorTabela = new MutationObserver(() => {
       if (dadosCache) atualizarColunaProcessos(dadosCache);
     });
@@ -554,7 +558,8 @@
   }
 
   function faccoesDoGrupo(processo, dados) {
-    const grupo = dados.grupos[slug(processo)];
+    const nome = processoCanonico(processo);
+    const grupo = dados.grupos[slug(nome)];
     const ids = new Set(grupo?.faccaoIds || []);
     return dados.faccoes.filter(item => ids.has(item.id));
   }
@@ -562,40 +567,49 @@
   async function preencherSelectFaccoesPorProcesso(selectProcesso, selectFaccao) {
     if (!(selectProcesso instanceof HTMLSelectElement || selectProcesso instanceof HTMLInputElement) || !(selectFaccao instanceof HTMLSelectElement)) return;
     const processo = processoCanonico(selectProcesso.value);
+    const sequencia = (sequenciasFiltro.get(selectFaccao) || 0) + 1;
+    sequenciasFiltro.set(selectFaccao, sequencia);
+
     if (!processo) {
       selectFaccao.innerHTML = '<option value="">Escolha o processo primeiro</option>';
       selectFaccao.disabled = true;
       return;
     }
+
+    const anterior = selectFaccao.value;
+    selectFaccao.disabled = true;
+    selectFaccao.innerHTML = '<option value="">Carregando facções habilitadas...</option>';
+
     try {
       const dados = await carregarDados();
-      const atual = selectFaccao.value;
+      if (sequenciasFiltro.get(selectFaccao) !== sequencia) return;
       const faccoes = faccoesDoGrupo(processo, dados);
       selectFaccao.innerHTML = faccoes.length
         ? '<option value="">Selecione a facção</option>' + faccoes.map(item => `<option value="${escapar(item.nome || "")}">${escapar(item.nome || "")}</option>`).join("")
         : '<option value="">Nenhuma facção habilitada para este processo</option>';
       selectFaccao.disabled = !faccoes.length;
-      if (faccoes.some(item => normalizar(item.nome) === normalizar(atual))) selectFaccao.value = atual;
+      const encontrada = faccoes.find(item => normalizar(item.nome) === normalizar(anterior));
+      if (encontrada) selectFaccao.value = encontrada.nome;
     } catch (error) {
       console.error("Erro ao filtrar facções por processo.", error);
+      if (sequenciasFiltro.get(selectFaccao) !== sequencia) return;
+      selectFaccao.innerHTML = '<option value="">Erro ao carregar facções</option>';
+      selectFaccao.disabled = true;
     }
   }
 
-  function aplicarFiltrosSaida() {
-    const processoSaida = document.getElementById("s3processo");
-    const faccaoSaida = document.getElementById("s3faccao");
-    if (processoSaida && faccaoSaida && !processoSaida.dataset.gfp43Filtro) {
-      processoSaida.dataset.gfp43Filtro = "1";
-      processoSaida.addEventListener("change", () => preencherSelectFaccoesPorProcesso(processoSaida, faccaoSaida));
-    }
-    const processoMov = document.getElementById("movimentacaoProcessoSelect") || document.getElementById("movimentacaoProcesso");
-    const faccaoMov = document.getElementById("movimentacaoDestino");
-    if (processoMov && faccaoMov && !processoMov.dataset.gfp43Filtro) {
-      processoMov.dataset.gfp43Filtro = "1";
-      const atualizar = () => window.setTimeout(() => preencherSelectFaccoesPorProcesso(processoMov, faccaoMov), 0);
-      processoMov.addEventListener("change", atualizar);
-      processoMov.addEventListener("input", atualizar);
-    }
+  function filtrarFluxoRegistro() {
+    const processo = document.getElementById("s3processo");
+    const faccao = document.getElementById("s3faccao");
+    if (processo && faccao) preencherSelectFaccoesPorProcesso(processo, faccao);
+  }
+
+  function filtrarFluxoManejo() {
+    const tipoDestino = document.getElementById("movimentacaoTipoDestino");
+    if (tipoDestino && normalizar(tipoDestino.value) && normalizar(tipoDestino.value) !== "FACCAO") return;
+    const processo = document.getElementById("movimentacaoProcessoSelect") || document.getElementById("movimentacaoProcesso");
+    const faccao = document.getElementById("movimentacaoDestino");
+    if (processo && faccao) preencherSelectFaccoesPorProcesso(processo, faccao);
   }
 
   async function inicializarDados(forcar = false) {
@@ -604,27 +618,59 @@
       garantirGerenciador();
       garantirProcessosNoFormulario();
       preencherGerenciador(dados);
-      renderProcessosFormulario(dados, processosMarcadosFormulario());
+      if (!document.getElementById("faccaoId")?.value) renderProcessosFormulario(dados, processosMarcadosFormulario());
       atualizarColunaProcessos(dados);
-      instalarObservadorTabela();
-      aplicarFiltrosSaida();
+      observarTabelaFaccoes();
     } catch (error) {
       console.error("Não foi possível carregar os grupos de facções.", error);
     }
   }
 
   function instalarEventosGlobais() {
+    if (document.documentElement.dataset.gfp43Eventos === VERSION) return;
+    document.documentElement.dataset.gfp43Eventos = VERSION;
+
     document.addEventListener("click", event => {
       const alvo = event.target instanceof Element ? event.target : null;
       if (!alvo) return;
-      if (alvo.closest("#btnToggleGerenciarFaccoes")) window.setTimeout(() => inicializarDados(true), 100);
-      if (alvo.closest("#btnAbrirCadastroFaccao")) window.setTimeout(() => prepararFormularioEdicao(true), 50);
-      if (alvo.closest("button[onclick*='editarFaccao']")) window.setTimeout(() => prepararFormularioEdicao(false), 50);
-      if (alvo.closest("#btnSaidaAbas, #btnSaidaCorteNovo, [onclick*='mandarParaFaccao']")) {
-        window.setTimeout(aplicarFiltrosSaida, 100);
-        window.setTimeout(aplicarFiltrosSaida, 500);
+
+      if (alvo.closest('.nav-btn[data-page="faccoes"]')) {
+        window.setTimeout(() => inicializarDados(false), 0);
+      }
+      if (alvo.closest("#btnToggleGerenciarFaccoes, #btnAtualizarServidor")) {
+        window.setTimeout(() => inicializarDados(true), 0);
+      }
+      if (alvo.closest("#btnAbrirCadastroFaccao")) {
+        window.setTimeout(() => prepararFormularioEdicao(true), 0);
+      }
+      if (alvo.closest("button[onclick*='editarFaccao']")) {
+        window.setTimeout(() => prepararFormularioEdicao(false), 0);
+      }
+      if (alvo.closest("#btnSaidaAbas, #btnSaidaCorteNovo")) {
+        window.setTimeout(filtrarFluxoRegistro, 0);
+      }
+      if (alvo.closest("#s3buscar")) {
+        dadosCache = null;
+        cacheEm = 0;
+      }
+      const botao = alvo.closest("button");
+      const texto = normalizar(botao?.textContent);
+      if (alvo.closest("[onclick*='mandarParaFaccao']") || texto.includes("ENVIAR PARA FACCAO")) {
+        window.setTimeout(filtrarFluxoManejo, 0);
       }
     }, true);
+
+    const reagirProcesso = event => {
+      const alvo = event.target instanceof Element ? event.target : null;
+      if (!alvo) return;
+      if (alvo.matches("#s3processo")) {
+        window.setTimeout(filtrarFluxoRegistro, 0);
+      } else if (alvo.matches("#movimentacaoProcessoSelect, #movimentacaoProcesso")) {
+        window.setTimeout(filtrarFluxoManejo, 0);
+      }
+    };
+    document.addEventListener("change", reagirProcesso, true);
+    document.addEventListener("input", reagirProcesso, true);
 
     document.addEventListener("change", event => {
       if (event.target instanceof Element && event.target.matches("#gfp43FormGrupos [data-gfp43-processo]")) sincronizarClassificacaoFormulario();
@@ -637,7 +683,6 @@
         const snapshot = {
           id: document.getElementById("faccaoId")?.value || "",
           nome: document.getElementById("faccaoNome")?.value?.trim() || "",
-          cidade: document.getElementById("faccaoCidade")?.value?.trim() || "",
           processos: processosMarcadosFormulario()
         };
         window.setTimeout(() => salvarProcessosDoFormulario(snapshot), 0);
@@ -650,16 +695,15 @@
     garantirGerenciador();
     garantirProcessosNoFormulario();
     instalarEventosGlobais();
-    let tentativas = 0;
-    const intervalo = window.setInterval(() => {
-      tentativas += 1;
-      garantirGerenciador();
-      garantirProcessosNoFormulario();
-      aplicarFiltrosSaida();
-      if (tentativas === 1 || tentativas === 5 || tentativas === 12) inicializarDados(tentativas > 1);
-      if (tentativas >= 20) window.clearInterval(intervalo);
-    }, 300);
+    inicializarDados(false);
   }
+
+  window.CorpoNuFaccoesGrupos = {
+    versao: VERSION,
+    atualizar: inicializarDados,
+    filtrarRegistro: filtrarFluxoRegistro,
+    filtrarManejo: filtrarFluxoManejo
+  };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true });
   else iniciar();

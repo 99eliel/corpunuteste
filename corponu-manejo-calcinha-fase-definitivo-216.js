@@ -1,13 +1,14 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-19-manejo-calcinha-fase-sem-piscar-223";
+  const VERSION = "2026-08-21-fase-calcinha-eventos-251";
   const GUARD = "__CORPONU_MANEJO_CALCINHA_FASE_SEM_PISCAR_223__";
   const DATALIST_ID = "manejoFasesListCalcinha";
   const SELECT_CLASS = "corponu-fase-calcinha-select-223";
   const INPUT_CLASS = "corponu-fase-calcinha-input-legado-223";
   const STYLE_ID = "corponuManejoCalcinhaFase223Style";
   const FIREBASE_VERSION = "10.12.5";
+  const DRAFT_TTL = 15 * 60 * 1000;
 
   if (window[GUARD] === VERSION) return;
   window[GUARD] = VERSION;
@@ -56,7 +57,6 @@
 
   function orderIdDaLinha(row) {
     if (!(row instanceof Element)) return "";
-
     const linhaSelect = row.querySelector(".corponu-manejo-line-select[data-order-id]");
     if (linhaSelect?.dataset?.orderId) return String(linhaSelect.dataset.orderId);
 
@@ -77,10 +77,18 @@
     return row?.querySelector('input[id$="-fase"]') || null;
   }
 
+  function obterDraft(orderId) {
+    const id = String(orderId || "");
+    const draft = drafts.get(id);
+    if (!draft) return null;
+    if (Date.now() - Number(draft.alteradoEm || 0) <= DRAFT_TTL) return draft;
+    drafts.delete(id);
+    return null;
+  }
+
   function fasesOficiais() {
     const datalist = document.getElementById(DATALIST_ID);
     if (!datalist) return [];
-
     const mapa = new Map();
     datalist.querySelectorAll("option").forEach(option => {
       const valor = String(option.value || option.textContent || "").trim();
@@ -128,18 +136,9 @@
     style.id = STYLE_ID;
     style.textContent = `
       #listaManejoInline .${INPUT_CLASS}{display:none!important;}
-      #listaManejoInline .${SELECT_CLASS}{
-        width:100%;min-width:150px;box-sizing:border-box;
-        border:1px solid #cbd5e1;border-radius:7px;
-        padding:8px 30px 8px 9px;background:#fff;color:#0f172a;
-        font:inherit;line-height:1.2;
-      }
-      #listaManejoInline .${SELECT_CLASS}:focus{
-        outline:2px solid rgba(124,58,237,.22);border-color:#7c3aed;
-      }
-      #listaManejoInline .${SELECT_CLASS}:disabled{
-        background:#f8fafc;color:#64748b;cursor:not-allowed;
-      }
+      #listaManejoInline .${SELECT_CLASS}{width:100%;min-width:150px;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:7px;padding:8px 30px 8px 9px;background:#fff;color:#0f172a;font:inherit;line-height:1.2}
+      #listaManejoInline .${SELECT_CLASS}:focus{outline:2px solid rgba(124,58,237,.22);border-color:#7c3aed}
+      #listaManejoInline .${SELECT_CLASS}:disabled{background:#f8fafc;color:#64748b;cursor:not-allowed}
     `;
     (document.head || document.documentElement).appendChild(style);
   }
@@ -147,7 +146,6 @@
   function sincronizarEstadoDual(orderId, fase) {
     const mapa = window.corponuDualMode?.state?.maps?.ordens;
     if (!(mapa instanceof Map)) return;
-
     const atual = mapa.get(String(orderId || ""));
     if (!atual) return;
 
@@ -166,7 +164,6 @@
 
   function montarSelect(row) {
     if (!calcinhaAtiva() || !(row instanceof Element)) return;
-
     const input = inputFase(row);
     if (!(input instanceof HTMLInputElement)) return;
 
@@ -177,7 +174,7 @@
     input.classList.add(INPUT_CLASS);
 
     const fases = fasesOficiais();
-    const draft = drafts.get(orderId);
+    const draft = obterDraft(orderId);
     const desejado = draft?.valor ?? String(input.value || "");
     const oficialAtual = faseOficial(desejado);
 
@@ -223,7 +220,6 @@
 
     select.disabled = disabled;
     select.value = selecionado;
-
     if (draft) input.value = draft.valor;
   }
 
@@ -239,7 +235,6 @@
         });
         return;
       }
-
       document.querySelectorAll("#listaManejoInline tr[data-manejo-row='1']").forEach(montarSelect);
     } finally {
       aplicando = false;
@@ -249,7 +244,6 @@
   function capturarMudancaFase(event) {
     const alvo = event.target;
     if (!(alvo instanceof Element) || !calcinhaAtiva()) return;
-
     const select = alvo.closest(`.${SELECT_CLASS}`);
     if (!(select instanceof HTMLSelectElement) || select.disabled) return;
 
@@ -263,7 +257,6 @@
     input.value = valor;
     input.setAttribute("list", DATALIST_ID);
     sincronizarEstadoDual(orderId, valor);
-
     queueMicrotask(aplicarSelects);
   }
 
@@ -310,14 +303,12 @@
         atualizadoEm: firestore.serverTimestamp()
       }
     );
-
     return oficial;
   }
 
   function finalizarVisualSalvo(orderId, fase) {
     const linha = localizarLinha(orderId);
     if (!linha) return;
-
     linha.classList.remove("manejo-row-dirty", "manejo-row-pending");
     linha.classList.add("manejo-row-saved");
 
@@ -347,7 +338,6 @@
     if (atual.__corponuFaseCalcinhaSemPiscar223 === true) return true;
 
     const interno = atual;
-
     const wrapper = async function corponuSalvarManejoCalcinhaSemPiscar223(...args) {
       if (!calcinhaAtiva()) return interno.apply(this, args);
 
@@ -355,7 +345,7 @@
       const row = localizarLinha(orderId);
       const input = inputFase(row);
       const select = row?.querySelector(`.${SELECT_CLASS}`);
-      const draft = drafts.get(orderId);
+      const draft = obterDraft(orderId);
       const faseEscolhida = String(draft?.valor ?? select?.value ?? input?.value ?? "").trim();
       const oficial = faseOficial(faseEscolhida);
 
@@ -382,11 +372,6 @@
         const salva = await persistirFase(orderId, oficial);
         drafts.delete(orderId);
         sincronizarEstadoDual(orderId, salva);
-
-        // A versão anterior forçava corponuDualMode.refresh() aqui. Esse refresh
-        // reconstruía a tabela inteira depois do ACK e causava o piscar visível.
-        // O listener normal do Firestore já recebe o dado salvo; portanto, mantemos
-        // a linha atual estável e apenas encerramos o estado visual de edição.
         finalizarVisualSalvo(orderId, salva);
         queueMicrotask(aplicarSelects);
         requestAnimationFrame(() => {
@@ -406,7 +391,6 @@
       configurable: false,
       enumerable: false
     });
-
     window.salvarManejoLinha = wrapper;
     return true;
   }
@@ -435,8 +419,19 @@
     return true;
   }
 
+  function sincronizarEstrutura() {
+    observarTabela();
+    observarLista();
+    aplicarSelects();
+    garantirWrapperSalvar();
+  }
+
+  function sincronizarDepoisDaInterface() {
+    queueMicrotask(sincronizarEstrutura);
+    requestAnimationFrame(() => requestAnimationFrame(sincronizarEstrutura));
+  }
+
   function instalarEventos() {
-    // window/capture: registra a escolha antes de qualquer listener antigo reconstruir a linha.
     window.addEventListener("input", capturarMudancaFase, true);
     window.addEventListener("change", capturarMudancaFase, true);
 
@@ -444,55 +439,27 @@
       const alvo = event.target instanceof Element ? event.target : null;
       if (!alvo) return;
 
-      // Antes do onclick inline resolver salvarManejoLinha, garantimos que a versão 223
-      // é a camada mais externa do salvamento.
-      if (alvo.closest("#listaManejoInline .btn-save-manejo") && calcinhaAtiva()) {
-        garantirWrapperSalvar();
-      }
-
-      if (alvo.closest('.manejo-setor-btn[data-setor], .nav-btn[data-page]')) {
-        [0, 60, 180, 400].forEach(delay => setTimeout(() => {
-          observarTabela();
-          observarLista();
-          aplicarSelects();
-          garantirWrapperSalvar();
-        }, delay));
-      }
+      if (alvo.closest("#listaManejoInline .btn-save-manejo") && calcinhaAtiva()) garantirWrapperSalvar();
+      if (alvo.closest('.manejo-setor-btn[data-setor], .nav-btn[data-page]')) sincronizarDepoisDaInterface();
     }, true);
+
+    document.addEventListener("corponu:dual-ready", sincronizarDepoisDaInterface);
+    window.addEventListener("pageshow", sincronizarDepoisDaInterface);
   }
 
   function iniciar() {
     limparRestosAntigos();
     injetarEstilo();
-    observarTabela();
-    observarLista();
     instalarEventos();
-    aplicarSelects();
-    garantirWrapperSalvar();
-
-    [150, 500, 1200, 2500, 5000].forEach(delay => setTimeout(() => {
-      observarTabela();
-      observarLista();
-      aplicarSelects();
-      garantirWrapperSalvar();
-    }, delay));
-
-    setInterval(() => {
-      observarTabela();
-      observarLista();
-      garantirWrapperSalvar();
-      const limite = Date.now() - (15 * 60 * 1000);
-      for (const [id, draft] of drafts.entries()) {
-        if ((draft?.alteradoEm || 0) < limite) drafts.delete(id);
-      }
-    }, 3000);
-
-    console.info(`[CorpoNu] Fase Calcinha sem refresh forçado: ${VERSION}`);
+    sincronizarEstrutura();
+    console.info(`[CorpoNu] Fase Calcinha orientada a eventos: ${VERSION}`);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", iniciar, { once: true });
-  } else {
-    iniciar();
-  }
+  window.CorpoNuFaseCalcinha = {
+    versao: VERSION,
+    atualizar: sincronizarEstrutura
+  };
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true });
+  else iniciar();
 })();

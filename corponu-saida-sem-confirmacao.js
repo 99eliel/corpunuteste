@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-01-saida-sem-confirmacao-dupla-85";
+  const VERSION = "2026-08-21-saida-trava-sem-polling-243";
   const FORM_ID = "s3form";
   const MODAL_ID = "modalSaida3";
   const LOCK_ATTR = "corponuSaida85EmCurso";
@@ -38,6 +38,8 @@
     delete form.dataset[LOCK_ATTR];
     window.clearTimeout(Number(form.dataset.corponuSaida85Timer || 0));
     delete form.dataset.corponuSaida85Timer;
+    form.__corponuSaida85BotaoObserver?.disconnect?.();
+    form.__corponuSaida85BotaoObserver = null;
   }
 
   function instalarObservacaoDoModal() {
@@ -50,6 +52,22 @@
       liberar(document.getElementById(FORM_ID));
     });
     observer.observe(modal, { attributes: true, attributeFilter: ["class"] });
+  }
+
+  function acompanharBotao(form, botao) {
+    form.__corponuSaida85BotaoObserver?.disconnect?.();
+    if (!(botao instanceof HTMLButtonElement || botao instanceof HTMLInputElement)) return;
+
+    let viuDesabilitado = botao.disabled;
+    const observer = new MutationObserver(() => {
+      if (botao.disabled) {
+        viuDesabilitado = true;
+        return;
+      }
+      if (viuDesabilitado) liberar(form);
+    });
+    observer.observe(botao, { attributes: true, attributeFilter: ["disabled"] });
+    form.__corponuSaida85BotaoObserver = observer;
   }
 
   document.addEventListener("submit", event => {
@@ -65,41 +83,22 @@
       return;
     }
 
-    // A trava acontece antes de qualquer consulta ou gravação do módulo original.
-    // O primeiro envio continua normalmente; qualquer segundo clique é bloqueado.
     form.dataset[LOCK_ATTR] = "1";
     const timer = window.setTimeout(() => liberar(form), TEMPO_MAXIMO_TRAVA);
     form.dataset.corponuSaida85Timer = String(timer);
 
-    let viuBotaoDesabilitado = false;
-    const botao = event.submitter instanceof HTMLButtonElement
+    const botao = event.submitter instanceof HTMLButtonElement || event.submitter instanceof HTMLInputElement
       ? event.submitter
-      : form.querySelector('button[type="submit"]');
-
-    const acompanhamento = window.setInterval(() => {
-      const modal = document.getElementById(MODAL_ID);
-      if (modal?.classList.contains("hidden")) {
-        window.clearInterval(acompanhamento);
-        liberar(form);
-        return;
-      }
-
-      if (botao?.disabled) viuBotaoDesabilitado = true;
-      if (viuBotaoDesabilitado && botao && !botao.disabled) {
-        window.clearInterval(acompanhamento);
-        liberar(form);
-      }
-    }, 150);
-
-    window.setTimeout(() => window.clearInterval(acompanhamento), TEMPO_MAXIMO_TRAVA + 500);
+      : form.querySelector('button[type="submit"],input[type="submit"]');
+    acompanharBotao(form, botao);
   }, true);
 
   document.addEventListener("click", event => {
     const alvo = event.target instanceof Element ? event.target : null;
-    if (alvo?.closest("#s3fechar,#s3cancelar")) {
-      liberar(document.getElementById(FORM_ID));
-    }
+    if (alvo?.closest("#s3fechar,#s3cancelar")) liberar(document.getElementById(FORM_ID));
   }, true);
+
+  window.CorpoNuSaidaSemConfirmacao = { versao: VERSION };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", instalarObservacaoDoModal, { once: true });

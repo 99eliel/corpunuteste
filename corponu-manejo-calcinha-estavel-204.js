@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-17-manejo-calcinha-fluido-205";
+  const VERSION = "2026-08-21-manejo-calcinha-eventos-247";
   const DATA_MODO = "corponuManejoEstavel";
 
   if (window.__CORPONU_MANEJO_CALCINHA_ESTAVEL__ === VERSION) return;
@@ -10,7 +10,6 @@
   let observadorPagina = null;
   let observadorPaginaPausado = false;
   let wrapperInstalado = null;
-  let timerInstalacao = 0;
   const salvamentosEmAndamento = new Set();
 
   function manejoCalcinhaAtivo() {
@@ -21,11 +20,8 @@
 
   function marcarModoAtual() {
     if (!document.body) return;
-    if (manejoCalcinhaAtivo()) {
-      document.body.dataset[DATA_MODO] = "calcinha";
-    } else {
-      delete document.body.dataset[DATA_MODO];
-    }
+    if (manejoCalcinhaAtivo()) document.body.dataset[DATA_MODO] = "calcinha";
+    else delete document.body.dataset[DATA_MODO];
   }
 
   function injetarEstilos() {
@@ -38,15 +34,8 @@
       body[data-corponu-manejo-estavel="calcinha"] #listaManejoInline tr[data-manejo-row="1"] > td:has(.silk-fields),
       body[data-corponu-manejo-estavel="calcinha"] #listaManejoInline tr[data-manejo-row="1"] > td:has(.tecido-fields),
       body[data-corponu-manejo-tipo="calcinha"] #listaManejoInline tr[data-manejo-row="1"] > td:has(.silk-fields),
-      body[data-corponu-manejo-tipo="calcinha"] #listaManejoInline tr[data-manejo-row="1"] > td:has(.tecido-fields) {
-        display: none !important;
-        visibility: hidden !important;
-      }
-
-      body[data-corponu-manejo-estavel="calcinha"] #listaManejoInline .btn-save-manejo[data-corponu-salvando="1"] {
-        opacity: .72;
-        pointer-events: none;
-      }
+      body[data-corponu-manejo-tipo="calcinha"] #listaManejoInline tr[data-manejo-row="1"] > td:has(.tecido-fields){display:none!important;visibility:hidden!important}
+      body[data-corponu-manejo-estavel="calcinha"] #listaManejoInline .btn-save-manejo[data-corponu-salvando="1"]{opacity:.72;pointer-events:none}
     `;
     (document.head || document.documentElement).appendChild(style);
   }
@@ -61,9 +50,7 @@
 
     const tabela = document.querySelector("#manejo .manejo-inline-table");
     const wrapper = tabela?.closest(".table-wrap") || tabela?.parentElement;
-    if (wrapper instanceof HTMLElement && wrapper.style.visibility === "hidden") {
-      wrapper.style.visibility = "";
-    }
+    if (wrapper instanceof HTMLElement && wrapper.style.visibility === "hidden") wrapper.style.visibility = "";
   }
 
   function obterObservadorPagina() {
@@ -72,14 +59,12 @@
 
     const candidato = lista[lista.length - 1];
     if (!candidato || typeof candidato.disconnect !== "function" || typeof candidato.observe !== "function") return null;
-
     observadorPagina = candidato;
     return observadorPagina;
   }
 
   function pausarObservadorPaginaSeCalcinha() {
     if (!manejoCalcinhaAtivo()) return;
-
     const observer = observadorPagina || obterObservadorPagina();
     if (!observer || observadorPaginaPausado) return;
 
@@ -98,11 +83,7 @@
     if (!observer || !shell) return;
 
     try {
-      observer.observe(shell, {
-        attributes: true,
-        subtree: true,
-        attributeFilter: ["class"]
-      });
+      observer.observe(shell, { attributes: true, subtree: true, attributeFilter: ["class"] });
       observadorPaginaPausado = false;
     } catch (_) {}
   }
@@ -136,18 +117,15 @@
       wrapperInstalado = atual;
       return true;
     }
-
     if (wrapperInstalado === atual) return true;
 
     const embrulhado = async function corponuSalvarManejoCalcinhaFluido205(...args) {
-      if (!manejoCalcinhaAtivo()) {
-        return atual.apply(this, args);
-      }
+      if (!manejoCalcinhaAtivo()) return atual.apply(this, args);
 
       const ordemId = String(args[0] || "");
       if (ordemId && salvamentosEmAndamento.has(ordemId)) return;
-
       if (ordemId) salvamentosEmAndamento.add(ordemId);
+
       marcarModoAtual();
       pausarObservadorPaginaSeCalcinha();
 
@@ -161,7 +139,6 @@
         return await atual.apply(this, args);
       } finally {
         if (ordemId) salvamentosEmAndamento.delete(ordemId);
-
         requestAnimationFrame(() => {
           marcarModoAtual();
           const botaoAtual = acharBotaoSalvar(ordemId);
@@ -187,14 +164,14 @@
   function sincronizarModo() {
     removerProtecaoAntiga();
     marcarModoAtual();
-
-    if (manejoCalcinhaAtivo()) {
-      pausarObservadorPaginaSeCalcinha();
-    } else {
-      restaurarObservadorPaginaSeNecessario();
-    }
-
+    if (manejoCalcinhaAtivo()) pausarObservadorPaginaSeCalcinha();
+    else restaurarObservadorPaginaSeNecessario();
     envolverSalvarAtual();
+  }
+
+  function sincronizarDepoisDaInterface() {
+    queueMicrotask(sincronizarModo);
+    requestAnimationFrame(() => requestAnimationFrame(sincronizarModo));
   }
 
   function instalar() {
@@ -207,33 +184,17 @@
     });
 
     document.addEventListener("click", evento => {
-      if (evento.target?.closest?.(".manejo-setor-btn[data-setor], .nav-btn[data-page]")) {
-        setTimeout(sincronizarModo, 0);
-        setTimeout(sincronizarModo, 80);
-        setTimeout(sincronizarModo, 250);
-      }
+      if (evento.target?.closest?.(".manejo-setor-btn[data-setor], .nav-btn[data-page]")) sincronizarDepoisDaInterface();
     }, true);
 
-    let tentativas = 0;
-    timerInstalacao = window.setInterval(() => {
-      tentativas += 1;
-      sincronizarModo();
-
-      if (tentativas >= 24 && typeof window.salvarManejoLinha === "function" && window.corponuDualMode?.state?.observers?.length) {
-        clearInterval(timerInstalacao);
-        timerInstalacao = 0;
-      }
-    }, 250);
-
-    window.addEventListener("pageshow", sincronizarModo);
-    window.addEventListener("focus", sincronizarModo);
+    document.addEventListener("corponu:dual-ready", sincronizarDepoisDaInterface);
+    window.addEventListener("pageshow", sincronizarDepoisDaInterface);
 
     console.info(`[CorpoNu] Manejo Calcinha fluido ativo: ${VERSION}`);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", instalar, { once: true });
-  } else {
-    instalar();
-  }
+  window.CorpoNuManejoCalcinhaEstavel = { versao: VERSION, sincronizar: sincronizarModo };
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", instalar, { once: true });
+  else instalar();
 })();

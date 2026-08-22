@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-04-calcinha-planejamento-opcional-129";
+  const VERSION = "2026-08-21-calcinha-loader-cacheavel-258";
   const GUARD_SELECTOR = 'script[data-corponu-dual-mode="1"]';
   const SOURCE_URL = "./corponu-dual-mode.js";
 
@@ -9,9 +9,7 @@
   window.__CORPONU_CALCINHA_PLANEJAMENTO_OPCIONAL_129__ = VERSION;
 
   function substituirUma(fonte, antigo, novo, descricao) {
-    if (!fonte.includes(antigo)) {
-      throw new Error(`Trecho não encontrado: ${descricao}.`);
-    }
+    if (!fonte.includes(antigo)) throw new Error(`Trecho não encontrado: ${descricao}.`);
     return fonte.replace(antigo, novo);
   }
 
@@ -176,7 +174,7 @@
   }
 
   function carregarFonteOriginal() {
-    return fetch(`${SOURCE_URL}?v=${encodeURIComponent(VERSION)}&t=${Date.now()}`, { cache: "no-store" })
+    return fetch(`${SOURCE_URL}?v=${encodeURIComponent(VERSION)}`, { cache: "default" })
       .then(response => {
         if (!response.ok) throw new Error(`Falha ao carregar o modo Sutiã/Calcinha (${response.status}).`);
         return response.text();
@@ -211,23 +209,10 @@
       console.error("Planejamento opcional de calcinha não pôde ser ativado.", error);
       const marcador = document.querySelector(GUARD_SELECTOR);
       if (marcador && !marcador.src) {
-        marcador.src = `${SOURCE_URL}?fallback=1&t=${Date.now()}`;
+        marcador.src = `${SOURCE_URL}?fallback=1&v=${encodeURIComponent(VERSION)}`;
       }
     }
   }
 
   iniciar();
-})();
-
-(() => {
-  "use strict";
-
-  if (document.querySelector('script[data-corponu-auto-update-runtime="203"]')) return;
-
-  const script = document.createElement("script");
-  script.src = `./corponu-auto-update-runtime-203.js?v=2026-08-17-auto-update-runtime-203&t=${Date.now()}`;
-  script.async = false;
-  script.dataset.corponuAutoUpdateRuntime = "203";
-  script.onerror = () => console.error("Não foi possível carregar o atualizador automático 203.");
-  (document.head || document.documentElement).appendChild(script);
 })();
