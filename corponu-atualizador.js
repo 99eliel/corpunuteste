@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const LOCAL_RELEASE = "2026-08-21-grupos-faccoes-sob-demanda-242";
+  const LOCAL_RELEASE = "2026-08-21-atualizador-unico-244";
   const INTERVALO_VERIFICACAO = 60 * 1000;
   const RELOAD_KEY = "corponu_web_release_recarregada";
   const MODULO_GRUPOS_FACCOES = ["corponu-faccoes-grupos-processos.js", "faccoes-grupos-processos", "Não foi possível carregar os grupos de processos das facções."];
@@ -26,6 +26,7 @@
     ["corponu-sutia-completo-referencia-especial-integral.js", "sutia-especial-integral", "Não foi possível aplicar o valor integral da referência especial."],
     ["corponu-sutia-912-chegada-manual-sem-verificacoes.js", "sutia-912-sem-verificacoes", "Não foi possível remover as verificações da referência 912 na chegada manual."],
     ["corponu-sutia-completo-compatibilidade.js", "sutia-completo-compatibilidade", "Não foi possível desativar a fonte antiga de descontos."],
+    ["corponu-sutia-completo-ponto-luz-411-206.js", "sutia-ponto-luz-411", "Não foi possível carregar a regra de ponto de luz da referência 411."],
     ["corponu-chegada-sem-componentes-duplicados.js", "chegada-sem-componentes-duplicados", "Não foi possível remover a conferência duplicada de lateral e bojo."],
     ["corponu-chegada-manual-sem-componentes-duplicados.js", "chegada-manual-sem-componentes-duplicados", "Não foi possível remover a conferência duplicada na chegada manual."],
     ["corponu-chegada-sutia-sync-legado.js", "chegada-sutia-definitiva", "Não foi possível ativar a chegada definitiva do Sutiã Completo."]
@@ -48,7 +49,8 @@
       ["corponu-valores-pendentes-financeiro.js", "valores-pendentes-financeiro", "Não foi possível carregar a área de Valores pendentes."],
       ["corponu-valores-pendentes-auth-214.js", "valores-pendentes-auth-214", "Não foi possível estabilizar a autenticação de Valores pendentes."],
       ["corponu-pendencias-valor-seguro.js", "pendencias-valor-seguro", "Não foi possível salvar e recalcular os valores pendentes com segurança."],
-      ["corponu-verificacao-sutia-completo.js", "verificacao-sutia-completo-segura", "Não foi possível carregar a verificação segura do Sutiã Completo."]
+      ["corponu-verificacao-sutia-completo.js", "verificacao-sutia-completo-segura", "Não foi possível carregar a verificação segura do Sutiã Completo."],
+      ["corponu-restantes-pendentes-filtro-op-225.js", "restantes-filtro-op", "Não foi possível carregar o filtro de OP em Restantes pendentes."]
     ],
     faccoes: [
       MODULO_GRUPOS_FACCOES,
@@ -71,6 +73,7 @@
 
   const MODULOS_CRITICOS = [
     ["corponu-calcinha-planejamento-opcional-129.js", "calcinha-planejamento-opcional-129", "Não foi possível tornar serviço e facção opcionais nas OPs de calcinha."],
+    ["corponu-manejo-calcinha-estavel-204.js", "manejo-calcinha-estavel", "Não foi possível carregar a estabilização do Manejo Calcinha."],
     ["corponu-pagamento-antiduplicidade-isolada.js", "pagamento-antiduplicidade-isolada", "Não foi possível carregar a proteção isolada contra pagamentos duplicados."],
     ["corponu-revisao-lateral-bojo.js", "revisao-lateral-bojo", "Não foi possível carregar a área Revisão lateral e bojo."],
     ["corponu-saida-sem-confirmacao.js", "saida-sem-confirmacao-dupla", "Não foi possível carregar a proteção contra saída duplicada."],
@@ -146,14 +149,12 @@
         .replace(/[\u0300-\u036f]/g, "")
         .trim()
         .toUpperCase();
-      if (onclick.includes("mandarParaFaccao") || rotulo.includes("ENVIAR PARA FACCAO")) {
-        garantirGruposParaManejo();
-      }
+      if (onclick.includes("mandarParaFaccao") || rotulo.includes("ENVIAR PARA FACCAO")) garantirGruposParaManejo();
     }, true);
   }
 
   function removerAvisosAntigos() {
-    ["corponuToastAtualizacaoAutomatica", "toastAtualizacaoSistema", "toastAtualizadorCorpoNu"]
+    ["corponuToastAtualizacaoAutomatica", "toastAtualizacaoSistema", "toastAtualizadorCorpoNu", "corponuAutoUpdateRuntime203Status"]
       .forEach(id => document.getElementById(id)?.remove());
   }
 
@@ -169,7 +170,7 @@
     try {
       if ("caches" in window) {
         const chaves = await caches.keys();
-        await Promise.all(chaves.filter(chave => chave.startsWith("op-confeccao-")).map(chave => caches.delete(chave)));
+        await Promise.all(chaves.filter(chave => chave.startsWith("op-confeccao-") || chave.startsWith("corponu-")).map(chave => caches.delete(chave)));
       }
     } catch (error) {
       console.warn("Não foi possível remover o cache antigo do PWA.", error);
@@ -186,10 +187,10 @@
       const ultima = Number(sessionStorage.getItem(chave) || 0);
       if (Date.now() - ultima < 30000) return;
       sessionStorage.setItem(chave, String(Date.now()));
-    } catch (error) {}
+    } catch (_) {}
     url.searchParams.set("release", release);
     url.searchParams.set("t", String(Date.now()));
-    setTimeout(() => window.location.replace(url.toString()), 250);
+    window.setTimeout(() => window.location.replace(url.toString()), 250);
   }
 
   async function verificarRelease() {
@@ -212,7 +213,7 @@
     removerAvisosAntigos();
     await removerPwaAntigo();
     await verificarRelease();
-    setInterval(verificarRelease, INTERVALO_VERIFICACAO);
+    window.setInterval(verificarRelease, INTERVALO_VERIFICACAO);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) verificarRelease(); });
     window.addEventListener("focus", verificarRelease);
     window.addEventListener("online", verificarRelease);
