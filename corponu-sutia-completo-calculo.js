@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const LOADER_VERSION = "2026-08-11-admin-edita-componentes-chegada-175b";
+  const LOADER_VERSION = "2026-08-21-sutia-calculo-cacheavel-260";
   const BASE_FILE = "corponu-sutia-completo-calculo-base-174.js";
   const GUARD = "__CORPONU_SUTIA_COMPLETO_ADMIN_LOADER_175B__";
 
@@ -250,7 +250,7 @@
     return fonte;
   }
 
-  fetch(`./${BASE_FILE}?v=${encodeURIComponent(LOADER_VERSION)}&t=${Date.now()}`, { cache: "no-store" })
+  fetch(`./${BASE_FILE}?v=${encodeURIComponent(LOADER_VERSION)}`)
     .then(resposta => {
       if (!resposta.ok) throw new Error(`${BASE_FILE}: ${resposta.status}`);
       return resposta.text();
