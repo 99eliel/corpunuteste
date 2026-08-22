@@ -47,6 +47,7 @@ test.describe('CorpoNu - carregamento sob demanda dos módulos', () => {
     await expect(page.locator(scriptCom('corponu-faccoes-corte-definitivo.js'))).toHaveCount(0);
 
     await expect(page.locator(scriptCom('corponu-calcinha-planejamento-opcional-129.js'))).toHaveCount(0);
+    await expect(page.locator(scriptCom('corponu-dual-ready-bridge.js'))).toHaveCount(0);
     await expect(page.locator(scriptCom('corponu-manejo-calcinha-estavel-204.js'))).toHaveCount(0);
     await expect(page.locator(scriptCom('corponu-manejo-calcinha-fase-definitivo-216.js'))).toHaveCount(0);
   });
@@ -56,6 +57,7 @@ test.describe('CorpoNu - carregamento sob demanda dos módulos', () => {
     await entrar(page);
 
     await expect(page.locator(scriptCom('corponu-calcinha-planejamento-opcional-129.js'))).toHaveCount(1, { timeout: 10_000 });
+    await expect(page.locator(scriptCom('corponu-dual-ready-bridge.js'))).toHaveCount(1);
     await expect(page.locator(scriptCom('corponu-manejo-calcinha-estavel-204.js'))).toHaveCount(1);
     await expect(page.locator(scriptCom('corponu-manejo-calcinha-fase-definitivo-216.js'))).toHaveCount(1);
   });
@@ -65,7 +67,7 @@ test.describe('CorpoNu - carregamento sob demanda dos módulos', () => {
     expect(resposta.ok()).toBeTruthy();
     const codigo = await resposta.text();
 
-    expect(codigo).toContain('2026-08-21-modulos-pos-login-248');
+    expect(codigo).toContain('2026-08-21-dual-ready-pos-login-250');
     expect(codigo).toContain('MODULOS_APOS_LOGIN');
     expect(codigo).toContain('instalarCarregamentoAposLogin');
     expect(codigo).toContain('garantirGruposParaManejo');
