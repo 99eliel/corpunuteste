@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-21-chegada-sutia-eventos-262";
+  const VERSION = "2026-08-21-chegada-sutia-precos-por-referencia-267";
   const FIREBASE_VERSION = "10.12.5";
   const PROCESSO_COMPLETO = "SUTIÃ COMPLETO";
   const PROCESSO_LATERAL = "LATERAL";
@@ -16,8 +16,7 @@
   let firebasePromise = null;
   let configCache = null;
   let configCacheEm = 0;
-  let precosCache = null;
-  let precosCacheEm = 0;
+  const precosCache = new Map();
   const processando = new Set();
 
   const texto = valor => String(valor ?? "").trim();
@@ -336,13 +335,38 @@
     return configCache;
   }
 
-  async function carregarPrecos(forcar = false) {
-    if (!forcar && precosCache && Date.now() - precosCacheEm < 120000) return precosCache;
+  async function carregarPrecos(referencia, forcar = false) {
+    const chave = normalizarReferencia(referencia);
+    if (!chave) return [];
+    const cache = precosCache.get(chave);
+    if (!forcar && cache && Date.now() - cache.em < 120000) return cache.itens;
+
     const { fs, db } = await firebase();
-    const snap = await fs.getDocs(fs.collection(db, "precosReferencia"));
-    precosCache = snap.docs.map(item => ({ id: item.id, ...item.data() })).filter(item => item.ativo !== false);
-    precosCacheEm = Date.now();
-    return precosCache;
+    const valores = [texto(referencia)];
+    const numerico = Number(texto(referencia));
+    if (Number.isFinite(numerico)) valores.push(numerico);
+
+    const unicos = new Map();
+    const consultas = new Map();
+    valores.forEach(valor => consultas.set(`${typeof valor}:${String(valor)}`, valor));
+
+    for (const valor of consultas.values()) {
+      try {
+        const snap = await fs.getDocs(fs.query(
+          fs.collection(db, "precosReferencia"),
+          fs.where("referencia", "==", valor)
+        ));
+        snap.docs.forEach(item => unicos.set(item.id, { id: item.id, ...item.data() }));
+      } catch (error) {
+        console.warn(`Não foi possível consultar preços da referência ${chave}.`, error);
+      }
+    }
+
+    const itens = [...unicos.values()].filter(item =>
+      item.ativo !== false && normalizarReferencia(item.referencia) === chave
+    );
+    precosCache.set(chave, { em: Date.now(), itens });
+    return itens;
   }
 
   function buscarPrecoEmLista(lista, processo, referencia) {
@@ -372,7 +396,7 @@
       };
     }
 
-    const precos = await carregarPrecos();
+    const precos = await carregarPrecos(referencia);
     const precoLateral = dados.lateral.descontar ? buscarPrecoEmLista(precos, PROCESSO_LATERAL, referencia) : null;
     const precoBojo = dados.bojo.descontar ? buscarPrecoEmLista(precos, PROCESSO_BOJO, referencia) : null;
     const faltantes = [];
@@ -932,8 +956,7 @@
     limparCaches() {
       configCache = null;
       configCacheEm = 0;
-      precosCache = null;
-      precosCacheEm = 0;
+      precosCache.clear();
     }
   };
 
