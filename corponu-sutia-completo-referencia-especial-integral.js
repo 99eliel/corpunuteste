@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-03-sutia-912-direcionado-94";
+  const VERSION = "2026-08-21-referencia-especial-sem-reconciliacao-pos-chegada-254";
   const FIREBASE_VERSION = "10.12.5";
   const CONFIG_PRINCIPAL = "sutia-completo-pagamento";
   const CONFIG_COMPATIVEL = "sutia-completo-financeiro";
@@ -13,7 +13,7 @@
   let firebasePromise = null;
   let configCache = null;
   let configCacheEm = 0;
-  const tentativas = new Map();
+  let reconciliando = false;
 
   const texto = valor => String(valor ?? "").trim();
   const normalizar = valor => texto(valor)
@@ -35,10 +35,7 @@
   };
   const arred4 = valor => Math.round((numero(valor) + Number.EPSILON) * 10000) / 10000;
   const arred2 = valor => Math.round((numero(valor) + Number.EPSILON) * 100) / 100;
-  const moeda4 = valor => `R$ ${numero(valor).toLocaleString("pt-BR", {
-    minimumFractionDigits: 4,
-    maximumFractionDigits: 4
-  })}`;
+  const moeda4 = valor => `R$ ${numero(valor).toLocaleString("pt-BR", { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
 
   function processoCanonico(valor) {
     return normalizar(valor) === "SUTIA COMPLETO" ? PROCESSO_COMPLETO : texto(valor).toUpperCase();
@@ -62,11 +59,7 @@
     ]).then(([appMod, authMod, fs]) => {
       if (!appMod.getApps().length) throw new Error("Firebase ainda não inicializado.");
       const app = appMod.getApp();
-      return {
-        fs,
-        db: fs.getFirestore(app),
-        auth: authMod.getAuth(app)
-      };
+      return { fs, db: fs.getFirestore(app), auth: authMod.getAuth(app) };
     }).catch(error => {
       firebasePromise = null;
       throw error;
@@ -86,15 +79,10 @@
     const b = compativel?.exists?.() ? compativel.data() : {};
 
     configCache = {
-      referencia: referenciaNormalizada(
-        a.referenciaEspecial || b.referenciaEspecial || "912"
-      ) || "912",
+      referencia: referenciaNormalizada(a.referenciaEspecial || b.referenciaEspecial || "912") || "912",
       valor: Math.max(0, numero(
-        a.valorBaseReferenciaEspecial ??
-        a.valorReferenciaEspecial ??
-        b.valorReferenciaEspecial ??
-        b.valorEspecial ??
-        6.5,
+        a.valorBaseReferenciaEspecial ?? a.valorReferenciaEspecial ??
+        b.valorReferenciaEspecial ?? b.valorEspecial ?? 6.5,
         6.5
       ))
     };
@@ -107,9 +95,8 @@
   }
 
   function pagamentoEhEspecial(item, config) {
-    return processoCanonico(
-      item?.processo || item?.servicoNome || item?.processoMovimentacao
-    ) === PROCESSO_COMPLETO && ehEspecial(item?.referencia, config);
+    return processoCanonico(item?.processo || item?.servicoNome || item?.processoMovimentacao) === PROCESSO_COMPLETO &&
+      ehEspecial(item?.referencia, config);
   }
 
   function precisaCorrigir(item, config) {
@@ -193,91 +180,15 @@
           regraReferenciaEspecialAtualizadaEm: agora,
           regraReferenciaEspecialAtualizadaPor: usuario?.uid || ""
         };
-        if (descontoAnterior > 0) {
-          patch.descontoDefeitoOriginalAntesRegraIntegral = descontoAnterior;
-        }
-
+        if (descontoAnterior > 0) patch.descontoDefeitoOriginalAntesRegraIntegral = descontoAnterior;
         batch.set(fs.doc(db, "entregasPagamento", item.id), patch, { merge: true });
         atualizados += 1;
       });
       await batch.commit();
     }
 
-    if (atualizados > 0) {
-      window.setTimeout(() => document.getElementById("btnAtualizarServidor")?.click(), 120);
-    }
+    if (atualizados > 0) queueMicrotask(() => document.getElementById("btnAtualizarServidor")?.click());
     return { encontrados: corrigir.length, atualizados };
-  }
-
-  async function buscarPorMovimentacao(movimentacaoId) {
-    const { fs, db } = await firebase();
-    const snap = await fs.getDocs(fs.query(
-      fs.collection(db, "entregasPagamento"),
-      fs.where("movimentacaoId", "==", movimentacaoId),
-      fs.limit(20)
-    ));
-    return snap.docs.map(item => ({ id: item.id, ...item.data() }));
-  }
-
-  async function buscarPorOP(numeroOP) {
-    const opTexto = texto(numeroOP);
-    if (!opTexto) return [];
-    const { fs, db } = await firebase();
-    const valores = [opTexto];
-    const numerico = Number(opTexto);
-    if (Number.isFinite(numerico)) valores.push(numerico);
-
-    const mapa = new Map();
-    for (const valor of [...new Set(valores)]) {
-      const snap = await fs.getDocs(fs.query(
-        fs.collection(db, "entregasPagamento"),
-        fs.where("numeroOP", "==", valor),
-        fs.limit(40)
-      ));
-      snap.docs.forEach(item => mapa.set(item.id, { id: item.id, ...item.data() }));
-    }
-    return [...mapa.values()];
-  }
-
-  function filtrarAssinatura(itens, assinatura, config) {
-    return itens.filter(item => {
-      if (!pagamentoEhEspecial(item, config)) return false;
-      if (assinatura.faccao && normalizar(item.faccao) !== normalizar(assinatura.faccao)) return false;
-      if (assinatura.data && texto(item.dataEntrega || item.dataChegada) !== assinatura.data) return false;
-      return true;
-    });
-  }
-
-  async function aplicarAssinatura(assinatura) {
-    const config = await carregarConfig();
-    let itens = assinatura.movimentacaoId
-      ? await buscarPorMovimentacao(assinatura.movimentacaoId)
-      : await buscarPorOP(assinatura.numeroOP);
-    itens = filtrarAssinatura(itens, assinatura, config);
-    return aplicarItens(itens, config, assinatura.origem);
-  }
-
-  function cancelarTentativas(chave) {
-    const lista = tentativas.get(chave) || [];
-    lista.forEach(timer => window.clearTimeout(timer));
-    tentativas.delete(chave);
-  }
-
-  function agendarAssinatura(assinatura) {
-    const chave = assinatura.movimentacaoId
-      ? `mov:${assinatura.movimentacaoId}`
-      : `op:${assinatura.numeroOP}|${normalizar(assinatura.faccao)}|${assinatura.data}`;
-    cancelarTentativas(chave);
-
-    const timers = [250, 750, 1600, 3200].map(atraso => window.setTimeout(async () => {
-      try {
-        const resultado = await aplicarAssinatura(assinatura);
-        if (resultado.encontrados > 0 || resultado.atualizados > 0) cancelarTentativas(chave);
-      } catch (error) {
-        console.warn("Pagamento da referência especial ainda não disponível.", error);
-      }
-    }, atraso));
-    tentativas.set(chave, timers);
   }
 
   function prepararPainel(prefixo, painel, config) {
@@ -325,25 +236,29 @@
     }
   }
 
+  async function obterMovimentacaoPadrao(id) {
+    const memoria = window.__CORPONU_CHEGADA_MOV_CARREGADA__;
+    if (memoria && texto(memoria.id) === texto(id)) return memoria;
+    const { fs, db } = await firebase();
+    const snap = await fs.getDoc(fs.doc(db, "movimentacoesProducao", id));
+    return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+  }
+
   async function prepararNormal() {
     const form = document.getElementById("formChegadaMovimentacao");
     const id = texto(document.getElementById("chegadaMovimentacaoId")?.value);
     if (!(form instanceof HTMLFormElement) || !id) return;
 
     try {
-      const config = await carregarConfig();
-      const { fs, db } = await firebase();
-      const snap = await fs.getDoc(fs.doc(db, "movimentacoesProducao", id));
-      if (!snap.exists()) return;
-      const mov = snap.data();
-      if (processoCanonico(mov.processo) === PROCESSO_COMPLETO && ehEspecial(mov.referencia, config)) {
+      const [config, mov] = await Promise.all([carregarConfig(), obterMovimentacaoPadrao(id)]);
+      if (mov && processoCanonico(mov.processo) === PROCESSO_COMPLETO && ehEspecial(mov.referencia, config)) {
         form.dataset.sutia912Rapido = "1";
         prepararPainel("sc51", document.getElementById("sutCompletoComponentesChegada"), config);
       } else {
         delete form.dataset.sutia912Rapido;
       }
     } catch (error) {
-      console.warn("Não foi possível preparar a chegada rápida da referência especial.", error);
+      console.warn("Não foi possível preparar a referência especial na chegada.", error);
     }
   }
 
@@ -361,101 +276,87 @@
   }
 
   async function reconciliarReferencia() {
-    const config = await carregarConfig(true);
-    const { fs, db } = await firebase();
-    const valores = [config.referencia];
-    const numerico = Number(config.referencia);
-    if (Number.isFinite(numerico)) valores.push(numerico);
+    if (reconciliando) return { encontrados: 0, atualizados: 0, emAndamento: true };
+    reconciliando = true;
+    try {
+      const config = await carregarConfig(true);
+      const { fs, db } = await firebase();
+      const valores = [config.referencia];
+      const numerico = Number(config.referencia);
+      if (Number.isFinite(numerico)) valores.push(numerico);
 
-    const mapa = new Map();
-    for (const valor of [...new Set(valores)]) {
-      const snap = await fs.getDocs(fs.query(
-        fs.collection(db, "entregasPagamento"),
-        fs.where("referencia", "==", valor),
-        fs.limit(500)
-      ));
-      snap.docs.forEach(item => mapa.set(item.id, { id: item.id, ...item.data() }));
+      const mapa = new Map();
+      for (const valor of [...new Set(valores)]) {
+        const snap = await fs.getDocs(fs.query(
+          fs.collection(db, "entregasPagamento"),
+          fs.where("referencia", "==", valor),
+          fs.limit(500)
+        ));
+        snap.docs.forEach(item => mapa.set(item.id, { id: item.id, ...item.data() }));
+      }
+      return aplicarItens([...mapa.values()], config, "reconciliacao_solicitada");
+    } finally {
+      reconciliando = false;
     }
-    return aplicarItens([...mapa.values()], config, "reconciliacao_solicitada");
+  }
+
+  function prepararDepoisDaInterface(tipo) {
+    queueMicrotask(() => {
+      if (tipo === "manual") void prepararManual();
+      else void prepararNormal();
+    });
+    requestAnimationFrame(() => {
+      if (tipo === "manual") void prepararManual();
+      else void prepararNormal();
+    });
   }
 
   function instalarEventos() {
-    document.addEventListener("submit", event => {
-      const form = event.target;
-      if (!(form instanceof HTMLFormElement)) return;
-
-      if (form.id === "formChegadaManualFaccao") {
-        const processo = processoCanonico(document.getElementById("chegadaManualProcesso")?.value);
-        const ref = referenciaNormalizada(document.getElementById("chegadaManualRef")?.value);
-        if (processo === PROCESSO_COMPLETO && ref === "912") {
-          agendarAssinatura({
-            numeroOP: texto(document.getElementById("chegadaManualOP")?.value),
-            faccao: texto(document.getElementById("chegadaManualFaccao")?.value),
-            data: texto(document.getElementById("chegadaManualDataChegada")?.value),
-            origem: "chegada_manual_912"
-          });
-        }
-      }
-
-      if (form.id === "formChegadaMovimentacao" && form.dataset.sutia912Rapido === "1") {
-        agendarAssinatura({
-          movimentacaoId: texto(document.getElementById("chegadaMovimentacaoId")?.value),
-          origem: "chegada_normal_912"
-        });
-      }
-
-      if (form.id === "configSutiaCompleto51") {
-        configCache = null;
-        configCacheEm = 0;
-        window.setTimeout(() => reconciliarReferencia().catch(error => {
-          console.warn("Referência especial não reconciliada após configuração.", error);
-        }), 1800);
-      }
-    }, true);
-
     ["input", "change"].forEach(tipo => {
       document.addEventListener(tipo, event => {
         const alvo = event.target;
         if (!(alvo instanceof HTMLInputElement || alvo instanceof HTMLSelectElement)) return;
-        if (["chegadaManualOP", "chegadaManualRef", "chegadaManualProcesso"].includes(alvo.id)) {
-          [40, 180, 450].forEach(ms => window.setTimeout(() => prepararManual(), ms));
-        }
+        if (["chegadaManualOP", "chegadaManualRef", "chegadaManualProcesso"].includes(alvo.id)) void prepararManual();
       }, true);
     });
 
     document.addEventListener("click", event => {
       const alvo = event.target instanceof Element ? event.target : null;
       if (!alvo) return;
-
-      if (alvo.closest("#btnAbrirChegadaManualFaccao, #btnBuscarOPChegadaManualFaccao")) {
-        [80, 220, 500].forEach(ms => window.setTimeout(() => prepararManual(), ms));
-      }
-
+      if (alvo.closest("#btnAbrirChegadaManualFaccao, #btnBuscarOPChegadaManualFaccao")) prepararDepoisDaInterface("manual");
       if (alvo.closest("[data-registrar-chegada], #listaMovimentacoesFaccoes button")) {
         const form = document.getElementById("formChegadaMovimentacao");
         if (form instanceof HTMLFormElement) delete form.dataset.sutia912Rapido;
-        [100, 300, 700].forEach(ms => window.setTimeout(() => prepararNormal(), ms));
+        prepararDepoisDaInterface("normal");
       }
+    }, true);
+
+    document.addEventListener("submit", event => {
+      if (event.target?.id !== "configSutiaCompleto51") return;
+      configCache = null;
+      configCacheEm = 0;
+      window.setTimeout(() => {
+        reconciliarReferencia().catch(error => console.warn("Referência especial não reconciliada após configuração.", error));
+      }, 1200);
     }, true);
   }
 
   function iniciar() {
     instalarEventos();
-    [300, 800, 1500].forEach(ms => window.setTimeout(() => {
-      prepararManual();
-      prepararNormal();
-      carregarConfig().then(atualizarAjudaConfiguracao).catch(() => {});
-    }, ms));
+    carregarConfig().then(config => {
+      atualizarAjudaConfiguracao(config);
+      void prepararManual();
+      void prepararNormal();
+    }).catch(() => {});
   }
 
   window.CorpoNuReferenciaEspecialIntegral = {
     versao: VERSION,
-    aplicarAgora: reconciliarReferencia
+    aplicarAgora: reconciliarReferencia,
+    prepararManual,
+    prepararNormal
   };
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", iniciar, { once: true });
-  } else {
-    iniciar();
-  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true });
+  else iniciar();
 })();
