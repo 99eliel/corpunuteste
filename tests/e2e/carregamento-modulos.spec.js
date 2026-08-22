@@ -1,5 +1,9 @@
 const { test, expect } = require('@playwright/test');
 
+const email = process.env.TEST_EMAIL;
+const senha = process.env.TEST_PASSWORD;
+const temCredenciais = Boolean(email && senha);
+
 function scriptCom(nomeArquivo) {
   return `script[src*="${nomeArquivo}"]`;
 }
@@ -16,8 +20,16 @@ async function dispararNavegacao(page, pagina) {
   }, pagina);
 }
 
+async function entrar(page) {
+  await page.goto('/');
+  await page.locator('#loginEmail').fill(email);
+  await page.locator('#loginSenha').fill(senha);
+  await page.locator('#loginForm button[type="submit"]').click();
+  await expect(page.locator('#appShell')).toBeVisible({ timeout: 25_000 });
+}
+
 test.describe('CorpoNu - carregamento sob demanda dos módulos', () => {
-  test('boot não baixa módulos pesados de Pagamentos, Facções e chegada Sutiã', async ({ page }) => {
+  test('boot público não baixa módulos pesados nem Dual Mode', async ({ page }) => {
     await page.goto('/', { waitUntil: 'load' });
     await page.waitForTimeout(700);
 
@@ -33,6 +45,19 @@ test.describe('CorpoNu - carregamento sob demanda dos módulos', () => {
     await expect(page.locator(scriptCom('corponu-chegada-manual-sutia-pagamento-automatico.js'))).toHaveCount(0);
     await expect(page.locator(scriptCom('corponu-chegada-sem-componentes-duplicados.js'))).toHaveCount(0);
     await expect(page.locator(scriptCom('corponu-faccoes-corte-definitivo.js'))).toHaveCount(0);
+
+    await expect(page.locator(scriptCom('corponu-calcinha-planejamento-opcional-129.js'))).toHaveCount(0);
+    await expect(page.locator(scriptCom('corponu-manejo-calcinha-estavel-204.js'))).toHaveCount(0);
+    await expect(page.locator(scriptCom('corponu-manejo-calcinha-fase-definitivo-216.js'))).toHaveCount(0);
+  });
+
+  test('Dual Mode e melhorias de Calcinha entram somente após autenticação', async ({ page }) => {
+    test.skip(!temCredenciais, 'Configure TEST_EMAIL e TEST_PASSWORD nos GitHub Actions Secrets.');
+    await entrar(page);
+
+    await expect(page.locator(scriptCom('corponu-calcinha-planejamento-opcional-129.js'))).toHaveCount(1, { timeout: 10_000 });
+    await expect(page.locator(scriptCom('corponu-manejo-calcinha-estavel-204.js'))).toHaveCount(1);
+    await expect(page.locator(scriptCom('corponu-manejo-calcinha-fase-definitivo-216.js'))).toHaveCount(1);
   });
 
   test('atualizador preserva o gatilho de grupos para envio direto do Manejo', async ({ request }) => {
@@ -40,7 +65,9 @@ test.describe('CorpoNu - carregamento sob demanda dos módulos', () => {
     expect(resposta.ok()).toBeTruthy();
     const codigo = await resposta.text();
 
-    expect(codigo).toContain('2026-08-21-grupos-faccoes-sob-demanda-242');
+    expect(codigo).toContain('2026-08-21-modulos-pos-login-248');
+    expect(codigo).toContain('MODULOS_APOS_LOGIN');
+    expect(codigo).toContain('instalarCarregamentoAposLogin');
     expect(codigo).toContain('garantirGruposParaManejo');
     expect(codigo).toContain('CorpoNuFaccoesGrupos?.filtrarManejo');
     expect(codigo).toContain('onclick.includes("mandarParaFaccao")');
@@ -54,11 +81,13 @@ test.describe('CorpoNu - carregamento sob demanda dos módulos', () => {
     const moduloFiltro = page.locator(scriptCom('corponu-pagamentos-filtro-op.js'));
     const moduloPendencias = page.locator(scriptCom('corponu-valores-pendentes-financeiro.js'));
     const moduloVerificacaoSutia = page.locator(scriptCom('corponu-verificacao-sutia-completo.js'));
+    const filtroRestantes = page.locator(scriptCom('corponu-restantes-pendentes-filtro-op-225.js'));
 
     await expect(moduloInterface).toHaveCount(1);
     await expect(moduloFiltro).toHaveCount(1);
     await expect(moduloPendencias).toHaveCount(1);
     await expect(moduloVerificacaoSutia).toHaveCount(1);
+    await expect(filtroRestantes).toHaveCount(1);
 
     const srcs = await page.locator('script[data-corponu-modulo]').evaluateAll(scripts =>
       scripts.map(script => script.src)
@@ -88,6 +117,7 @@ test.describe('CorpoNu - carregamento sob demanda dos módulos', () => {
     await expect(page.locator(scriptCom('corponu-sutia-completo-calculo.js'))).toHaveCount(1);
     await expect(page.locator(scriptCom('corponu-sutia-completo-chegada-rapida.js'))).toHaveCount(1);
     await expect(page.locator(scriptCom('corponu-chegada-manual-sutia-pagamento-automatico.js'))).toHaveCount(1);
+    await expect(page.locator(scriptCom('corponu-sutia-completo-ponto-luz-411-206.js'))).toHaveCount(1);
 
     await dispararNavegacao(page, 'faccoes');
     await expect(page.locator(scriptCom('corponu-faccoes-grupos-processos.js'))).toHaveCount(1);
