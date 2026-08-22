@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-21-chegada-sutia-precos-por-referencia-267";
+  const VERSION = "2026-08-21-sutia-manual-unificado-271";
   const FIREBASE_VERSION = "10.12.5";
   const PROCESSO_COMPLETO = "SUTIÃ COMPLETO";
   const PROCESSO_LATERAL = "LATERAL";
@@ -517,6 +517,8 @@
       valorTotal: faltando ? 0 : totalCalculado,
       statusPagamento: faltando ? "sem_valor" : "pendente",
       valorPendente: faltando,
+      valorManualFinanceiroPendente: false,
+      motivoValorPendente: faltando ? `Aguardando ${memoria.faltantes.join(" e ")}.` : "",
       avisoPagamento: faltando ? `Aguardando ${memoria.faltantes.join(" e ")}.` : "",
       valorBaseSutiaCompleto: arred4(memoria.base),
       descontoSutiaCompletoLateral: arred4(memoria.descontos.lateral),
@@ -591,24 +593,24 @@
     const montar = info => ({
       informado: true,
       pronto: info.pronto,
-      status: info.pronto ? "completo" : "nao_pronto",
+      status: info.indefinido ? "nao_informado" : (info.pronto ? "completo" : "nao_pronto"),
       quantidadePronta: info.pronto ? total : 0,
       quantidadeTotal: total,
-      descontarNoSutiaCompleto: info.descontar === true,
-      feitoPelaFaccao: info.feitoPelaFaccao === true,
-      feitoPelaConfeccao: info.feitoPelaConfeccao === true,
-      origemExecucao: info.origemExecucao || "",
+      descontarNoSutiaCompleto: info.indefinido ? false : info.descontar === true,
+      feitoPelaFaccao: info.indefinido ? false : info.feitoPelaFaccao === true,
+      feitoPelaConfeccao: info.indefinido ? false : info.feitoPelaConfeccao === true,
+      origemExecucao: info.indefinido ? "nao_informado" : (info.origemExecucao || ""),
       origem: "chegada_sutia_completo",
       origemLabel: "Informado na chegada do Sutiã Completo",
-      responsavel: info.responsavel || "",
+      responsavel: info.indefinido ? "" : (info.responsavel || ""),
       atualizadoPor: usuario?.uid || "",
       atualizadoEm: agora,
       versao: VERSION
     });
 
     const patch = {};
-    if (dados.lateral.informadoAgora && !dados.lateral.indefinido) patch["componentesConsolidados.lateral"] = montar(dados.lateral);
-    if (dados.bojo.informadoAgora && !dados.bojo.indefinido) patch["componentesConsolidados.bojo"] = montar(dados.bojo);
+    if (dados.lateral.informadoAgora) patch["componentesConsolidados.lateral"] = montar(dados.lateral);
+    if (dados.bojo.informadoAgora) patch["componentesConsolidados.bojo"] = montar(dados.bojo);
     if (Object.keys(patch).length) {
       patch.componentesConsolidadosAtualizadoPor = usuario?.uid || "";
       patch.componentesConsolidadosAtualizadoEm = agora;
@@ -618,17 +620,37 @@
 
   function montarLog(mov, quantidade, falta, descontoDefeito, dados, memoria, usuario, agora) {
     return {
-      acao: "movimentacao_retorno_sutia_completo_otimizada",
+      acao: mov.origemManual ? "chegada_manual_sutia_completo_atomica" : "movimentacao_retorno_sutia_completo_otimizada",
+      entidade: "movimentacaoProducao",
+      entidadeId: String(mov.id || ""),
       tipoAlvo: "movimentacaoProducao",
       alvoId: String(mov.id || ""),
-      detalhes: `OP ${mov.numeroOP || "-"} | ${mov.destino || "-"} | voltou ${quantidade} peças | falta ${falta} | defeito ${moeda(descontoDefeito)} | lateral ${dados.lateral.feitoPelaFaccao ? "facção" : dados.lateral.feitoPelaConfeccao ? "confecção" : dados.lateral.descontar ? "desconto" : "sem desconto"} | bojo ${dados.bojo.feitoPelaFaccao ? "facção" : dados.bojo.feitoPelaConfeccao ? "confecção" : dados.bojo.descontar ? "desconto" : "sem desconto"} | fecho ${dados.fechoPronto ? "sim" : "não"} | ponto de luz ${dados.pontoLuzPronto ? "sim" : "não"} | valor ${moeda4(memoria.valorUnitario)}`,
+      detalhes: `OP ${mov.numeroOP || "-"} | ${mov.destino || "-"} | voltou ${quantidade} peças | falta ${falta} | defeito ${moeda(descontoDefeito)} | lateral ${dados.lateral.indefinido ? "não informado" : dados.lateral.feitoPelaFaccao ? "facção" : dados.lateral.feitoPelaConfeccao ? "confecção" : dados.lateral.descontar ? "desconto" : "sem desconto"} | bojo ${dados.bojo.indefinido ? "não informado" : dados.bojo.feitoPelaFaccao ? "facção" : dados.bojo.feitoPelaConfeccao ? "confecção" : dados.bojo.descontar ? "desconto" : "sem desconto"} | fecho ${dados.fechoPronto ? "sim" : "não"} | ponto de luz ${dados.pontoLuzPronto ? "sim" : "não"} | valor ${moeda4(memoria.valorUnitario)}`,
+      usuarioId: usuario?.uid || "",
       usuarioUid: usuario?.uid || "",
       usuarioNome: usuario?.displayName || "",
       usuarioEmail: usuario?.email || "",
       usuarioTipo: "",
+      criadoPor: usuario?.uid || "",
       criadoEm: agora,
       versao: VERSION
     };
+  }
+
+  function movimentoAtivo(mov) {
+    const status = normalizar(mov?.status || "");
+    return mov?.excluido !== true && mov?.cancelado !== true && !["CANCELADO", "CANCELADA", "EXCLUIDO", "EXCLUIDA"].includes(status);
+  }
+
+  function pagamentoPago(pagamento) {
+    return ["PAGO", "PAGA", "QUITADO", "QUITADA"].includes(normalizar(pagamento?.statusPagamento || pagamento?.status));
+  }
+
+  function pagamentoSemValor(pagamento) {
+    const status = normalizar(pagamento?.statusPagamento || pagamento?.status);
+    return pagamento?.valorPendente === true || pagamento?.valorManualFinanceiroPendente === true ||
+      ["SEM VALOR", "SEM_VALOR"].includes(status) ||
+      (!pagamentoPago(pagamento) && numero(pagamento?.total) <= 0 && numero(pagamento?.valorUnitario) <= 0);
   }
 
   async function buscarMovimentacao(id) {
@@ -651,14 +673,16 @@
     const numerico = Number(opTexto);
     if (Number.isFinite(numerico)) valores.push(numerico);
     for (const valor of valores) {
-      try {
-        const snap = await fs.getDocs(fs.query(
-          fs.collection(db, "ordensProducao"),
-          fs.where("numeroOP", "==", valor),
-          fs.limit(1)
-        ));
-        if (!snap.empty) return { id: snap.docs[0].id, ...snap.docs[0].data() };
-      } catch (_) {}
+      for (const campo of ["numeroOP", "numeroOPExterno", "op"]) {
+        try {
+          const snap = await fs.getDocs(fs.query(
+            fs.collection(db, "ordensProducao"),
+            fs.where(campo, "==", valor),
+            fs.limit(1)
+          ));
+          if (!snap.empty) return { id: snap.docs[0].id, ...snap.docs[0].data() };
+        } catch (_) {}
+      }
     }
     return null;
   }
@@ -698,11 +722,13 @@
       const descontoDefeitoInformado = Math.max(0, numero(document.getElementById("chegadaDefeito")?.value));
       const quantidadeEnviada = Math.max(0, numero(movOriginal.quantidadeEnviada));
       const quantidade = Math.max(quantidadeEnviada - falta, 0);
-      if (!dataChegada || falta > quantidadeEnviada) throw new Error("Dados de chegada inválidos.");
+      if (!dataChegada || falta > quantidadeEnviada) throw new Error("DADOS_CHEGADA_INVALIDOS");
+      if (quantidade <= 0) throw new Error("QUANTIDADE_ZERADA");
 
       const memoria = await obterMemoria("sc51", movOriginal.referencia, dados, especial);
       const { fs, db, auth } = await firebase();
       const usuario = auth.currentUser;
+      if (!usuario) throw new Error("USUARIO_NAO_AUTENTICADO");
       const agora = fs.serverTimestamp();
       const descontoDefeito = memoria.especial ? 0 : descontoDefeitoInformado;
       const conferencia = montarConferencia(dados, memoria, usuario, quantidade);
@@ -760,15 +786,13 @@
         bojoProntoSutiaCompleto: dados.bojo.pronto,
         chegadaSutiaCompletoFluxoRapido: true,
         chegadaSutiaCompletoVersao: VERSION,
-        atualizadoPor: usuario?.uid || "",
+        atualizadoPor: usuario.uid,
         atualizadoEm: agora
       }, { merge: true });
       batch.set(fs.doc(db, "entregasPagamento", pagamentoId), pagamento, { merge: true });
 
-      const opPatch = atualizacaoComponente(dados, Math.max(0, numero(movOriginal.quantidadeEnviada)), usuario, agora);
-      if (movOriginal.opId && Object.keys(opPatch).length) {
-        batch.update(fs.doc(db, "ordensProducao", movOriginal.opId), opPatch);
-      }
+      const opPatch = atualizacaoComponente(dados, quantidadeEnviada, usuario, agora);
+      if (movOriginal.opId && Object.keys(opPatch).length) batch.update(fs.doc(db, "ordensProducao", movOriginal.opId), opPatch);
       batch.set(fs.doc(fs.collection(db, "logsAlteracoes")), montarLog(mov, quantidade, falta, descontoDefeito, dados, memoria, usuario, agora));
       await batch.commit();
       window.__CORPONU_CHEGADA_MOV_CARREGADA__ = null;
@@ -782,7 +806,12 @@
         : `Chegada e pagamento salvos juntos: ${moeda(pagamento.total)}.`, false);
     } catch (error) {
       console.error("Falha na chegada rápida do Sutiã Completo.", error);
-      avisar("Não foi possível concluir a chegada. Nenhuma gravação parcial foi feita.", true);
+      const mensagens = {
+        DADOS_CHEGADA_INVALIDOS: "Confira a data e a quantidade faltante da chegada.",
+        QUANTIDADE_ZERADA: "Nenhuma peça foi recebida.",
+        USUARIO_NAO_AUTENTICADO: "Sua sessão expirou. Entre novamente."
+      };
+      avisar(mensagens[error?.message] || "Não foi possível concluir a chegada. Nenhuma gravação parcial foi feita.", true);
     } finally {
       bloquearForm(form, false);
       processando.delete(chave);
@@ -791,13 +820,15 @@
 
   async function salvarManual(form) {
     const numeroOP = texto(document.getElementById("chegadaManualOP")?.value);
-    const referencia = normalizarReferencia(document.getElementById("chegadaManualRef")?.value);
-    const cor = texto(document.getElementById("chegadaManualCor")?.value).toUpperCase();
-    const quantidade = Math.max(0, numero(document.getElementById("chegadaManualQuantidade")?.value));
+    const referenciaCampo = normalizarReferencia(document.getElementById("chegadaManualRef")?.value);
+    const corCampo = texto(document.getElementById("chegadaManualCor")?.value).toUpperCase();
+    const quantidadeEnviadaCampo = Math.max(0, numero(document.getElementById("chegadaManualQuantidade")?.value));
     const processo = processoCanonico(document.getElementById("chegadaManualProcesso")?.value);
     const faccao = texto(document.getElementById("chegadaManualFaccao")?.value).toUpperCase();
-    const dataEnvio = texto(document.getElementById("chegadaManualDataEnvio")?.value);
+    const dataEnvioCampo = texto(document.getElementById("chegadaManualDataEnvio")?.value);
     const dataChegada = texto(document.getElementById("chegadaManualDataChegada")?.value);
+    const falta = Math.max(0, numero(document.getElementById("chegadaManualFalta")?.value));
+    const descontoDefeitoInformado = Math.max(0, numero(document.getElementById("chegadaManualDesconto")?.value));
     const observacao = texto(document.getElementById("chegadaManualObs")?.value);
     const chave = `manual:${numeroOP}|${faccao}|${dataChegada}`;
 
@@ -806,72 +837,108 @@
     bloquearForm(form, true);
 
     try {
-      if (!numeroOP || !referencia || !cor || !quantidade || !faccao || !dataChegada) {
-        throw new Error("Campos obrigatórios incompletos.");
-      }
+      if (!numeroOP || !faccao || !dataChegada) throw new Error("CAMPOS_OBRIGATORIOS");
+
+      const op = await buscarOPManual(numeroOP);
+      if (!op) throw new Error("OP_NAO_ENCONTRADA");
+
+      const referencia = referenciaCampo || normalizarReferencia(op.referencia || op.ref);
+      const cor = corCampo || texto(op.cor).toUpperCase();
+      const quantidadeEnviada = quantidadeEnviadaCampo || Math.max(0, numero(op.quantidade || op.quantidadeTotal));
+      const dataEnvio = dataEnvioCampo || texto(op.dataEnvioAtualMigracao || op.dataOriginalLigia || "");
+      if (!referencia || !cor || quantidadeEnviada <= 0) throw new Error("OP_INCOMPLETA");
+      if (falta > quantidadeEnviada) throw new Error("FALTA_INVALIDA");
+      const quantidadeRecebida = Math.max(quantidadeEnviada - falta, 0);
+      if (quantidadeRecebida <= 0) throw new Error("QUANTIDADE_ZERADA");
 
       const especial = form.dataset.sutia912Rapido === "1";
       const dados = validarPainel("sc51m", especial);
-      if (!dados) return;
-      const [memoria, op] = await Promise.all([
-        obterMemoria("sc51m", referencia, dados, especial),
-        buscarOPManual(numeroOP)
-      ]);
+      if (!dados) throw new Error("COMPONENTES_INVALIDOS");
+      const memoria = await obterMemoria("sc51m", referencia, dados, especial);
 
       const { fs, db, auth } = await firebase();
       const usuario = auth.currentUser;
+      if (!usuario) throw new Error("USUARIO_NAO_AUTENTICADO");
       const agora = fs.serverTimestamp();
-      const id = docIdSeguro(`manual-chegada-faccao-${numeroOP}-${faccao}-${PROCESSO_COMPLETO}-${dataChegada}-${Date.now()}`);
-      const conferencia = montarConferencia(dados, memoria, usuario, quantidade);
+      const descontoDefeito = memoria.especial ? 0 : descontoDefeitoInformado;
+      const movimentoId = docIdSeguro(`manual-chegada-sutia-${numeroOP}-${faccao}-${dataChegada}`);
+      const pagamentoId = docIdSeguro(`mov-${movimentoId}-sut-completo-auto-112`);
+      const conferencia = montarConferencia(dados, memoria, usuario, quantidadeRecebida);
       conferencia.confirmadoEm = agora;
 
       const mov = {
-        id,
+        id: movimentoId,
         origem: "chegada_manual_faccao",
         origemManual: true,
         tipoDestino: "faccao",
         tipoDestinoLabel: "Facção",
-        opId: op?.id || "",
+        opId: op.id,
         numeroOP,
         referencia,
         cor,
-        produtoNome: op?.produtoNome || op?.nomeProduto || "",
-        setor: op?.tipo || op?.setor || "sutia",
+        produtoNome: op.produtoNome || op.nomeProduto || op.nome || "",
+        setor: op.tipo || op.setor || "sutia",
         destino: faccao,
         processo: PROCESSO_COMPLETO,
-        quantidadeEnviada: quantidade,
-        quantidadeRecebida: quantidade,
+        quantidadeEnviada,
+        quantidadeRecebida,
         dataEnvio,
         dataEnvioNaoInformada: !dataEnvio,
         dataChegada,
-        falta: 0,
-        descontoDefeito: 0,
-        defeito: 0,
+        falta,
+        descontoDefeito,
+        defeito: descontoDefeito,
         status: "retornou",
-        observacoes: observacao || "Chegada manual lançada pela aba Facções.",
+        observacoes: observacao || `Chegada manual automática do Sutiã Completo. Recebido: ${quantidadeRecebida}; falta: ${falta}; desconto por defeito: ${moeda(descontoDefeito)}.`,
         sutiaCompletoConferencia: conferencia,
         fechoVeioPronto: dados.fechoPronto,
         pontoLuzVeioPronto: dados.pontoLuzPronto,
         lateralProntaSutiaCompleto: dados.lateral.pronto,
         bojoProntoSutiaCompleto: dados.bojo.pronto,
+        componentesSutiaInformadosNaChegada: true,
         chegadaSutiaCompletoFluxoRapido: true,
+        chegadaSutiaCompletoFluxoManualAutomatico: true,
         chegadaSutiaCompletoVersao: VERSION,
-        criadoPor: usuario?.uid || "",
-        criadoEm: agora,
-        atualizadoPor: usuario?.uid || "",
+        atualizadoPor: usuario.uid,
         atualizadoEm: agora
       };
 
-      const pagamentoId = docIdSeguro(`mov-${id}-sut-completo-107`);
-      const pagamento = montarPagamento(mov, memoria, dados, quantidade, 0, 0, usuario, agora);
-      const batch = fs.writeBatch(db);
-      batch.set(fs.doc(db, "movimentacoesProducao", id), mov, { merge: true });
-      batch.set(fs.doc(db, "entregasPagamento", pagamentoId), pagamento, { merge: true });
+      const pagamento = montarPagamento(mov, memoria, dados, quantidadeRecebida, falta, descontoDefeito, usuario, agora);
+      const movRef = fs.doc(db, "movimentacoesProducao", movimentoId);
+      const pagRef = fs.doc(db, "entregasPagamento", pagamentoId);
+      const opRef = fs.doc(db, "ordensProducao", op.id);
+      const logRef = fs.doc(fs.collection(db, "logsAlteracoes"));
+      const opPatch = atualizacaoComponente(dados, quantidadeEnviada, usuario, agora);
 
-      const opPatch = atualizacaoComponente(dados, Math.max(0, numero(op?.quantidade || op?.quantidadeTotal || quantidade)), usuario, agora);
-      if (op?.id && Object.keys(opPatch).length) batch.update(fs.doc(db, "ordensProducao", op.id), opPatch);
-      batch.set(fs.doc(fs.collection(db, "logsAlteracoes")), montarLog(mov, quantidade, 0, 0, dados, memoria, usuario, agora));
-      await batch.commit();
+      await fs.runTransaction(db, async transacao => {
+        const [movSnap, pagSnap] = await Promise.all([
+          transacao.get(movRef),
+          transacao.get(pagRef)
+        ]);
+        const movServidor = movSnap.exists() ? movSnap.data() : null;
+        const pagServidor = pagSnap.exists() ? pagSnap.data() : null;
+
+        if (pagServidor && pagamentoPago(pagServidor)) throw new Error("PAGAMENTO_JA_PAGO");
+        if (pagServidor && !pagamentoSemValor(pagServidor)) throw new Error("CHEGADA_JA_CALCULADA");
+        if (movServidor && movimentoAtivo(movServidor) && !pagServidor) throw new Error("CHEGADA_DUPLICADA");
+
+        const movimentoPatch = { ...mov };
+        if (!movSnap.exists()) {
+          movimentoPatch.criadoPor = usuario.uid;
+          movimentoPatch.criadoEm = agora;
+        }
+        transacao.set(movRef, movimentoPatch, { merge: true });
+
+        const pagamentoPatch = { ...pagamento };
+        if (pagSnap.exists()) {
+          delete pagamentoPatch.criadoPor;
+          delete pagamentoPatch.criadoEm;
+        }
+        transacao.set(pagRef, pagamentoPatch, { merge: true });
+
+        if (Object.keys(opPatch).length) transacao.update(opRef, opPatch);
+        transacao.set(logRef, montarLog(mov, quantidadeRecebida, falta, descontoDefeito, dados, memoria, usuario, agora));
+      });
 
       document.getElementById("modalChegadaManualFaccao")?.classList.add("hidden");
       form.reset();
@@ -880,20 +947,23 @@
         : `Chegada manual e pagamento salvos juntos: ${moeda(pagamento.total)}.`, false);
     } catch (error) {
       console.error("Falha na chegada manual rápida do Sutiã Completo.", error);
-      avisar("Não foi possível concluir a chegada manual. Nenhuma gravação parcial foi feita.", true);
+      const mensagens = {
+        CAMPOS_OBRIGATORIOS: "Confira a OP, a facção e a data da chegada.",
+        OP_NAO_ENCONTRADA: "A OP não foi encontrada. Confira o número e tente novamente.",
+        OP_INCOMPLETA: "A OP não possui referência, cor ou quantidade válida.",
+        FALTA_INVALIDA: "A quantidade faltante não pode ser maior que a quantidade da OP.",
+        QUANTIDADE_ZERADA: "Nenhuma peça foi recebida.",
+        COMPONENTES_INVALIDOS: "Aguarde a conferência de lateral e bojo antes de salvar.",
+        USUARIO_NAO_AUTENTICADO: "Sua sessão expirou. Entre novamente.",
+        PAGAMENTO_JA_PAGO: "Este pagamento já foi confirmado como pago e não pode ser alterado.",
+        CHEGADA_JA_CALCULADA: "Esta chegada manual já possui pagamento calculado. Use a aba Pagamentos para conferir.",
+        CHEGADA_DUPLICADA: "Esta chegada manual já existe. Nenhum registro duplicado foi criado."
+      };
+      avisar(mensagens[error?.message] || "Não foi possível concluir a chegada manual. Nenhuma gravação parcial foi feita.", true);
     } finally {
       bloquearForm(form, false);
       processando.delete(chave);
     }
-  }
-
-  function marcarReenvioNoCapture(event) {
-    const form = event.target;
-    if (!(form instanceof HTMLFormElement) || ![FORM_PADRAO, FORM_MANUAL].includes(form.id)) return;
-    const painelId = form.id === FORM_MANUAL
-      ? "sutCompletoComponentesChegadaManual"
-      : "sutCompletoComponentesChegada";
-    if (document.getElementById(painelId)) form.dataset.sc107ReenvioSubmit = "1";
   }
 
   function aoSubmit(event) {
@@ -942,7 +1012,6 @@
 
   function instalar() {
     injetarEstilos();
-    document.addEventListener("submit", marcarReenvioNoCapture, true);
     instalarForm(document.getElementById(FORM_PADRAO));
     instalarForm(document.getElementById(FORM_MANUAL));
     observarModal("modalChegadaMovimentacao");
