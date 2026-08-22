@@ -1,17 +1,19 @@
 const { test, expect } = require('@playwright/test');
 
 test.describe('Sutiã Completo - referência especial', () => {
-  test('prepara a referência especial sem reconciliação repetida após cada chegada', async ({ request }) => {
+  test('prepara referência especial pelo fluxo nativo sem reconciliação por chegada', async ({ request }) => {
     const resposta = await request.get('/corponu-sutia-completo-referencia-especial-integral.js');
     expect(resposta.ok()).toBeTruthy();
     const codigo = await resposta.text();
 
-    expect(codigo).toContain('2026-08-21-referencia-especial-sem-reconciliacao-pos-chegada-254');
+    expect(codigo).toContain('2026-08-21-referencia-especial-fluxo-nativo-264');
     expect(codigo).toContain('reconciliarReferencia');
     expect(codigo).toContain('prepararManual');
     expect(codigo).toContain('prepararNormal');
     expect(codigo).toContain('regraReferenciaEspecialIntegral');
     expect(codigo).toContain('descontoDefeito: 0');
+    expect(codigo).toContain('lateral.value = "nao_informado"');
+    expect(codigo).toContain('bojo.value = "nao_informado"');
 
     expect(codigo).not.toContain('agendarAssinatura');
     expect(codigo).not.toContain('aplicarAssinatura');
