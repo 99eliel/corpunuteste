@@ -65,7 +65,7 @@ test.describe('Chegadas - arquitetura de componentes', () => {
 
     const updater = await request.get('/corponu-atualizador.js');
     const codigoUpdater = await updater.text();
-    expect(codigoUpdater).toContain('2026-08-21-sutia-gravador-unico-268');
+    expect(codigoUpdater).toContain('2026-08-22-otimizacao-v2-273');
     expect(codigoUpdater).not.toContain('corponu-sutia-912-fluxo-rapido.js');
   });
 });

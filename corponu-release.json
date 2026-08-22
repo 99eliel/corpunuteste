@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-21-sutia-gravador-unico-268",
-  "updatedAt": "2026-08-21T23:58:00-03:00",
-  "notes": "HOMOLOGAÇÃO / OTIMIZAÇÃO GLOBAL V2. Consolida a chegada de Sutiã Completo em um único gravador atômico; remove o motor manual 112, fallbacks e patches globais; usa submit final explícito, cache versionado, preços por referência e transação com proteção contra duplicidade e pagamento já confirmado. Mantém a referência especial 912 com valor integral e Firebase isolado no projeto corponuteste."
+  "version": "2026-08-22-otimizacao-v2-273",
+  "updatedAt": "2026-08-22T00:20:00-03:00",
+  "notes": "HOMOLOGAÇÃO / OTIMIZAÇÃO GLOBAL V2. Gravador único e transacional para Sutiã Completo; remoção de fallbacks, polling e patches globais; cache versionado do arquivo de valores; inicialização única do update.js; remoção de limpeza PWA duplicada; consultas legadas de movimentações reduzidas para uma varredura por usuário/sessão; módulos e preços carregados sob demanda. Firebase permanece isolado no projeto corponuteste."
 }

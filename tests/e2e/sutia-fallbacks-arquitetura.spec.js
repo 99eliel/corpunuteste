@@ -16,7 +16,7 @@ test.describe('Sutiã Completo - fluxo sem fallbacks legados', () => {
     const updater = await request.get('/corponu-atualizador.js');
     expect(updater.ok()).toBeTruthy();
     const codigoUpdater = await updater.text();
-    expect(codigoUpdater).toContain('2026-08-21-sutia-gravador-unico-268');
+    expect(codigoUpdater).toContain('2026-08-22-otimizacao-v2-273');
     expect(codigoUpdater).not.toContain('corponu-sutia-completo-fallbacks-off.js');
     expect(codigoUpdater).not.toContain('corponu-sutia-completo-reconciliacao-manual.js');
     expect(codigoUpdater).not.toContain('corponu-chegada-sutia-sync-legado.js');
