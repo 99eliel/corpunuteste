@@ -19,8 +19,12 @@ test('update legado não repete a limpeza automática do PWA no load', async ({ 
   expect(atualizador).toContain('async function removerPwaAntigo()');
   expect(atualizador).toContain('await removerPwaAntigo()');
 
-  const trechoLoad = update.match(/window\.addEventListener\("load", \(\) => \{[\s\S]*?\n  \}\);/)?.[0] || '';
+  const inicioLoadFinal = update.lastIndexOf('window.addEventListener("load", () => {');
+  expect(inicioLoadFinal, 'listener final de load não encontrado no update.js').toBeGreaterThanOrEqual(0);
+  const trechoLoad = update.slice(inicioLoadFinal, inicioLoadFinal + 420);
+
   expect(trechoLoad).toContain('rememberVersion()');
+  expect(trechoLoad).toContain('iniciarRecursosDaVersao()');
   expect(trechoLoad).not.toContain('unregisterOldWorkers()');
   expect(trechoLoad).not.toContain('clearAppCaches()');
 });
