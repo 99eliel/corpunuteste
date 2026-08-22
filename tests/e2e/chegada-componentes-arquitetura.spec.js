@@ -43,18 +43,29 @@ test.describe('Chegadas - arquitetura de componentes', () => {
     expect(codigo).not.toContain('setInterval');
   });
 
-  test('referência 912 manual nasce integral e sem scanner', async ({ request }) => {
+  test('referência 912 manual usa estado nativo e nasce integral', async ({ request }) => {
     const resposta = await request.get('/corponu-sutia-912-chegada-manual-sem-verificacoes.js');
     expect(resposta.ok()).toBeTruthy();
     const codigo = await resposta.text();
 
-    expect(codigo).toContain('2026-08-21-sutia-912-integral-na-origem-253');
+    expect(codigo).toContain('2026-08-21-sutia-912-fluxo-nativo-265');
     expect(codigo).toContain('observer.observe(form, { childList: true, subtree: true })');
+    expect(codigo).toContain('value="nao_informado"');
+    expect(codigo).toContain('garantirCampoSelect(form, "sc51mLateralSituacao", "nao_informado")');
+    expect(codigo).toContain('garantirCampoSelect(form, "sc51mBojoSituacao", "nao_informado")');
     expect(codigo).toContain('chegadaManualDesconto');
     expect(codigo).toContain('campo.value = "0"');
-    expect(codigo).toContain('descontos de lateral, bojo, fecho, ponto de luz ou defeito');
     expect(codigo).not.toContain('setInterval');
     expect(codigo).not.toContain('addEventListener("focus"');
-    expect(codigo).not.toContain('iniciarVarredura');
+  });
+
+  test('patch global antigo da 912 foi removido', async ({ request }) => {
+    const antigo = await request.get('/corponu-sutia-912-fluxo-rapido.js');
+    expect(antigo.status()).toBe(404);
+
+    const updater = await request.get('/corponu-atualizador.js');
+    const codigoUpdater = await updater.text();
+    expect(codigoUpdater).toContain('2026-08-21-sutia-912-fluxo-nativo-266');
+    expect(codigoUpdater).not.toContain('corponu-sutia-912-fluxo-rapido.js');
   });
 });
