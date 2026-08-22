@@ -1,10 +1,11 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-02-chegada-manual-trava-movimentacao-86";
+  const VERSION = "2026-08-21-chegada-manual-trava-precheck-270";
   const FIREBASE_VERSION = "10.12.5";
   const FORM_ID = "formChegadaManualFaccao";
   const MARCADOR_LIBERADO = "cnChegadaManualMov86Liberada";
+  const MARCADOR_SUBMIT_FINAL = "sc107ReenvioSubmit";
 
   if (window.__CORPONU_CHEGADA_MANUAL_TRAVA_MOVIMENTACAO__ === VERSION) return;
   window.__CORPONU_CHEGADA_MANUAL_TRAVA_MOVIMENTACAO__ = VERSION;
@@ -112,25 +113,16 @@
 
     adicionar(await consultar("movimentacoesProducao", "numeroOP", variantes));
 
-    if (!documentos.size) {
-      adicionar(await consultar("movimentacoesProducao", "numeroOPExterno", variantes));
-    }
-
-    if (!documentos.size) {
-      adicionar(await consultar("movimentacoesProducao", "op", variantes));
-    }
+    if (!documentos.size) adicionar(await consultar("movimentacoesProducao", "numeroOPExterno", variantes));
+    if (!documentos.size) adicionar(await consultar("movimentacoesProducao", "op", variantes));
 
     if (!documentos.size) {
       const ordens = new Map();
-
       for (const campo of ["numeroOP", "numeroOPExterno", "op"]) {
         const encontradas = await consultar("ordensProducao", campo, variantes, 5);
         encontradas.forEach(ordem => ordens.set(ordem.id, ordem));
       }
-
-      for (const ordemId of ordens.keys()) {
-        adicionar(await consultar("movimentacoesProducao", "opId", [ordemId]));
-      }
+      for (const ordemId of ordens.keys()) adicionar(await consultar("movimentacoesProducao", "opId", [ordemId]));
     }
 
     return [...documentos.values()].filter(movimentacaoValida);
@@ -172,6 +164,10 @@
     const form = event.target;
     if (!(form instanceof HTMLFormElement) || form.id !== FORM_ID) return;
 
+    // O cálculo base já validou/confirmou o Sutiã e marcou este submit como final.
+    // Não repetimos consultas antes da gravação atômica.
+    if (form.dataset[MARCADOR_SUBMIT_FINAL] === "1") return;
+
     if (form.dataset[MARCADOR_LIBERADO] === "1") {
       delete form.dataset[MARCADOR_LIBERADO];
       return;
@@ -181,7 +177,6 @@
     const processo = normalizar(document.getElementById("chegadaManualProcesso")?.value);
     const faccao = normalizar(document.getElementById("chegadaManualFaccao")?.value);
 
-    // Os campos obrigatórios continuam sendo validados pelo fluxo original.
     if (!numeroOP || !processo || !faccao) return;
 
     event.preventDefault();
