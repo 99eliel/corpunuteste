@@ -6,8 +6,10 @@ test.describe('Atualização e módulos legados', () => {
     expect(principal.ok()).toBeTruthy();
     const codigoPrincipal = await principal.text();
 
-    expect(codigoPrincipal).toContain('2026-08-21-atualizador-unico-244');
+    expect(codigoPrincipal).toContain('2026-08-21-dual-ready-pos-login-250');
     expect(codigoPrincipal).toContain('INTERVALO_VERIFICACAO = 60 * 1000');
+    expect(codigoPrincipal).toContain('MODULOS_APOS_LOGIN');
+    expect(codigoPrincipal).toContain('corponu-dual-ready-bridge.js');
     expect(codigoPrincipal).toContain('corponu-restantes-pendentes-filtro-op-225.js');
     expect(codigoPrincipal).toContain('corponu-sutia-completo-ponto-luz-411-206.js');
     expect(codigoPrincipal).toContain('corponu-manejo-calcinha-estavel-204.js');
