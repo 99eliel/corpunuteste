@@ -14201,9 +14201,7 @@
 
   window.addEventListener("load", () => {
     rememberVersion();
-    unregisterOldWorkers();
-    clearAppCaches();
-    // Atualização agora é feita pelo navegador, sem PWA.
+    // A remoção automática do PWA antigo já é feita no index e no atualizador oficial.
     iniciarRecursosDaVersao();
   });
 
