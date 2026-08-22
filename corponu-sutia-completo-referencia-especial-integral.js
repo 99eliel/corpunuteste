@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-21-referencia-especial-sem-reconciliacao-pos-chegada-254";
+  const VERSION = "2026-08-21-referencia-especial-fluxo-nativo-264";
   const FIREBASE_VERSION = "10.12.5";
   const CONFIG_PRINCIPAL = "sutia-completo-pagamento";
   const CONFIG_COMPATIVEL = "sutia-completo-financeiro";
@@ -199,11 +199,11 @@
     const ponto = document.getElementById(`${prefixo}PontoLuzPronto`);
 
     if (lateral instanceof HTMLSelectElement) {
-      lateral.value = "nao";
+      lateral.value = "nao_informado";
       lateral.required = false;
     }
     if (bojo instanceof HTMLSelectElement) {
-      bojo.value = "nao";
+      bojo.value = "nao_informado";
       bojo.required = false;
     }
     [`${prefixo}LateralResponsavel`, `${prefixo}BojoResponsavel`].forEach(id => {
