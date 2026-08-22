@@ -1,0 +1,116 @@
+name: Validacao observavel V2
+
+on:
+  push:
+    branches:
+      - perf/otimizacao-global-v2
+    paths:
+      - .github/workflows/validar-v2-observavel.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Executar validacao e capturar resultado
+        id: validacao
+        shell: bash
+        env:
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: |
+          set +e
+          RESULTADO="PASS"
+          ETAPA="OK"
+
+          python3 scripts/aplicar-firebase-homologacao.py >/tmp/firebase-v2.log 2>&1
+          STATUS=$?
+          if [ "$STATUS" -ne 0 ]; then
+            RESULTADO="FAIL"
+            ETAPA="FIREBASE_ISOLATION"
+          fi
+
+          if [ "$RESULTADO" = "PASS" ]; then
+            if grep -q "corponu-b4942" app.js login-core.js; then
+              RESULTADO="FAIL"
+              ETAPA="FIREBASE_PRODUCAO_DETECTADO"
+            fi
+          fi
+
+          if [ "$RESULTADO" = "PASS" ]; then
+            for arquivo in \
+              update.js \
+              corponu-atualizador.js \
+              corponu-sutia-completo-calculo.js \
+              corponu-sutia-completo-chegada-rapida.js \
+              corponu-chegada-manual-trava-movimentacao.js \
+              corponu-sutia-completo-referencia-especial-integral.js \
+              corponu-sutia-912-chegada-manual-sem-verificacoes.js \
+              corponu-faccoes-grupos-processos.js \
+              corponu-faccoes-corte-definitivo.js; do
+              node --check "$arquivo" >/tmp/node-check-v2.log 2>&1
+              STATUS=$?
+              if [ "$STATUS" -ne 0 ]; then
+                RESULTADO="FAIL"
+                ETAPA="SINTAXE:$arquivo"
+                break
+              fi
+            done
+          fi
+
+          if [ "$RESULTADO" = "PASS" ]; then
+            npm install >/tmp/npm-v2.log 2>&1
+            STATUS=$?
+            if [ "$STATUS" -ne 0 ]; then
+              RESULTADO="FAIL"
+              ETAPA="NPM_INSTALL"
+            fi
+          fi
+
+          if [ "$RESULTADO" = "PASS" ]; then
+            npx playwright install --with-deps chromium >/tmp/browser-v2.log 2>&1
+            STATUS=$?
+            if [ "$STATUS" -ne 0 ]; then
+              RESULTADO="FAIL"
+              ETAPA="PLAYWRIGHT_BROWSER"
+            fi
+          fi
+
+          if [ "$RESULTADO" = "PASS" ]; then
+            npm run test:e2e >/tmp/playwright-v2.log 2>&1
+            STATUS=$?
+            if [ "$STATUS" -ne 0 ]; then
+              RESULTADO="FAIL"
+              ETAPA="PLAYWRIGHT_TESTS"
+            fi
+          fi
+
+          echo "resultado=$RESULTADO" >> "$GITHUB_OUTPUT"
+          echo "etapa=$ETAPA" >> "$GITHUB_OUTPUT"
+          echo "Resultado: $RESULTADO | Etapa: $ETAPA"
+
+      - name: Gravar marcador do resultado
+        shell: bash
+        env:
+          RESULTADO: ${{ steps.validacao.outputs.resultado }}
+          ETAPA: ${{ steps.validacao.outputs.etapa }}
+        run: |
+          printf 'RESULTADO=%s\nETAPA=%s\nCOMMIT_TESTADO=%s\nWORKFLOW_RUN=%s\n' \
+            "$RESULTADO" "$ETAPA" "$GITHUB_SHA" "$GITHUB_RUN_ID" > VALIDACAO_V2_RESULTADO.txt
+          git config user.name "99eliel"
+          git config user.email "131190282+99eliel@users.noreply.github.com"
+          git add VALIDACAO_V2_RESULTADO.txt
+          git commit -m "test: registrar resultado da validacao v2" || exit 0
+          git push origin HEAD:${GITHUB_REF_NAME}
