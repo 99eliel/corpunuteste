@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const LOADER_VERSION = "2026-08-21-sutia-calculo-cacheavel-260";
+  const LOADER_VERSION = "2026-08-21-sutia-calculo-trava-explicita-261";
   const BASE_FILE = "corponu-sutia-completo-calculo-base-174.js";
   const GUARD = "__CORPONU_SUTIA_COMPLETO_ADMIN_LOADER_175B__";
 
@@ -245,6 +245,26 @@
 
       await salvarConsolidado(op, contexto)`,
       "prioridade das escolhas da chegada"
+    );
+
+    substituir(
+      "      window.setTimeout(() => processarDepoisChegadaPadrao(id, dados), 0);",
+      `      if (form.dataset.corponuSutiaRapidoTratou === "1") {
+        delete form.dataset.corponuSutiaRapidoTratou;
+        return;
+      }
+      window.setTimeout(() => processarDepoisChegadaPadrao(id, dados), 0);`,
+      "trava explícita do pós-processamento da chegada padrão"
+    );
+
+    substituir(
+      "    window.setTimeout(() => processarDepoisChegadaManual(chave, dados), 0);",
+      `    if (form.dataset.corponuSutiaRapidoTratou === "1") {
+      delete form.dataset.corponuSutiaRapidoTratou;
+      return;
+    }
+    window.setTimeout(() => processarDepoisChegadaManual(chave, dados), 0);`,
+      "trava explícita do pós-processamento da chegada manual"
     );
 
     return fonte;
