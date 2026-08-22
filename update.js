@@ -14159,7 +14159,12 @@
     conectarFirebaseRestantesFaccao();
   }
 
+  let recursosDaVersaoIniciados = false;
+
   function iniciarRecursosDaVersao() {
+    if (recursosDaVersaoIniciados) return;
+    recursosDaVersaoIniciados = true;
+
     iniciarRestantesFaccoesComplementares();
     iniciarLegibilidadeSemExpandirLayout();
     iniciarTelasExclusivasGerenciamento();
