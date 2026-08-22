@@ -40,6 +40,8 @@ jobs:
           if [ "$STATUS" -ne 0 ]; then
             RESULTADO="FAIL"
             ETAPA="FIREBASE_ISOLATION"
+            echo "===== FIREBASE ISOLATION ====="
+            tail -n 120 /tmp/firebase-v2.log || true
           fi
 
           if [ "$RESULTADO" = "PASS" ]; then
@@ -65,6 +67,8 @@ jobs:
               if [ "$STATUS" -ne 0 ]; then
                 RESULTADO="FAIL"
                 ETAPA="SINTAXE:$arquivo"
+                echo "===== SINTAXE: $arquivo ====="
+                cat /tmp/node-check-v2.log || true
                 break
               fi
             done
@@ -76,6 +80,8 @@ jobs:
             if [ "$STATUS" -ne 0 ]; then
               RESULTADO="FAIL"
               ETAPA="NPM_INSTALL"
+              echo "===== NPM INSTALL ====="
+              tail -n 160 /tmp/npm-v2.log || true
             fi
           fi
 
@@ -85,6 +91,8 @@ jobs:
             if [ "$STATUS" -ne 0 ]; then
               RESULTADO="FAIL"
               ETAPA="PLAYWRIGHT_BROWSER"
+              echo "===== PLAYWRIGHT BROWSER ====="
+              tail -n 160 /tmp/browser-v2.log || true
             fi
           fi
 
@@ -94,6 +102,8 @@ jobs:
             if [ "$STATUS" -ne 0 ]; then
               RESULTADO="FAIL"
               ETAPA="PLAYWRIGHT_TESTS"
+              echo "===== PLAYWRIGHT TESTS ====="
+              tail -n 350 /tmp/playwright-v2.log || true
             fi
           fi
 
