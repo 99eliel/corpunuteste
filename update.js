@@ -2385,6 +2385,7 @@
   // =========================================================
 
   const ARQUIVO_VALORES_PROCESSOS = "valores-processos-corponu-2026.json";
+  const VERSAO_ARQUIVO_VALORES_PROCESSOS = "2026-08-22-valores-cacheaveis-272";
   const ID_PAINEL_IMPORTACAO_VALORES = "painelImportacaoTabelaValoresCorpoNu";
   const ID_BOTAO_IMPORTACAO_VALORES = "btnImportarTabelaValoresCorpoNu";
   let contextoImportacaoValores = null;
@@ -2456,9 +2457,10 @@
   async function carregarTabelaValoresPlanilha(forcar = false) {
     if (tabelaValoresPlanilhaCache && !forcar) return tabelaValoresPlanilhaCache;
 
+    const versaoArquivo = window.CORPONU_RELEASE_VERSION || VERSAO_ARQUIVO_VALORES_PROCESSOS;
     const response = await fetch(
-      `${ARQUIVO_VALORES_PROCESSOS}?v=${encodeURIComponent(APP_VERSION)}&ts=${Date.now()}`,
-      { cache: "no-store" }
+      `${ARQUIVO_VALORES_PROCESSOS}?v=${encodeURIComponent(versaoArquivo)}`,
+      forcar ? { cache: "reload" } : undefined
     );
     if (!response.ok) {
       throw new Error(`Não foi possível abrir ${ARQUIVO_VALORES_PROCESSOS} (HTTP ${response.status}).`);
