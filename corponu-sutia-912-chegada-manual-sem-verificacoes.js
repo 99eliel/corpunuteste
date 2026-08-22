@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-21-sutia-912-integral-na-origem-253";
+  const VERSION = "2026-08-21-sutia-912-fluxo-nativo-265";
   const FORM_ID = "formChegadaManualFaccao";
   const AVISO_ID = "avisoSutia912SemVerificacoes93";
   const CAMPOS_ID = "camposSutia912NaoAplicaveis93";
@@ -89,7 +89,7 @@
     if (!(campo instanceof HTMLSelectElement)) {
       campo = document.createElement("select");
       campo.id = id;
-      campo.innerHTML = '<option value="nao">Não se aplica</option>';
+      campo.innerHTML = '<option value="nao_informado">Não se aplica</option>';
       garantirContainerCampos(form).appendChild(campo);
     }
     campo.value = valor;
@@ -152,8 +152,8 @@
   }
 
   function forcarNaoAplicavel(form) {
-    garantirCampoSelect(form, "sc51mLateralSituacao", "nao");
-    garantirCampoSelect(form, "sc51mBojoSituacao", "nao");
+    garantirCampoSelect(form, "sc51mLateralSituacao", "nao_informado");
+    garantirCampoSelect(form, "sc51mBojoSituacao", "nao_informado");
     garantirCampoTexto(form, "sc51mLateralResponsavel");
     garantirCampoTexto(form, "sc51mBojoResponsavel");
     garantirCampoCheckbox(form, "sc51mFechoPronto");
