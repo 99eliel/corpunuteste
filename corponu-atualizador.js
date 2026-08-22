@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const LOCAL_RELEASE = "2026-08-21-atualizador-unico-244";
+  const LOCAL_RELEASE = "2026-08-21-modulos-pos-login-248";
   const INTERVALO_VERIFICACAO = 60 * 1000;
   const RELOAD_KEY = "corponu_web_release_recarregada";
   const MODULO_GRUPOS_FACCOES = ["corponu-faccoes-grupos-processos.js", "faccoes-grupos-processos", "Não foi possível carregar os grupos de processos das facções."];
@@ -12,6 +12,8 @@
   window.__corponuAutoUpdateIniciado = true;
 
   let verificando = false;
+  let modulosAposLoginAgendados = false;
+  let observerLogin = null;
 
   const PACOTE_SUTIA_FACCOES = [
     ["corponu-chegada-manual-sutia-pagamento-automatico.js", "chegada-manual-sutia-pagamento-automatico", "Não foi possível ativar o pagamento automático do Sutiã Completo na chegada manual."],
@@ -72,12 +74,15 @@
   });
 
   const MODULOS_CRITICOS = [
-    ["corponu-calcinha-planejamento-opcional-129.js", "calcinha-planejamento-opcional-129", "Não foi possível tornar serviço e facção opcionais nas OPs de calcinha."],
-    ["corponu-manejo-calcinha-estavel-204.js", "manejo-calcinha-estavel", "Não foi possível carregar a estabilização do Manejo Calcinha."],
     ["corponu-pagamento-antiduplicidade-isolada.js", "pagamento-antiduplicidade-isolada", "Não foi possível carregar a proteção isolada contra pagamentos duplicados."],
     ["corponu-revisao-lateral-bojo.js", "revisao-lateral-bojo", "Não foi possível carregar a área Revisão lateral e bojo."],
     ["corponu-saida-sem-confirmacao.js", "saida-sem-confirmacao-dupla", "Não foi possível carregar a proteção contra saída duplicada."],
-    ["corponu-faccoes-exclusao-pagamento-vinculado.js", "faccoes-exclusao-pagamento-vinculado", "Não foi possível vincular a exclusão da facção ao pagamento pendente."],
+    ["corponu-faccoes-exclusao-pagamento-vinculado.js", "faccoes-exclusao-pagamento-vinculado", "Não foi possível vincular a exclusão da facção ao pagamento pendente."]
+  ];
+
+  const MODULOS_APOS_LOGIN = [
+    ["corponu-calcinha-planejamento-opcional-129.js", "calcinha-planejamento-opcional-129", "Não foi possível tornar serviço e facção opcionais nas OPs de calcinha."],
+    ["corponu-manejo-calcinha-estavel-204.js", "manejo-calcinha-estavel", "Não foi possível carregar a estabilização do Manejo Calcinha."],
     ["corponu-manejo-calcinha-fase-definitivo-216.js", "manejo-calcinha-fase-lista-real-219", "Não foi possível carregar o seletor estável da Fase do Manejo Calcinha."]
   ];
 
@@ -115,11 +120,38 @@
     carregarGrupo(modulos);
   }
 
+  function appAutenticadoVisivel() {
+    const shell = document.getElementById("appShell");
+    if (!shell) return false;
+    if (shell.hidden || shell.classList.contains("hidden")) return false;
+    return getComputedStyle(shell).display !== "none";
+  }
+
+  function carregarModulosAposLogin() {
+    if (modulosAposLoginAgendados || !appAutenticadoVisivel()) return;
+    modulosAposLoginAgendados = true;
+    observerLogin?.disconnect();
+    observerLogin = null;
+
+    const executar = () => carregarGrupo(MODULOS_APOS_LOGIN);
+    if ("requestIdleCallback" in window) window.requestIdleCallback(executar, { timeout: 1000 });
+    else window.setTimeout(executar, 150);
+  }
+
+  function instalarCarregamentoAposLogin() {
+    const shell = document.getElementById("appShell");
+    if (!shell) return;
+    carregarModulosAposLogin();
+    if (modulosAposLoginAgendados) return;
+
+    observerLogin?.disconnect();
+    observerLogin = new MutationObserver(carregarModulosAposLogin);
+    observerLogin.observe(shell, { attributes: true, attributeFilter: ["class", "hidden", "style"] });
+  }
+
   function garantirGruposParaManejo() {
     const [arquivo, marcador, erro] = MODULO_GRUPOS_FACCOES;
-    const aplicar = () => window.setTimeout(() => {
-      window.CorpoNuFaccoesGrupos?.filtrarManejo?.();
-    }, 0);
+    const aplicar = () => window.setTimeout(() => window.CorpoNuFaccoesGrupos?.filtrarManejo?.(), 0);
 
     if (window.CorpoNuFaccoesGrupos?.filtrarManejo) {
       aplicar();
@@ -209,8 +241,8 @@
   }
 
   async function iniciar() {
-    reservarModoCalcinhaOpcional();
     removerAvisosAntigos();
+    instalarCarregamentoAposLogin();
     await removerPwaAntigo();
     await verificarRelease();
     window.setInterval(verificarRelease, INTERVALO_VERIFICACAO);
@@ -219,7 +251,6 @@
     window.addEventListener("online", verificarRelease);
   }
 
-  reservarModoCalcinhaOpcional();
   instalarCarregamentoSobDemanda();
   carregarModulos();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true });
