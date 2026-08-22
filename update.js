@@ -2863,6 +2863,7 @@
   let painelMovUsuarioAberto = false;
   let carregandoMovUsuario = false;
   let movimentoEmEdicaoUsuario = null;
+  let compatibilidadeMovUsuarioConferidaUid = "";
 
   function escapeHtmlMovUsuario(valor) {
     return String(valor ?? "")
@@ -3236,11 +3237,16 @@
     try {
       const uid = contextoMovUsuario.user.uid;
       await carregarPagamentosMovUsuario(uid);
-      const [porChegada, porAtualizacao, porCriacao] = await Promise.all([
-        consultarPorCampoMovUsuario("chegadaRegistradaPor", uid),
-        consultarPorCampoMovUsuario("atualizadoPor", uid),
-        consultarPorCampoMovUsuario("criadoPor", uid)
-      ]);
+      const precisaCompatibilidade = compatibilidadeMovUsuarioConferidaUid !== uid;
+      const porChegada = await consultarPorCampoMovUsuario("chegadaRegistradaPor", uid);
+      let porAtualizacao = null;
+      let porCriacao = null;
+      if (precisaCompatibilidade) {
+        [porAtualizacao, porCriacao] = await Promise.all([
+          consultarPorCampoMovUsuario("atualizadoPor", uid),
+          consultarPorCampoMovUsuario("criadoPor", uid)
+        ]);
+      }
       const mapa = new Map();
       [porChegada, porAtualizacao, porCriacao].filter(Boolean).forEach(snapshot => {
         snapshot.docs.forEach(item => mapa.set(item.id, { id: item.id, ...item.data() }));
@@ -3265,6 +3271,7 @@
           return dataB || timestampMovUsuario(b.atualizadoEm || b.criadoEm) - timestampMovUsuario(a.atualizadoEm || a.criadoEm);
         });
       await marcarProprietarioChegadaLegada(movimentosRegistradosUsuario, uid);
+      if (precisaCompatibilidade) compatibilidadeMovUsuarioConferidaUid = uid;
       renderMovimentacoesUsuario();
     } catch (error) {
       console.error("Erro ao carregar movimentações registradas pelo usuário.", error);
