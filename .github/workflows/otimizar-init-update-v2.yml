@@ -1,0 +1,51 @@
+name: Patch unico - init update.js V2
+
+on:
+  push:
+    branches:
+      - perf/otimizacao-global-v2
+    paths:
+      - .github/workflows/otimizar-init-update-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Aplicar trava de inicializacao unica
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('update.js')
+          text = path.read_text(encoding='utf-8')
+          old = '''  function iniciarRecursosDaVersao() {\n    iniciarRestantesFaccoesComplementares();'''
+          new = '''  let recursosDaVersaoIniciados = false;\n\n  function iniciarRecursosDaVersao() {\n    if (recursosDaVersaoIniciados) return;\n    recursosDaVersaoIniciados = true;\n\n    iniciarRestantesFaccoesComplementares();'''
+
+          if 'let recursosDaVersaoIniciados = false;' in text:
+              print('Patch ja aplicado; nada a fazer.')
+              raise SystemExit(0)
+          if text.count(old) != 1:
+              raise SystemExit(f'Trecho esperado apareceu {text.count(old)} vez(es); abortando sem alterar.')
+
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+      - name: Commitar somente se houve mudanca
+        shell: bash
+        run: |
+          if git diff --quiet -- update.js; then
+            echo "Nenhuma mudança necessária."
+            exit 0
+          fi
+          git config user.name "99eliel"
+          git config user.email "131190282+99eliel@users.noreply.github.com"
+          git add update.js
+          git commit -m "perf: iniciar recursos do update apenas uma vez"
+          git push origin HEAD:${GITHUB_REF_NAME}
