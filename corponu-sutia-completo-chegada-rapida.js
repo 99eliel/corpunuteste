@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-11-chegada-sutia-rapida-180";
+  const VERSION = "2026-08-21-chegada-sutia-eventos-262";
   const FIREBASE_VERSION = "10.12.5";
   const PROCESSO_COMPLETO = "SUTIÃ COMPLETO";
   const PROCESSO_LATERAL = "LATERAL";
@@ -18,7 +18,6 @@
   let configCacheEm = 0;
   let precosCache = null;
   let precosCacheEm = 0;
-  let observer = null;
   const processando = new Set();
 
   const texto = valor => String(valor ?? "").trim();
@@ -406,32 +405,6 @@
       if (resumo) return resumo;
     }
     return calcularFallback(referencia, dados, especial);
-  }
-
-  function suprimirPosProcessamentoLegado(tipo) {
-    const original = window.setTimeout;
-    let restaurado = false;
-    const alvo = tipo === "manual" ? "processarDepoisChegadaManual" : "processarDepoisChegadaPadrao";
-
-    const restaurar = () => {
-      if (restaurado) return;
-      restaurado = true;
-      if (window.setTimeout === interceptador) window.setTimeout = original;
-    };
-
-    function interceptador(callback, atraso, ...args) {
-      const fonte = typeof callback === "function" ? Function.prototype.toString.call(callback) : "";
-      if (Number(atraso || 0) === 0 && fonte.includes(alvo)) {
-        restaurar();
-        return 0;
-      }
-      const retorno = original.call(window, callback, atraso, ...args);
-      restaurar();
-      return retorno;
-    }
-
-    window.setTimeout = interceptador;
-    original.call(window, restaurar, 80);
   }
 
   function bloquearForm(form, bloqueado) {
@@ -890,20 +863,13 @@
     }
   }
 
-  function instalarMarcadorReenvioSubmit() {
-    if (window.__CORPONU_REQUEST_SUBMIT_MARCADO_107__) return;
-    const original = HTMLFormElement.prototype.requestSubmit;
-    if (typeof original !== "function") return;
-    window.__CORPONU_REQUEST_SUBMIT_MARCADO_107__ = true;
-    HTMLFormElement.prototype.requestSubmit = function(submitter) {
-      if ([FORM_PADRAO, FORM_MANUAL].includes(this.id)) {
-        const painelId = this.id === FORM_MANUAL
-          ? "sutCompletoComponentesChegadaManual"
-          : "sutCompletoComponentesChegada";
-        if (document.getElementById(painelId)) this.dataset.sc107ReenvioSubmit = "1";
-      }
-      return original.call(this, submitter);
-    };
+  function marcarReenvioNoCapture(event) {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || ![FORM_PADRAO, FORM_MANUAL].includes(form.id)) return;
+    const painelId = form.id === FORM_MANUAL
+      ? "sutCompletoComponentesChegadaManual"
+      : "sutCompletoComponentesChegada";
+    if (document.getElementById(painelId)) form.dataset.sc107ReenvioSubmit = "1";
   }
 
   function aoSubmit(event) {
@@ -919,9 +885,9 @@
     if (form.dataset.sc107ReenvioSubmit !== "1") return;
     delete form.dataset.sc107ReenvioSubmit;
 
+    form.dataset.corponuSutiaRapidoTratou = "1";
     event.preventDefault();
     event.stopImmediatePropagation();
-    suprimirPosProcessamentoLegado(manual ? "manual" : "padrao");
 
     if (manual) void salvarManual(form);
     else void salvarPadrao(form);
@@ -933,33 +899,31 @@
     form.addEventListener("submit", aoSubmit, true);
   }
 
-  function instalar() {
-    injetarEstilos();
-    instalarMarcadorReenvioSubmit();
-    instalarForm(document.getElementById(FORM_PADRAO));
-    instalarForm(document.getElementById(FORM_MANUAL));
-    aprimorarPaineis();
-
-    observer = new MutationObserver(() => {
+  function observarModal(id) {
+    const modal = document.getElementById(id);
+    if (!(modal instanceof HTMLElement) || modal.dataset.sc107Observado === "1") return;
+    modal.dataset.sc107Observado = "1";
+    const observer = new MutationObserver(() => {
       instalarForm(document.getElementById(FORM_PADRAO));
       instalarForm(document.getElementById(FORM_MANUAL));
       aprimorarPaineis();
     });
-    observer.observe(document.documentElement, {
+    observer.observe(modal, {
       childList: true,
       subtree: true,
       attributes: true,
       attributeFilter: ["class", "data-sutia912-rapido"]
     });
+  }
 
-    let tentativas = 0;
-    const intervalo = window.setInterval(() => {
-      tentativas += 1;
-      aprimorarPaineis();
-      ajustarEspecial(document.getElementById(FORM_PADRAO), "sc51");
-      ajustarEspecial(document.getElementById(FORM_MANUAL), "sc51m");
-      if (tentativas >= 80) window.clearInterval(intervalo);
-    }, 250);
+  function instalar() {
+    injetarEstilos();
+    document.addEventListener("submit", marcarReenvioNoCapture, true);
+    instalarForm(document.getElementById(FORM_PADRAO));
+    instalarForm(document.getElementById(FORM_MANUAL));
+    observarModal("modalChegadaMovimentacao");
+    observarModal("modalChegadaManualFaccao");
+    aprimorarPaineis();
   }
 
   window.CorpoNuSutiaChegadaRapida = {
