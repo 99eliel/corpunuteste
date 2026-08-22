@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const LOCAL_RELEASE = "2026-08-21-modulos-pos-login-248";
+  const LOCAL_RELEASE = "2026-08-21-dual-ready-pos-login-250";
   const INTERVALO_VERIFICACAO = 60 * 1000;
   const RELOAD_KEY = "corponu_web_release_recarregada";
   const MODULO_GRUPOS_FACCOES = ["corponu-faccoes-grupos-processos.js", "faccoes-grupos-processos", "Não foi possível carregar os grupos de processos das facções."];
@@ -82,17 +82,10 @@
 
   const MODULOS_APOS_LOGIN = [
     ["corponu-calcinha-planejamento-opcional-129.js", "calcinha-planejamento-opcional-129", "Não foi possível tornar serviço e facção opcionais nas OPs de calcinha."],
+    ["corponu-dual-ready-bridge.js", "dual-ready-bridge", "Não foi possível sincronizar o carregamento do Dual Mode."],
     ["corponu-manejo-calcinha-estavel-204.js", "manejo-calcinha-estavel", "Não foi possível carregar a estabilização do Manejo Calcinha."],
     ["corponu-manejo-calcinha-fase-definitivo-216.js", "manejo-calcinha-fase-lista-real-219", "Não foi possível carregar o seletor estável da Fase do Manejo Calcinha."]
   ];
-
-  function reservarModoCalcinhaOpcional() {
-    if (document.querySelector('script[data-corponu-dual-mode="1"]')) return;
-    const marcador = document.createElement("script");
-    marcador.dataset.corponuDualMode = "1";
-    marcador.dataset.corponuDualOpcionalGuard = LOCAL_RELEASE;
-    document.head.appendChild(marcador);
-  }
 
   function carregarScript(nomeArquivo, marcador, mensagemErro) {
     const existente = [...document.scripts].find(script => String(script.src || "").includes(nomeArquivo));
@@ -122,8 +115,7 @@
 
   function appAutenticadoVisivel() {
     const shell = document.getElementById("appShell");
-    if (!shell) return false;
-    if (shell.hidden || shell.classList.contains("hidden")) return false;
+    if (!shell || shell.hidden || shell.classList.contains("hidden")) return false;
     return getComputedStyle(shell).display !== "none";
   }
 
