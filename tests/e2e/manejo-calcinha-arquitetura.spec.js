@@ -1,6 +1,19 @@
 const { test, expect } = require('@playwright/test');
 
 test.describe('Manejo Calcinha e REF 411 - arquitetura sem polling', () => {
+  test('loader da Calcinha usa cache versionado e não carrega runtime morto', async ({ request }) => {
+    const resposta = await request.get('/corponu-calcinha-planejamento-opcional-129.js');
+    expect(resposta.ok()).toBeTruthy();
+    const codigo = await resposta.text();
+
+    expect(codigo).toContain('2026-08-21-calcinha-loader-cacheavel-258');
+    expect(codigo).toContain('SOURCE_URL = "./corponu-dual-mode.js"');
+    expect(codigo).toContain('cache: "default"');
+    expect(codigo).not.toContain('corponu-auto-update-runtime-203.js');
+    expect(codigo).not.toContain('cache: "no-store"');
+    expect(codigo).not.toContain('&t=${Date.now()}');
+  });
+
   test('Manejo Calcinha reage a eventos e Dual Ready', async ({ request }) => {
     const resposta = await request.get('/corponu-manejo-calcinha-estavel-204.js');
     expect(resposta.ok()).toBeTruthy();
