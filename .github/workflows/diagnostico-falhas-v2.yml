@@ -1,0 +1,84 @@
+name: Diagnostico falhas V2
+
+on:
+  push:
+    branches:
+      - perf/otimizacao-global-v2
+    paths:
+      - .github/workflows/diagnostico-falhas-v2.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: diagnostico-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diagnosticar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Registrar inicio do diagnostico
+        shell: bash
+        run: |
+          printf 'RESULTADO=RUNNING\nCOMMIT_TESTADO=%s\nWORKFLOW_RUN=%s\n' \
+            "$GITHUB_SHA" "$GITHUB_RUN_ID" > DIAGNOSTICO_V2_RESULTADO.txt
+          git config user.name "99eliel"
+          git config user.email "131190282+99eliel@users.noreply.github.com"
+          git add DIAGNOSTICO_V2_RESULTADO.txt
+          git commit -m "test: registrar inicio do diagnostico v2" || true
+          git push origin HEAD:${GITHUB_REF_NAME}
+
+      - name: Preparar homologacao e Playwright
+        shell: bash
+        run: |
+          python3 scripts/aplicar-firebase-homologacao.py
+          npm install
+          npx playwright install --with-deps chromium
+
+      - name: Rodar somente cenarios que falharam
+        id: diagnostico
+        shell: bash
+        env:
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: |
+          set +e
+          npx playwright test \
+            tests/e2e/carregamento-modulos.spec.js \
+            tests/e2e/faccoes-consolidado.spec.js \
+            tests/e2e/login.spec.js \
+            tests/e2e/pwa-limpeza-unica.spec.js \
+            --project=chromium-desktop \
+            --grep "carrega os módulos de Pagamentos|Facções carrega grupos|abre Facções sob demanda|faz login e navega|update legado não repete" \
+            --reporter=list
+          STATUS=$?
+          if [ "$STATUS" -eq 0 ]; then
+            echo "resultado=PASS" >> "$GITHUB_OUTPUT"
+          else
+            echo "resultado=FAIL" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
+
+      - name: Gravar resultado do diagnostico
+        shell: bash
+        env:
+          RESULTADO: ${{ steps.diagnostico.outputs.resultado }}
+        run: |
+          printf 'RESULTADO=%s\nCOMMIT_TESTADO=%s\nWORKFLOW_RUN=%s\n' \
+            "$RESULTADO" "$GITHUB_SHA" "$GITHUB_RUN_ID" > DIAGNOSTICO_V2_RESULTADO.txt
+          git config user.name "99eliel"
+          git config user.email "131190282+99eliel@users.noreply.github.com"
+          git add DIAGNOSTICO_V2_RESULTADO.txt
+          git commit -m "test: registrar resultado do diagnostico v2" || exit 0
+          git push origin HEAD:${GITHUB_REF_NAME}
