@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-07-31-sutia-completo-compatibilidade-52";
+  const VERSION = "2026-08-21-sutia-compatibilidade-sob-demanda-257";
   const FB = "10.12.5";
   const CONFIG_ANTIGA = "revisao-componentes-confeccao";
 
@@ -11,6 +11,7 @@
   let firebasePromise = null;
   let migrando = false;
   let concluido = false;
+  let tentativaRealizada = false;
 
   const texto = valor => String(valor ?? "").trim();
   const normalizar = valor => texto(valor)
@@ -57,31 +58,27 @@
     if (!usuario) return false;
     const snap = await ctx.fs.getDoc(ctx.fs.doc(ctx.db, "usuarios", usuario.uid));
     const perfil = snap.exists() ? snap.data() : {};
-    return ["ADMIN", "ADMINISTRADOR"].includes(
-      normalizar(perfil.tipo || perfil.perfil || perfil.role)
-    );
+    return ["ADMIN", "ADMINISTRADOR"].includes(normalizar(perfil.tipo || perfil.perfil || perfil.role));
   }
 
   async function atualizarConfigInternaDaRevisao() {
-    for (let tentativa = 0; tentativa < 12; tentativa += 1) {
-      const carregar = window.CorpoNuRevisaoComponentes?.carregarConfig;
-      if (typeof carregar === "function") {
-        await Promise.resolve(carregar()).catch(() => {});
-        return;
-      }
-      await new Promise(resolve => window.setTimeout(resolve, 300));
-    }
+    const carregar = window.CorpoNuRevisaoComponentes?.carregarConfig;
+    if (typeof carregar === "function") await Promise.resolve(carregar()).catch(() => {});
   }
 
-  async function desativarFonteAntiga() {
+  async function desativarFonteAntiga(forcar = false) {
     esconderConfiguracaoAntiga();
-    if (migrando || concluido) return;
+    if (migrando || concluido || (tentativaRealizada && !forcar)) return;
+    tentativaRealizada = true;
     migrando = true;
 
     try {
       const ctx = await firebase();
       const usuario = ctx.auth.currentUser;
-      if (!usuario) return;
+      if (!usuario) {
+        tentativaRealizada = false;
+        return;
+      }
 
       const ref = ctx.fs.doc(ctx.db, "configuracoes", CONFIG_ANTIGA);
       const snap = await ctx.fs.getDoc(ref);
@@ -115,6 +112,7 @@
       concluido = true;
       await atualizarConfigInternaDaRevisao();
     } catch (error) {
+      tentativaRealizada = false;
       console.warn("A fonte antiga de descontos ainda não pôde ser desativada.", error);
     } finally {
       migrando = false;
@@ -123,33 +121,24 @@
 
   function iniciar() {
     esconderConfiguracaoAntiga();
-
-    let tentativas = 0;
-    const intervalo = window.setInterval(() => {
-      tentativas += 1;
-      esconderConfiguracaoAntiga();
-      desativarFonteAntiga().catch(() => {});
-      if (concluido || tentativas >= 30) window.clearInterval(intervalo);
-    }, 500);
+    void desativarFonteAntiga(false);
 
     document.addEventListener("click", event => {
       const alvo = event.target instanceof Element ? event.target : null;
       if (!alvo?.closest('[data-page="revisao-componentes"],[data-page="processos"]')) return;
-      [0, 250, 700].forEach(atraso => window.setTimeout(() => {
+      queueMicrotask(() => {
         esconderConfiguracaoAntiga();
-        desativarFonteAntiga().catch(() => {});
-      }, atraso));
+        void desativarFonteAntiga(false);
+      });
     }, true);
-
-    window.addEventListener("pageshow", () => {
-      esconderConfiguracaoAntiga();
-      desativarFonteAntiga().catch(() => {});
-    });
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", iniciar, { once: true });
-  } else {
-    iniciar();
-  }
+  window.CorpoNuSutiaCompatibilidade = {
+    versao: VERSION,
+    atualizar: () => desativarFonteAntiga(true),
+    concluida: () => concluido
+  };
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true });
+  else iniciar();
 })();
