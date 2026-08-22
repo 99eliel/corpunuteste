@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const LOCAL_RELEASE = "2026-08-21-sutia-912-fluxo-nativo-266";
+  const LOCAL_RELEASE = "2026-08-21-sutia-gravador-unico-268";
   const INTERVALO_VERIFICACAO = 60 * 1000;
   const RELOAD_KEY = "corponu_web_release_recarregada";
   const MODULO_GRUPOS_FACCOES = ["corponu-faccoes-grupos-processos.js", "faccoes-grupos-processos", "Não foi possível carregar os grupos de processos das facções."];
@@ -16,7 +16,6 @@
   let observerLogin = null;
 
   const PACOTE_SUTIA_FACCOES = [
-    ["corponu-chegada-manual-sutia-pagamento-automatico.js", "chegada-manual-sutia-pagamento-automatico", "Não foi possível ativar o pagamento automático do Sutiã Completo na chegada manual."],
     ["corponu-chegada-manual-trava-movimentacao.js", "chegada-manual-trava-movimentacao", "Não foi possível carregar a trava de movimentação da chegada manual."],
     ["corponu-componentes-consolidados-hotfix.js", "componentes-nao-informados", "Não foi possível proteger componentes ainda não informados."],
     ["corponu-reenvio-sutia-componentes.js", "reenvio-sutia-componentes", "Não foi possível conferir lateral e bojo no reenvio para Sutiã Completo."],
