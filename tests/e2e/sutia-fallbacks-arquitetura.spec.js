@@ -25,4 +25,18 @@ test.describe('Sutiã Completo - fallbacks legados', () => {
     expect(codigo).not.toContain('getDocs');
     expect(codigo).not.toContain('setTimeout');
   });
+
+  test('migração da fonte antiga de descontos roda sob demanda', async ({ request }) => {
+    const resposta = await request.get('/corponu-sutia-completo-compatibilidade.js');
+    expect(resposta.ok()).toBeTruthy();
+    const codigo = await resposta.text();
+
+    expect(codigo).toContain('2026-08-21-sutia-compatibilidade-sob-demanda-257');
+    expect(codigo).toContain('substituidaPorCalculoSutiaCompleto');
+    expect(codigo).toContain('desativarFonteAntiga');
+    expect(codigo).toContain('tentativaRealizada');
+    expect(codigo).not.toContain('setInterval');
+    expect(codigo).not.toContain('addEventListener("pageshow"');
+    expect(codigo).not.toContain('[0, 250, 700]');
+  });
 });
