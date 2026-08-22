@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const LOADER_VERSION = "2026-08-21-sutia-calculo-trava-explicita-261";
+  const LOADER_VERSION = "2026-08-21-sutia-submit-final-explicito-268";
   const BASE_FILE = "corponu-sutia-completo-calculo-base-174.js";
   const GUARD = "__CORPONU_SUTIA_COMPLETO_ADMIN_LOADER_175B__";
 
@@ -245,6 +245,18 @@
 
       await salvarConsolidado(op, contexto)`,
       "prioridade das escolhas da chegada"
+    );
+
+    substituir(
+      '      form.removeEventListener("submit", aoSubmitChegadaPadrao, true);',
+      '      form.dataset.sc107ReenvioSubmit = "1";\n      form.removeEventListener("submit", aoSubmitChegadaPadrao, true);',
+      "marcador do submit final da chegada padrão"
+    );
+
+    substituir(
+      '        form.removeEventListener("submit", aoSubmitChegadaManual, true);',
+      '        form.dataset.sc107ReenvioSubmit = "1";\n        form.removeEventListener("submit", aoSubmitChegadaManual, true);',
+      "marcador do submit final da chegada manual"
     );
 
     substituir(
