@@ -67,7 +67,7 @@ test.describe('CorpoNu - carregamento sob demanda dos módulos', () => {
     expect(resposta.ok()).toBeTruthy();
     const codigo = await resposta.text();
 
-    expect(codigo).toContain('2026-08-21-dual-ready-pos-login-250');
+    expect(codigo).toContain('2026-08-22-otimizacao-v2-273');
     expect(codigo).toContain('MODULOS_APOS_LOGIN');
     expect(codigo).toContain('instalarCarregamentoAposLogin');
     expect(codigo).toContain('garantirGruposParaManejo');
@@ -118,13 +118,14 @@ test.describe('CorpoNu - carregamento sob demanda dos módulos', () => {
     await expect(page.locator(scriptCom('corponu-faccoes-tres-abas-saida.js'))).toHaveCount(1);
     await expect(page.locator(scriptCom('corponu-sutia-completo-calculo.js'))).toHaveCount(1);
     await expect(page.locator(scriptCom('corponu-sutia-completo-chegada-rapida.js'))).toHaveCount(1);
-    await expect(page.locator(scriptCom('corponu-chegada-manual-sutia-pagamento-automatico.js'))).toHaveCount(1);
+    await expect(page.locator(scriptCom('corponu-chegada-manual-sutia-pagamento-automatico.js'))).toHaveCount(0);
     await expect(page.locator(scriptCom('corponu-sutia-completo-ponto-luz-411-206.js'))).toHaveCount(1);
 
     await dispararNavegacao(page, 'faccoes');
     await expect(page.locator(scriptCom('corponu-faccoes-grupos-processos.js'))).toHaveCount(1);
     await expect(page.locator(scriptCom('corponu-sutia-completo-calculo.js'))).toHaveCount(1);
     await expect(page.locator(scriptCom('corponu-faccoes-corte-definitivo.js'))).toHaveCount(1);
+    await expect(page.locator(scriptCom('corponu-sutia-completo-chegada-rapida.js'))).toHaveCount(1);
   });
 
   test('Processos carrega configuração de Sutiã e sua melhoria visual ao abrir', async ({ page }) => {
