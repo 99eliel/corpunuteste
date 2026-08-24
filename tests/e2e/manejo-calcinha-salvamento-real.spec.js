@@ -1,8 +1,9 @@
 const { test, expect } = require('@playwright/test');
 
-const TEST_OP = process.env.TEST_OP_CALCINHA || '12345';
+const TEST_OP = process.env.TEST_OP_CALCINHA || '12346';
 const TEST_EMAIL = process.env.TEST_EMAIL;
 const TEST_PASSWORD = process.env.TEST_PASSWORD;
+const FIREBASE_VERSION = '10.12.5';
 
 async function entrar(page) {
   await page.goto('/');
@@ -30,6 +31,97 @@ async function abrirManejoCalcinha(page) {
   await expect(page.locator('#listaManejoInline')).toBeVisible({ timeout: 20_000 });
 }
 
+async function prepararFixtureCalcinha(page) {
+  const resultado = await page.evaluate(async ({ op, firebaseVersion }) => {
+    const [appModule, authModule, firestore] = await Promise.all([
+      import(`https://www.gstatic.com/firebasejs/${firebaseVersion}/firebase-app.js`),
+      import(`https://www.gstatic.com/firebasejs/${firebaseVersion}/firebase-auth.js`),
+      import(`https://www.gstatic.com/firebasejs/${firebaseVersion}/firebase-firestore.js`)
+    ]);
+
+    const app = appModule.getApps()[0] || appModule.getApp();
+    const auth = authModule.getAuth(app);
+    const db = firestore.getFirestore(app);
+    const user = auth.currentUser;
+    if (!user) throw new Error('Usuário de teste não autenticado.');
+
+    const configRef = firestore.doc(db, 'configuracoes', 'fasesManejoCalcinha');
+    const configSnap = await firestore.getDoc(configRef);
+    const sugestoes = (configSnap.exists() ? configSnap.data()?.sugestoes : []) || [];
+    const fases = [...new Set(sugestoes.map(item => String(item || '').trim()).filter(Boolean))];
+    if (fases.length < 2) {
+      throw new Error(`O ambiente de teste precisa ter pelo menos duas Fases oficiais de Calcinha. Encontradas: ${fases.length}.`);
+    }
+
+    const referencia = 'E2E-CALCINHA';
+    const produtoId = 'calcinha-e2e-calcinha';
+    const ordemId = `calcinha-e2e-${String(op).replace(/[^a-z0-9_-]+/gi, '-').toLowerCase()}`;
+
+    await firestore.setDoc(firestore.doc(db, 'produtos', produtoId), {
+      referencia,
+      nome: 'Calcinha E2E',
+      tipoPeca: 'calcinha',
+      tipoPecaPadrao: 'calcinha',
+      tipoPecaLabel: 'Calcinha',
+      possuiAlca: false,
+      possuiBojo: false,
+      possuiRenda: false,
+      atualizadoPor: user.uid,
+      atualizadoEm: firestore.serverTimestamp()
+    }, { merge: true });
+
+    const ordemRef = firestore.doc(db, 'ordensProducao', ordemId);
+    const ordemSnap = await firestore.getDoc(ordemRef);
+    const atual = ordemSnap.exists() ? ordemSnap.data() : {};
+    const faseAtual = String(atual?.manejosSetores?.calcinha?.fase || '').trim();
+    const faseInicial = fases.includes(faseAtual) ? faseAtual : fases[0];
+
+    await firestore.setDoc(ordemRef, {
+      numeroOP: String(op),
+      referencia,
+      produtoNome: 'Calcinha E2E',
+      cor: 'TESTE AUTOMATIZADO',
+      quantidade: 10,
+      necessidade: 'TESTE AUTOMATIZADO',
+      tipoPeca: 'calcinha',
+      tipoPecaPadrao: 'calcinha',
+      tipoPecaLabel: 'Calcinha',
+      linhaCalcinha: 'cotton_line',
+      processoPlanejado: 'CALCINHA COMPLETA',
+      faccaoPlanejada: '',
+      planejamentoCalcinhaPendente: true,
+      possuiAlca: false,
+      possuiBojo: false,
+      possuiRenda: false,
+      status: 'aberta',
+      manejosSetores: {
+        calcinha: {
+          setor: 'calcinha',
+          setorLabel: 'Calcinha',
+          linha: 'cotton_line',
+          fase: faseInicial,
+          necessidade: 'TESTE AUTOMATIZADO',
+          status: 'organizada',
+          atualizadoPor: user.uid,
+          atualizadoEm: firestore.serverTimestamp()
+        }
+      },
+      manejoStatusSetores: { calcinha: 'organizada' },
+      atualizadoPor: user.uid,
+      atualizadoEm: firestore.serverTimestamp()
+    }, { merge: true });
+
+    if (window.corponuDualMode?.refresh) {
+      await window.corponuDualMode.refresh();
+    }
+
+    return { ordemId, fases, faseInicial };
+  }, { op: TEST_OP, firebaseVersion: FIREBASE_VERSION });
+
+  await page.waitForTimeout(500);
+  return resultado;
+}
+
 function linhaDaOp(page) {
   return page
     .locator('#listaManejoInline tr[data-manejo-row="1"]')
@@ -37,34 +129,22 @@ function linhaDaOp(page) {
     .first();
 }
 
-async function tentarFiltrarOp(page) {
-  const row = linhaDaOp(page);
-  if (await row.isVisible().catch(() => false)) return;
+async function filtrarOp(page) {
+  const campo = page.locator('#manejo input[placeholder*="Buscar OP" i], #manejo input[placeholder*="OP, ref" i]').first();
+  if (await campo.isVisible().catch(() => false)) {
+    await campo.fill(TEST_OP);
+  }
 
-  const candidatos = page.locator([
-    '#manejo input[id*="op" i]',
-    '#manejo input[placeholder*="OP" i]',
-    '#manejo input[aria-label*="OP" i]'
-  ].join(','));
-
-  const total = await candidatos.count();
-  for (let i = 0; i < total; i += 1) {
-    const campo = candidatos.nth(i);
-    if (!(await campo.isVisible().catch(() => false))) continue;
-    const tipo = await campo.getAttribute('type');
-    if (tipo === 'number' || tipo === 'search' || tipo === 'text' || !tipo) {
-      await campo.fill(TEST_OP).catch(() => {});
-      await campo.dispatchEvent('input').catch(() => {});
-      await page.waitForTimeout(300);
-      if (await row.isVisible().catch(() => false)) return;
-    }
+  const filtroTabela = page.getByRole('textbox', { name: 'Digite a OP' });
+  if (await filtroTabela.isVisible().catch(() => false)) {
+    await filtroTabela.fill(TEST_OP);
   }
 }
 
 async function aguardarLinha(page) {
-  await tentarFiltrarOp(page);
+  await filtrarOp(page);
   const row = linhaDaOp(page);
-  await expect(row, `A OP ${TEST_OP} de Calcinha precisa existir no ambiente corpunuteste`).toBeVisible({ timeout: 25_000 });
+  await expect(row, `A fixture de Calcinha OP ${TEST_OP} deveria aparecer no Manejo`).toBeVisible({ timeout: 20_000 });
   return row;
 }
 
@@ -88,7 +168,7 @@ async function aguardarFimSalvamento(page) {
 }
 
 test.describe('Manejo Calcinha - salvamento real da Fase', () => {
-  test('OP 12345 salva, persiste e não reconstrói a linha ao confirmar', async ({ page, context }, testInfo) => {
+  test('salva, persiste e não reconstrói a linha ao confirmar', async ({ page, context }, testInfo) => {
     expect(TEST_EMAIL, 'Crie o secret TEST_EMAIL no repositório corpunuteste').toBeTruthy();
     expect(TEST_PASSWORD, 'Crie o secret TEST_PASSWORD no repositório corpunuteste').toBeTruthy();
 
@@ -103,6 +183,7 @@ test.describe('Manejo Calcinha - salvamento real da Fase', () => {
 
     await entrar(page);
     await abrirManejoCalcinha(page);
+    const fixture = await prepararFixtureCalcinha(page);
 
     let row = await aguardarLinha(page);
     let select = row.locator('.corponu-fase-calcinha-select-223');
@@ -110,14 +191,8 @@ test.describe('Manejo Calcinha - salvamento real da Fase', () => {
     await expect(select).toBeEnabled({ timeout: 20_000 });
 
     const faseOriginal = await select.inputValue();
-    const opcoes = await select.locator('option:not([disabled])').evaluateAll(options =>
-      options
-        .map(option => ({ value: String(option.value || '').trim(), text: String(option.textContent || '').trim() }))
-        .filter(option => option.value)
-    );
-
-    const destino = opcoes.find(option => option.value !== faseOriginal)?.value;
-    expect(destino, 'Cadastre pelo menos duas Fases oficiais para a Calcinha no ambiente de teste').toBeTruthy();
+    const destino = fixture.fases.find(fase => fase !== faseOriginal);
+    expect(destino, 'A fixture precisa ter uma segunda Fase oficial disponível').toBeTruthy();
 
     await page.evaluate(op => {
       const tbody = document.getElementById('listaManejoInline');
@@ -172,7 +247,7 @@ test.describe('Manejo Calcinha - salvamento real da Fase', () => {
     await aguardarFimSalvamento(page);
     const duracaoMs = Date.now() - inicio;
 
-    // Captura também qualquer reconstrução atrasada causada pelo snapshot do Firestore.
+    // Observa também reconstruções atrasadas provocadas pelo snapshot do Firestore.
     await page.waitForTimeout(1_500);
 
     const metricas = await page.evaluate(() => {
@@ -182,6 +257,7 @@ test.describe('Manejo Calcinha - salvamento real da Fase', () => {
     metricas.duracaoSalvamentoMs = duracaoMs;
     metricas.faseOriginal = faseOriginal;
     metricas.faseDestino = destino;
+    metricas.ordemId = fixture.ordemId;
     metricas.errosConsole = erros;
 
     console.log(`METRICAS_FASE_CALCINHA=${JSON.stringify(metricas)}`);
@@ -198,7 +274,7 @@ test.describe('Manejo Calcinha - salvamento real da Fase', () => {
     select = row.locator('.corponu-fase-calcinha-select-223');
     await expect(select).toHaveValue(destino, { timeout: 10_000 });
 
-    // Confirma persistência real: recarrega o navegador e lê novamente do Firestore.
+    // Persistência real: recarrega o navegador e lê novamente do Firestore.
     await page.reload();
     await expect(page.locator('#appShell')).toBeVisible({ timeout: 30_000 });
     await abrirManejoCalcinha(page);
@@ -207,11 +283,8 @@ test.describe('Manejo Calcinha - salvamento real da Fase', () => {
     await expect(select).toBeVisible({ timeout: 20_000 });
     await expect(select).toHaveValue(destino, { timeout: 20_000 });
 
-    // O objetivo visual é não remover e recriar a linha da OP durante o ACK do Firestore.
     expect(metricas.linhasOpRemovidas, `A linha da OP ${TEST_OP} foi removida durante o salvamento: ${JSON.stringify(metricas)}`).toBe(0);
     expect(metricas.linhasOpAdicionadas, `A linha da OP ${TEST_OP} foi recriada durante o salvamento: ${JSON.stringify(metricas)}`).toBe(0);
-
-    // Não torna milissegundos de rede um falso positivo, mas acusa um salvamento realmente travado.
     expect(duracaoMs, `Salvar somente a Fase levou ${duracaoMs}ms`).toBeLessThan(8_000);
   });
 });
