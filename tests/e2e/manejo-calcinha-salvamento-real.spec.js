@@ -32,7 +32,7 @@ async function abrirManejoCalcinha(page) {
 }
 
 async function prepararFixtureCalcinha(page) {
-  const resultado = await page.evaluate(async ({ op, firebaseVersion }) => {
+  return page.evaluate(async ({ op, firebaseVersion }) => {
     const [appModule, authModule, firestore] = await Promise.all([
       import(`https://www.gstatic.com/firebasejs/${firebaseVersion}/firebase-app.js`),
       import(`https://www.gstatic.com/firebasejs/${firebaseVersion}/firebase-auth.js`),
@@ -44,6 +44,11 @@ async function prepararFixtureCalcinha(page) {
     const db = firestore.getFirestore(app);
     const user = auth.currentUser;
     if (!user) throw new Error('Usuário de teste não autenticado.');
+
+    const projectId = String(app.options?.projectId || '').trim().toLowerCase();
+    if (projectId !== 'corponuteste') {
+      throw new Error(`Fixture bloqueada fora da homologação: ${JSON.stringify(app.options?.projectId || '')}.`);
+    }
 
     const configRef = firestore.doc(db, 'configuracoes', 'fasesManejoCalcinha');
     const configSnap = await firestore.getDoc(configRef);
@@ -94,6 +99,7 @@ async function prepararFixtureCalcinha(page) {
       possuiBojo: false,
       possuiRenda: false,
       status: 'aberta',
+      ocultarDoManejo: false,
       manejosSetores: {
         calcinha: {
           setor: 'calcinha',
@@ -111,15 +117,11 @@ async function prepararFixtureCalcinha(page) {
       atualizadoEm: firestore.serverTimestamp()
     }, { merge: true });
 
-    if (window.corponuDualMode?.refresh) {
-      await window.corponuDualMode.refresh();
-    }
+    const confirmacao = await firestore.getDoc(ordemRef);
+    if (!confirmacao.exists()) throw new Error('A fixture da OP não foi encontrada logo após setDoc.');
 
-    return { ordemId, fases, faseInicial };
+    return { ordemId, fases, faseInicial, projectId };
   }, { op: TEST_OP, firebaseVersion: FIREBASE_VERSION });
-
-  await page.waitForTimeout(500);
-  return resultado;
 }
 
 function linhaDaOp(page) {
@@ -144,7 +146,7 @@ async function filtrarOp(page) {
 async function aguardarLinha(page) {
   await filtrarOp(page);
   const row = linhaDaOp(page);
-  await expect(row, `A fixture de Calcinha OP ${TEST_OP} deveria aparecer no Manejo`).toBeVisible({ timeout: 20_000 });
+  await expect(row, `A fixture de Calcinha OP ${TEST_OP} deveria aparecer no Manejo`).toBeVisible({ timeout: 25_000 });
   return row;
 }
 
@@ -184,6 +186,12 @@ test.describe('Manejo Calcinha - salvamento real da Fase', () => {
     await entrar(page);
     await abrirManejoCalcinha(page);
     const fixture = await prepararFixtureCalcinha(page);
+
+    // O app.js mantém seu próprio state.ordens, separado do mapa do Dual Mode.
+    // Recarregamos para a fixture entrar pelo fluxo real de leitura/listener do app.
+    await page.reload();
+    await expect(page.locator('#appShell')).toBeVisible({ timeout: 30_000 });
+    await abrirManejoCalcinha(page);
 
     let row = await aguardarLinha(page);
     let select = row.locator('.corponu-fase-calcinha-select-223');
@@ -247,7 +255,6 @@ test.describe('Manejo Calcinha - salvamento real da Fase', () => {
     await aguardarFimSalvamento(page);
     const duracaoMs = Date.now() - inicio;
 
-    // Observa também reconstruções atrasadas provocadas pelo snapshot do Firestore.
     await page.waitForTimeout(1_500);
 
     const metricas = await page.evaluate(() => {
@@ -274,7 +281,6 @@ test.describe('Manejo Calcinha - salvamento real da Fase', () => {
     select = row.locator('.corponu-fase-calcinha-select-223');
     await expect(select).toHaveValue(destino, { timeout: 10_000 });
 
-    // Persistência real: recarrega o navegador e lê novamente do Firestore.
     await page.reload();
     await expect(page.locator('#appShell')).toBeVisible({ timeout: 30_000 });
     await abrirManejoCalcinha(page);
