@@ -1,0 +1,71 @@
+name: CorpoNu - Fase Calcinha Real
+
+on:
+  push:
+    paths:
+      - 'tests/e2e/manejo-calcinha-salvamento-real.spec.js'
+      - 'corponu-manejo-calcinha-fase-definitivo-216.js'
+      - 'corponu-manejo-calcinha-estavel-204.js'
+      - 'corponu-dual-mode.js'
+      - 'app.js'
+      - '.github/workflows/teste-fase-calcinha.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fase-calcinha-real
+  cancel-in-progress: true
+
+jobs:
+  fase-calcinha:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Blindar Firebase de homologacao
+        run: python3 scripts/aplicar-firebase-homologacao.py
+
+      - name: Garantir ambiente de teste
+        shell: bash
+        run: |
+          if grep -q "corponu-b4942" app.js login-core.js; then
+            echo "ERRO: configuracao de producao detectada."
+            exit 1
+          fi
+          grep -q 'projectId: "corponuteste"' app.js
+          grep -q 'projectId: "corponuteste"' login-core.js
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Testar Fase Calcinha OP 12345
+        env:
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_OP_CALCINHA: ${{ vars.TEST_OP_CALCINHA || '12345' }}
+        run: npx playwright test tests/e2e/manejo-calcinha-salvamento-real.spec.js --project=chromium-desktop --workers=1
+
+      - name: Salvar diagnostico
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fase-calcinha-diagnostico-${{ github.run_number }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
