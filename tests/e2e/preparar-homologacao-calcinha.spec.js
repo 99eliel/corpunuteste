@@ -30,8 +30,9 @@ test('prepara fases oficiais E2E da Calcinha somente em homologação', async ({
     const user = auth.currentUser;
     if (!user) throw new Error('Usuário E2E não autenticado.');
 
-    if (app.options?.projectId !== 'corpunuteste') {
-      throw new Error(`Teste bloqueado: projectId atual é ${app.options?.projectId || '(vazio)'}.`);
+    const projectId = String(app.options?.projectId || '').trim().toLowerCase();
+    if (projectId !== 'corponuteste') {
+      throw new Error(`Teste bloqueado: projectId atual é ${JSON.stringify(app.options?.projectId || '')}.`);
     }
 
     const ref = firestore.doc(db, 'configuracoes', 'fasesManejoCalcinha');
@@ -49,10 +50,10 @@ test('prepara fases oficiais E2E da Calcinha somente em homologação', async ({
       atualizadoEm: firestore.serverTimestamp()
     }, { merge: true });
 
-    return { projectId: app.options.projectId, fases };
+    return { projectId, fases };
   }, FIREBASE_VERSION);
 
-  expect(resultado.projectId).toBe('corpunuteste');
+  expect(resultado.projectId).toBe('corponuteste');
   expect(resultado.fases).toContain('E2E FASE A');
   expect(resultado.fases).toContain('E2E FASE B');
 });
