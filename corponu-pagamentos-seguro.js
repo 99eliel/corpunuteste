@@ -278,7 +278,7 @@
 
   function processoValorTotalManual(valor) {
     const processo = normalizarNome(valor);
-    return processo === "SUTIA MONTAGEM" || processo === "SUTIA COMPLETO";
+    return processo === "SUTIA MONTAGEM";
   }
 
   function pagamentoAguardandoValorManual(item) {
