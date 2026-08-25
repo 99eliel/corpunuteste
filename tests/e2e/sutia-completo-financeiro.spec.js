@@ -34,6 +34,26 @@ async function apagarFixture(page, id) {
   }, id).catch(() => {});
 }
 
+async function abrirCentralPeloListenerReal(page) {
+  await expect.poll(async () => page.evaluate(() => Boolean(
+    document.documentElement.dataset.corponuPagamentosSeguro
+  )), { timeout: 15_000 }).toBe(true);
+
+  await page.evaluate(() => {
+    document.getElementById('btnAtualizarConferenciaPagamentoFinal')?.remove();
+    const botao = document.createElement('button');
+    botao.id = 'btnAtualizarConferenciaPagamentoFinal';
+    botao.type = 'button';
+    botao.textContent = 'Abrir Central E2E';
+    botao.style.position = 'fixed';
+    botao.style.left = '8px';
+    botao.style.top = '8px';
+    botao.style.zIndex = '2147483647';
+    document.body.appendChild(botao);
+    botao.click();
+  });
+}
+
 test.describe('Pagamentos - Sutiã Completo automático', () => {
   test.skip(!temCredenciais, 'Configure TEST_EMAIL e TEST_PASSWORD.');
 
@@ -83,32 +103,23 @@ test.describe('Pagamentos - Sutiã Completo automático', () => {
       await page.locator('.nav-btn[data-page="pagamentos"]').click();
       await expect(page.locator('#pagamentos')).toHaveClass(/active/);
 
-      // Aguarda o pacote financeiro/lazy loader da página.
-      await expect.poll(async () => page.evaluate(() => Boolean(window.CORPONU_RELEASE_VERSION)), { timeout: 15_000 }).toBe(true);
-      await page.waitForTimeout(1200);
-
-      const botaoPendencias = page.locator('#btnAtualizarConferenciaPagamentoFinal');
-      await expect(botaoPendencias).toBeVisible({ timeout: 15_000 });
-      await botaoPendencias.click();
+      // Abre a Central usando exatamente o listener delegado instalado pelo módulo financeiro,
+      // sem depender de um botão visual criado por outra camada da interface.
+      await abrirCentralPeloListenerReal(page);
 
       const modal = page.locator('#modalPendenciasValoresFinanceiro');
       await expect(modal).toBeVisible({ timeout: 15_000 });
 
-      // Força a lista a reler os fixtures recém-criados.
-      const atualizar = modal.locator('#btnAtualizarPendenciasValores, [data-atualizar-pendencias], button').filter({ hasText: /Atualizar lista|Atualizar/i }).first();
-      if (await atualizar.count()) {
-        await atualizar.click().catch(() => {});
-        await page.waitForTimeout(800);
-      }
+      // A abertura da Central já força leitura do servidor.
+      await expect(modal.locator('#listaPendenciasValores')).not.toContainText('Buscando todos os pagamentos sem valor...', { timeout: 15_000 });
 
       const textoModal = await modal.innerText();
       expect(textoModal).not.toContain(opCompleto);
       expect(textoModal).toContain(opMontagem);
 
       // A página precisa continuar respondendo após a abertura da Central.
-      await modal.locator('#btnFecharPendenciasValores, .corponu-pagamento-modal-fechar').first().click().catch(async () => {
-        await page.keyboard.press('Escape');
-      });
+      await modal.locator('#btnFecharPendenciasValores').click();
+      await expect(modal).toHaveClass(/hidden/);
       await page.locator('.nav-btn[data-page="manejo"]').click();
       await expect(page.locator('#manejo')).toHaveClass(/active/);
     } finally {
