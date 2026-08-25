@@ -427,7 +427,11 @@
       : (dados.linha || dados.fase || dados.necessidade ? "organizada" : "pendente");
 
     salvando.add(id);
-    if (!options.silencioso) agendarRender();
+    const botaoSalvarAtual = article?.querySelector('[data-acao="salvar"]');
+    if (!options.silencioso && botaoSalvarAtual) {
+      botaoSalvarAtual.disabled = true;
+      botaoSalvarAtual.textContent = "Salvando...";
+    }
     mensagem(`Salvando OP ${op.numeroOP || ""}...`);
 
     try {
@@ -492,6 +496,13 @@
 
       drafts.delete(id);
       sincronizarLinhaOculta(id, dados);
+      if (!options.silencioso && article) {
+        const badge = article.querySelector(".cn252-status");
+        if (badge) {
+          badge.className = `cn252-status ${novoStatus}`;
+          badge.textContent = statusLabel(novoStatus);
+        }
+      }
       if (!options.silencioso) mensagem(`OP ${op.numeroOP || ""} salva.`, "ok");
       return true;
     } catch (error) {
@@ -500,7 +511,10 @@
       return false;
     } finally {
       salvando.delete(id);
-      if (!options.silencioso) agendarRender();
+      if (!options.silencioso && botaoSalvarAtual) {
+        botaoSalvarAtual.disabled = false;
+        botaoSalvarAtual.textContent = "Salvar";
+      }
     }
   }
 

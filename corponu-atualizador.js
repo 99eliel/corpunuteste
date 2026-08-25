@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const LOCAL_RELEASE = "2026-08-21-dual-ready-pos-login-250";
+  const LOCAL_RELEASE = "2026-08-25-manejo-calcinha-dedicado-252";
   const INTERVALO_VERIFICACAO = 60 * 1000;
   const RELOAD_KEY = "corponu_web_release_recarregada";
   const MODULO_GRUPOS_FACCOES = ["corponu-faccoes-grupos-processos.js", "faccoes-grupos-processos", "Não foi possível carregar os grupos de processos das facções."];
@@ -83,8 +83,7 @@
   const MODULOS_APOS_LOGIN = [
     ["corponu-calcinha-planejamento-opcional-129.js", "calcinha-planejamento-opcional-129", "Não foi possível tornar serviço e facção opcionais nas OPs de calcinha."],
     ["corponu-dual-ready-bridge.js", "dual-ready-bridge", "Não foi possível sincronizar o carregamento do Dual Mode."],
-    ["corponu-manejo-calcinha-estavel-204.js", "manejo-calcinha-estavel", "Não foi possível carregar a estabilização do Manejo Calcinha."],
-    ["corponu-manejo-calcinha-fase-definitivo-216.js", "manejo-calcinha-fase-lista-real-219", "Não foi possível carregar o seletor estável da Fase do Manejo Calcinha."]
+    ["corponu-manejo-calcinha-dedicado-252.js", "manejo-calcinha-dedicado-252", "Não foi possível carregar o Manejo Calcinha dedicado."]
   ];
 
   function carregarScript(nomeArquivo, marcador, mensagemErro) {

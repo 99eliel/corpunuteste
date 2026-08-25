@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-21-dual-ready-pos-login-250",
-  "updatedAt": "2026-08-21T22:18:00-03:00",
-  "notes": "HOMOLOGAÇÃO / OTIMIZAÇÃO GLOBAL V1. Release alinhado ao atualizador único. Consolida Facções e Revisão; remove loaders, polling e remendos redundantes; carrega Pagamentos, Facções, grupos, Sutiã Completo, Dual Mode/Calcinha e dados auxiliares somente quando necessários; torna saída, ponto de luz 411, Fase Calcinha, filtro de Restantes e componentes de chegada orientados a eventos; e garante a referência especial 912 com valor integral, inclusive sem desconto por defeito. Firebase permanece isolado no projeto corponuteste."
+  "version": "2026-08-25-manejo-calcinha-dedicado-252",
+  "updatedAt": "2026-08-25T20:30:00-03:00",
+  "notes": "HOMOLOGAÇÃO. Cria um Manejo Calcinha dedicado e leve, separado da tabela genérica do Sutiã. Usa o mapa de OPs já carregado pelo Dual Mode, renderiza 80 registros por vez, mantém rascunhos locais, salva Linha/Fase/Necessidade em uma única escrita por OP e reaproveita o envio de Calcinha já existente. Os módulos antigos 204/216 deixam de ser carregados. O Dual Mode ignora a tabela genérica escondida enquanto a tela dedicada está ativa. Nenhuma mudança é aplicada à produção nesta etapa."
 }

@@ -119,6 +119,11 @@
     return document.querySelector(".page.active")?.id || "manejo";
   }
 
+  function dedicatedCalcinhaActive() {
+    return document.body?.dataset?.corponuCalcinhaDedicado === "1"
+      && document.querySelector("#manejo .manejo-setor-btn.active")?.dataset?.setor === "calcinha";
+  }
+
   function isAdmin() {
     return state.profile?.tipo === "admin" || normalize(document.getElementById("userRole")?.textContent) === "ADMIN";
   }
@@ -1451,7 +1456,7 @@
       if (pageId === "ordens") applyOrders();
       if (pageId === "faccoes") applyFaccoes();
       if (pageId === "rastreamento") applyTracking();
-      if (pageId === "manejo") { injectManejoLineColumn(); applyManejoTypeLayout(); }
+      if (pageId === "manejo" && !dedicatedCalcinhaActive()) { injectManejoLineColumn(); applyManejoTypeLayout(); }
     } finally {
       state.applying = false;
     }
@@ -1462,8 +1467,10 @@
     wrapEditFunctions();
     wrapManejoSave();
     wrapSendToFaction();
-    injectManejoLineColumn();
-    applyManejoTypeLayout();
+    if (!dedicatedCalcinhaActive()) {
+      injectManejoLineColumn();
+      applyManejoTypeLayout();
+    }
     applyProducts();
     applyOrders();
     applyFaccoes();
@@ -1486,7 +1493,11 @@
         scheduled = true;
         requestAnimationFrame(() => {
           scheduled = false;
-          if (id === "listaManejoInline") { injectManejoLineColumn(); applyManejoTypeLayout(); }
+          if (id === "listaManejoInline") {
+            if (dedicatedCalcinhaActive()) return;
+            injectManejoLineColumn();
+            applyManejoTypeLayout();
+          }
           if (id.includes("Produto")) applyProducts();
           else if (id === "listaOrdens") applyOrders();
           else if (id.includes("Faccoes") || id === "listaMovimentacoesUsuario") applyFaccoes();
@@ -1496,7 +1507,8 @@
       observer.observe(target, { childList: true, subtree: true });
       state.observers.push(observer);
     });
-    const pageObserver = new MutationObserver(() => {
+    const pageObserver = new MutationObserver(records => {
+      if (dedicatedCalcinhaActive() && records.every(record => record.target instanceof Element && record.target.closest?.("#corponuManejoCalcinhaDedicado252"))) return;
       const page = getCurrentPage();
       if (["produtos", "ordens", "faccoes", "rastreamento", "manejo"].includes(page)) {
         if (page === "produtos" || page === "ordens") document.body.dataset.corponuFormType = state.active[page];
