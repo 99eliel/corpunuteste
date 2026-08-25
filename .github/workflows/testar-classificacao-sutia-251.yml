@@ -1,0 +1,28 @@
+name: CorpoNu - Classificação Sutiã 251
+
+on:
+  push:
+    branches:
+      - fix/sutia-completo-automatico-251
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  classificacao:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validar sintaxe do módulo financeiro
+        run: node --check corponu-pagamentos-seguro.js
+
+      - name: Testar classificação do Sutiã Completo
+        run: node tests/sutia-completo-classificacao-251.mjs
