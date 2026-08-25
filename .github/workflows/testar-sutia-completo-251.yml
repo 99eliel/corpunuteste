@@ -1,0 +1,59 @@
+name: CorpoNu - Sutiã Completo 251
+
+on:
+  push:
+    branches:
+      - fix/sutia-completo-automatico-251
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sutia-completo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Blindar Firebase de homologação
+        run: python3 scripts/aplicar-firebase-homologacao.py
+
+      - name: Confirmar ambiente isolado
+        shell: bash
+        run: |
+          if grep -q "corponu-b4942" app.js login-core.js; then
+            echo "ERRO: Firebase de produção encontrado no teste."
+            exit 1
+          fi
+          grep -q 'projectId: "corponuteste"' app.js
+          grep -q 'projectId: "corponuteste"' login-core.js
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Testar regra financeira do Sutiã Completo
+        env:
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: npx playwright test tests/e2e/sutia-completo-financeiro.spec.js --project=chromium-desktop --workers=1
+
+      - name: Salvar evidências
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sutia-completo-251-${{ github.run_number }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
