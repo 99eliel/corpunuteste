@@ -1,0 +1,63 @@
+name: Aplicar Fix Sutiã Completo 251
+
+on:
+  push:
+    branches:
+      - fix/sutia-completo-automatico-251
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+        with:
+          ref: fix/sutia-completo-automatico-251
+
+      - name: Corrigir somente a classificação manual do Sutiã Completo
+        id: patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('corponu-pagamentos-seguro.js')
+          s = p.read_text(encoding='utf-8')
+          old = 'return processo === "SUTIA MONTAGEM" || processo === "SUTIA COMPLETO";'
+          new = 'return processo === "SUTIA MONTAGEM";'
+          if new in s and old not in s:
+              print('Patch já aplicado.')
+              Path('/tmp/corponu_changed').write_text('0')
+          else:
+              if s.count(old) != 1:
+                  raise SystemExit(f'Esperava exatamente 1 ocorrência do trecho antigo; encontrei {s.count(old)}.')
+              p.write_text(s.replace(old, new, 1), encoding='utf-8')
+              Path('/tmp/corponu_changed').write_text('1')
+              print('Sutiã Completo removido da regra de valor total manual.')
+          PY
+          echo "changed=$(cat /tmp/corponu_changed)" >> "$GITHUB_OUTPUT"
+
+      - name: Validar JavaScript
+        run: node --check corponu-pagamentos-seguro.js
+
+      - name: Garantir que Sutiã Montagem continua manual e Completo não
+        shell: bash
+        run: |
+          grep -F 'return processo === "SUTIA MONTAGEM";' corponu-pagamentos-seguro.js
+          if grep -F 'return processo === "SUTIA MONTAGEM" || processo === "SUTIA COMPLETO";' corponu-pagamentos-seguro.js; then
+            echo 'ERRO: regra antiga ainda presente.'
+            exit 1
+          fi
+
+      - name: Commitar patch
+        if: steps.patch.outputs.changed == '1'
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add corponu-pagamentos-seguro.js
+          git commit -m 'fix: Sutiã Completo usa cálculo automático 251'
+          git push origin HEAD:fix/sutia-completo-automatico-251
