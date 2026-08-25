@@ -1,0 +1,60 @@
+name: CorpoNu - Pagamentos Estabilidade
+
+on:
+  push:
+    branches:
+      - diagnostico/pagamentos-estabilidade
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pagamentos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Blindar Firebase de homologacao
+        run: python3 scripts/aplicar-firebase-homologacao.py
+
+      - name: Confirmar ambiente isolado
+        shell: bash
+        run: |
+          if grep -q "corponu-b4942" app.js login-core.js; then
+            echo "ERRO: Firebase de producao encontrado."
+            exit 1
+          fi
+          grep -q 'projectId: "corponuteste"' app.js
+          grep -q 'projectId: "corponuteste"' login-core.js
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Testar Pagamentos
+        env:
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: npx playwright test tests/e2e/pagamentos-estabilidade.spec.js --project=chromium-desktop --workers=1 --reporter=line
+
+      - name: Salvar evidencias
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pagamentos-estabilidade-${{ github.run_number }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
