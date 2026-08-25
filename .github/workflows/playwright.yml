@@ -48,7 +48,7 @@ jobs:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: npx playwright test tests/e2e/preparar-homologacao-calcinha.spec.js --project=chromium-desktop --workers=1
 
-      - name: Smoke real - Fase Calcinha OP 12346
+      - name: Smoke real - Manejo Calcinha dedicado OP 12346
         env:
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
@@ -60,7 +60,7 @@ jobs:
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
           TEST_OP_CALCINHA: ${{ vars.TEST_OP_CALCINHA || '12346' }}
-        run: npx playwright test --grep-invert "Manejo Calcinha - salvamento real da Fase|prepara fases oficiais E2E da Calcinha"
+        run: npx playwright test --grep-invert "Manejo Calcinha dedicado - salvamento real|prepara fases oficiais E2E da Calcinha"
 
       - name: Salvar relatorio, metricas, screenshots, videos e traces
         if: always()
