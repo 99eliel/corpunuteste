@@ -1,0 +1,149 @@
+name: Aplicar Manejo Calcinha Dedicado 252
+
+on:
+  push:
+    branches:
+      - feature/manejo-calcinha-dedicado-252
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+        with:
+          ref: feature/manejo-calcinha-dedicado-252
+
+      - name: Integrar tela dedicada
+        id: patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          mudou = False
+
+          def substituir(path, antigo, novo, descricao):
+              global mudou
+              p = Path(path)
+              s = p.read_text(encoding='utf-8')
+              if novo in s and antigo not in s:
+                  return
+              n = s.count(antigo)
+              if n != 1:
+                  raise SystemExit(f'ERRO {descricao}: esperado 1 trecho, encontrados {n}.')
+              p.write_text(s.replace(antigo, novo, 1), encoding='utf-8')
+              mudou = True
+
+          # Atualizador: remove os dois adaptadores antigos e carrega somente a tela dedicada.
+          substituir(
+              'corponu-atualizador.js',
+              'const LOCAL_RELEASE = "2026-08-21-dual-ready-pos-login-250";',
+              'const LOCAL_RELEASE = "2026-08-25-manejo-calcinha-dedicado-252";',
+              'versão do atualizador'
+          )
+          substituir(
+              'corponu-atualizador.js',
+              '    ["corponu-manejo-calcinha-estavel-204.js", "manejo-calcinha-estavel", "Não foi possível carregar a estabilização do Manejo Calcinha."],\n    ["corponu-manejo-calcinha-fase-definitivo-216.js", "manejo-calcinha-fase-lista-real-219", "Não foi possível carregar o seletor estável da Fase do Manejo Calcinha."]',
+              '    ["corponu-manejo-calcinha-dedicado-252.js", "manejo-calcinha-dedicado-252", "Não foi possível carregar o Manejo Calcinha dedicado."]',
+              'módulos antigos do Manejo Calcinha'
+          )
+
+          # Dual Mode: quando a tela dedicada está ativa, não trabalha sobre a tabela genérica escondida.
+          substituir(
+              'corponu-dual-mode.js',
+              '  function getCurrentPage() {\n    return document.querySelector(".page.active")?.id || "manejo";\n  }\n\n  function isAdmin() {',
+              '  function getCurrentPage() {\n    return document.querySelector(".page.active")?.id || "manejo";\n  }\n\n  function dedicatedCalcinhaActive() {\n    return document.body?.dataset?.corponuCalcinhaDedicado === "1"\n      && document.querySelector("#manejo .manejo-setor-btn.active")?.dataset?.setor === "calcinha";\n  }\n\n  function isAdmin() {',
+              'helper dedicado no Dual Mode'
+          )
+          substituir(
+              'corponu-dual-mode.js',
+              '      if (pageId === "manejo") { injectManejoLineColumn(); applyManejoTypeLayout(); }',
+              '      if (pageId === "manejo" && !dedicatedCalcinhaActive()) { injectManejoLineColumn(); applyManejoTypeLayout(); }',
+              'applyPage do Manejo'
+          )
+          substituir(
+              'corponu-dual-mode.js',
+              '    wrapEditFunctions();\n    wrapManejoSave();\n    wrapSendToFaction();\n    injectManejoLineColumn();\n    applyManejoTypeLayout();',
+              '    wrapEditFunctions();\n    wrapManejoSave();\n    wrapSendToFaction();\n    if (!dedicatedCalcinhaActive()) {\n      injectManejoLineColumn();\n      applyManejoTypeLayout();\n    }',
+              'applyAll do Manejo'
+          )
+          substituir(
+              'corponu-dual-mode.js',
+              '          if (id === "listaManejoInline") { injectManejoLineColumn(); applyManejoTypeLayout(); }',
+              '          if (id === "listaManejoInline") {\n            if (dedicatedCalcinhaActive()) return;\n            injectManejoLineColumn();\n            applyManejoTypeLayout();\n          }',
+              'observer da tabela de Manejo'
+          )
+          substituir(
+              'corponu-dual-mode.js',
+              '    const pageObserver = new MutationObserver(() => {\n      const page = getCurrentPage();',
+              '    const pageObserver = new MutationObserver(records => {\n      if (dedicatedCalcinhaActive() && records.every(record => record.target instanceof Element && record.target.closest?.("#corponuManejoCalcinhaDedicado252"))) return;\n      const page = getCurrentPage();',
+              'observer de página do Dual Mode'
+          )
+
+          # Salvar na nova tela não reconstrói a lista; atualiza somente o card que foi salvo.
+          substituir(
+              'corponu-manejo-calcinha-dedicado-252.js',
+              '    salvando.add(id);\n    if (!options.silencioso) agendarRender();\n    mensagem(`Salvando OP ${op.numeroOP || ""}...`);',
+              '    salvando.add(id);\n    const botaoSalvarAtual = article?.querySelector(\'[data-acao="salvar"]\');\n    if (!options.silencioso && botaoSalvarAtual) {\n      botaoSalvarAtual.disabled = true;\n      botaoSalvarAtual.textContent = "Salvando...";\n    }\n    mensagem(`Salvando OP ${op.numeroOP || ""}...`);',
+              'início visual do salvamento dedicado'
+          )
+          substituir(
+              'corponu-manejo-calcinha-dedicado-252.js',
+              '      drafts.delete(id);\n      sincronizarLinhaOculta(id, dados);\n      if (!options.silencioso) mensagem(`OP ${op.numeroOP || ""} salva.`, "ok");',
+              '      drafts.delete(id);\n      sincronizarLinhaOculta(id, dados);\n      if (!options.silencioso && article) {\n        const badge = article.querySelector(".cn252-status");\n        if (badge) {\n          badge.className = `cn252-status ${novoStatus}`;\n          badge.textContent = statusLabel(novoStatus);\n        }\n      }\n      if (!options.silencioso) mensagem(`OP ${op.numeroOP || ""} salva.`, "ok");',
+              'confirmação visual do salvamento dedicado'
+          )
+          substituir(
+              'corponu-manejo-calcinha-dedicado-252.js',
+              '    } finally {\n      salvando.delete(id);\n      if (!options.silencioso) agendarRender();\n    }',
+              '    } finally {\n      salvando.delete(id);\n      if (!options.silencioso && botaoSalvarAtual) {\n        botaoSalvarAtual.disabled = false;\n        botaoSalvarAtual.textContent = "Salvar";\n      }\n    }',
+              'fim visual do salvamento dedicado'
+          )
+
+          # Release de homologação.
+          p = Path('corponu-release.json')
+          dados = json.loads(p.read_text(encoding='utf-8'))
+          if dados.get('version') != '2026-08-25-manejo-calcinha-dedicado-252':
+              dados['version'] = '2026-08-25-manejo-calcinha-dedicado-252'
+              dados['updatedAt'] = '2026-08-25T20:30:00-03:00'
+              dados['notes'] = ('HOMOLOGAÇÃO. Cria um Manejo Calcinha dedicado e leve, separado da tabela genérica do Sutiã. '
+                                 'Usa o mapa de OPs já carregado pelo Dual Mode, renderiza 80 registros por vez, mantém rascunhos locais, '
+                                 'salva Linha/Fase/Necessidade em uma única escrita por OP e reaproveita o envio de Calcinha já existente. '
+                                 'Os módulos antigos 204/216 deixam de ser carregados. O Dual Mode ignora a tabela genérica escondida enquanto a tela dedicada está ativa. '
+                                 'Nenhuma mudança é aplicada à produção nesta etapa.')
+              p.write_text(json.dumps(dados, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+              mudou = True
+
+          Path('/tmp/mudou').write_text('1' if mudou else '0')
+          PY
+          echo "changed=$(cat /tmp/mudou)" >> "$GITHUB_OUTPUT"
+
+      - name: Validar arquitetura
+        shell: bash
+        run: |
+          node --check corponu-manejo-calcinha-dedicado-252.js
+          node --check corponu-dual-mode.js
+          node --check corponu-atualizador.js
+          python3 -m json.tool corponu-release.json >/dev/null
+          grep -F 'corponu-manejo-calcinha-dedicado-252.js' corponu-atualizador.js
+          if grep -F 'corponu-manejo-calcinha-estavel-204.js' corponu-atualizador.js; then exit 1; fi
+          if grep -F 'corponu-manejo-calcinha-fase-definitivo-216.js' corponu-atualizador.js; then exit 1; fi
+          if grep -F 'MutationObserver' corponu-manejo-calcinha-dedicado-252.js; then exit 1; fi
+          if grep -F 'window.salvarManejoLinha =' corponu-manejo-calcinha-dedicado-252.js; then exit 1; fi
+          if grep -F 'setInterval' corponu-manejo-calcinha-dedicado-252.js; then exit 1; fi
+
+      - name: Commitar integração
+        if: steps.patch.outputs.changed == '1'
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add corponu-atualizador.js corponu-dual-mode.js corponu-manejo-calcinha-dedicado-252.js corponu-release.json
+          git commit -m 'feat: integrar Manejo Calcinha dedicado 252'
+          git push origin HEAD:feature/manejo-calcinha-dedicado-252
