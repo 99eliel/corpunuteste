@@ -28,7 +28,11 @@ async function abrirManejoCalcinha(page) {
   await expect(calcinha).toBeVisible({ timeout: 20_000 });
   await calcinha.click();
   await expect(calcinha).toHaveClass(/active/, { timeout: 15_000 });
-  await expect(page.locator('#listaManejoInline')).toBeVisible({ timeout: 20_000 });
+
+  const dedicado = page.locator('#corponuManejoCalcinhaDedicado252');
+  await expect(dedicado).toBeVisible({ timeout: 25_000 });
+  await expect(page.locator('body')).toHaveAttribute('data-corponu-calcinha-dedicado', '1', { timeout: 25_000 });
+  return dedicado;
 }
 
 async function prepararFixtureCalcinha(page) {
@@ -88,10 +92,13 @@ async function prepararFixtureCalcinha(page) {
       cor: 'TESTE AUTOMATIZADO',
       quantidade: 10,
       necessidade: 'TESTE AUTOMATIZADO',
+      necessidadeTexto: 'TESTE AUTOMATIZADO',
+      necessidadeManual: true,
       tipoPeca: 'calcinha',
       tipoPecaPadrao: 'calcinha',
       tipoPecaLabel: 'Calcinha',
       linhaCalcinha: 'cotton_line',
+      linhaCalcinhaLabel: 'Cotton Line',
       processoPlanejado: 'CALCINHA COMPLETA',
       faccaoPlanejada: '',
       planejamentoCalcinhaPendente: true,
@@ -104,9 +111,11 @@ async function prepararFixtureCalcinha(page) {
         calcinha: {
           setor: 'calcinha',
           setorLabel: 'Calcinha',
-          linha: 'cotton_line',
+          linhaCalcinha: 'cotton_line',
+          linhaCalcinhaLabel: 'Cotton Line',
           fase: faseInicial,
           necessidade: 'TESTE AUTOMATIZADO',
+          necessidadeTexto: 'TESTE AUTOMATIZADO',
           status: 'organizada',
           atualizadoPor: user.uid,
           atualizadoEm: firestore.serverTimestamp()
@@ -124,53 +133,35 @@ async function prepararFixtureCalcinha(page) {
   }, { op: TEST_OP, firebaseVersion: FIREBASE_VERSION });
 }
 
-function linhaDaOp(page) {
+function cardDaOp(page) {
   return page
-    .locator('#listaManejoInline tr[data-manejo-row="1"]')
-    .filter({ hasText: TEST_OP })
+    .locator('#corponuManejoCalcinhaDedicado252 [data-cn252-op]')
+    .filter({ hasText: `OP ${TEST_OP}` })
     .first();
 }
 
 async function filtrarOp(page) {
-  const campo = page.locator('#manejo input[placeholder*="Buscar OP" i], #manejo input[placeholder*="OP, ref" i]').first();
-  if (await campo.isVisible().catch(() => false)) {
-    await campo.fill(TEST_OP);
-  }
-
-  const filtroTabela = page.getByRole('textbox', { name: 'Digite a OP' });
-  if (await filtroTabela.isVisible().catch(() => false)) {
-    await filtroTabela.fill(TEST_OP);
-  }
+  const busca = page.locator('#cn252Busca');
+  await expect(busca).toBeVisible({ timeout: 20_000 });
+  await busca.fill(TEST_OP);
 }
 
-async function aguardarLinha(page) {
+async function aguardarCard(page) {
   await filtrarOp(page);
-  const row = linhaDaOp(page);
-  await expect(row, `A fixture de Calcinha OP ${TEST_OP} deveria aparecer no Manejo`).toBeVisible({ timeout: 25_000 });
-  return row;
+  const card = cardDaOp(page);
+  await expect(card, `A fixture de Calcinha OP ${TEST_OP} deveria aparecer no Manejo dedicado`).toBeVisible({ timeout: 25_000 });
+  return card;
 }
 
 async function aguardarFimSalvamento(page) {
-  await expect.poll(async () => {
-    const row = linhaDaOp(page);
-    if (!(await row.count())) return 'linha-ausente';
-    return row.evaluate(el => {
-      const btn = el.querySelector('.btn-save-manejo');
-      const sujo = el.classList.contains('manejo-row-dirty');
-      const pendente = el.classList.contains('manejo-row-pending');
-      const salvando = btn?.hasAttribute('data-salvando-manejo') || btn?.hasAttribute('data-corponu-salvando');
-      const desabilitado = Boolean(btn?.disabled);
-      return (!sujo && !pendente && !salvando && !desabilitado) ? 'ok' : 'salvando';
-    });
-  }, {
-    message: 'O salvamento da Fase não terminou no tempo esperado',
-    timeout: 20_000,
-    intervals: [100, 150, 250, 400, 700]
-  }).toBe('ok');
+  const mensagem = page.locator('#cn252Msg');
+  await expect(mensagem).toContainText('salva', { timeout: 20_000 });
+  const card = cardDaOp(page);
+  await expect(card.locator('[data-acao="salvar"]')).toBeEnabled({ timeout: 20_000 });
 }
 
-test.describe('Manejo Calcinha - salvamento real da Fase', () => {
-  test('salva, persiste e não reconstrói a linha ao confirmar', async ({ page, context }, testInfo) => {
+test.describe('Manejo Calcinha dedicado - salvamento real', () => {
+  test('salva Linha, Fase e Necessidade sem reconstruir o card e persiste após reload', async ({ page, context }, testInfo) => {
     expect(TEST_EMAIL, 'Crie o secret TEST_EMAIL no repositório corpunuteste').toBeTruthy();
     expect(TEST_PASSWORD, 'Crie o secret TEST_PASSWORD no repositório corpunuteste').toBeTruthy();
 
@@ -187,110 +178,116 @@ test.describe('Manejo Calcinha - salvamento real da Fase', () => {
     await abrirManejoCalcinha(page);
     const fixture = await prepararFixtureCalcinha(page);
 
-    // O app.js mantém seu próprio state.ordens, separado do mapa do Dual Mode.
-    // Recarregamos para a fixture entrar pelo fluxo real de leitura/listener do app.
+    // Reabre o app para a fixture entrar nos mapas reais do app e do Dual Mode.
     await page.reload();
     await expect(page.locator('#appShell')).toBeVisible({ timeout: 30_000 });
     await abrirManejoCalcinha(page);
 
-    let row = await aguardarLinha(page);
-    let select = row.locator('.corponu-fase-calcinha-select-223');
-    await expect(select).toBeVisible({ timeout: 20_000 });
-    await expect(select).toBeEnabled({ timeout: 20_000 });
+    let card = await aguardarCard(page);
+    const fase = card.locator('[data-campo="fase"]');
+    const linha = card.locator('[data-campo="linha"]');
+    const necessidade = card.locator('[data-campo="necessidade"]');
 
-    const faseOriginal = await select.inputValue();
-    const destino = fixture.fases.find(fase => fase !== faseOriginal);
+    await expect(fase).toBeVisible({ timeout: 20_000 });
+    const faseOriginal = await fase.inputValue();
+    const destino = fixture.fases.find(item => item !== faseOriginal);
     expect(destino, 'A fixture precisa ter uma segunda Fase oficial disponível').toBeTruthy();
 
+    const linhaOriginal = await linha.inputValue();
+    const linhaDestino = linhaOriginal === 'cotton_line' ? 'corpo_nu' : 'cotton_line';
+    const necessidadeDestino = `E2E ${Date.now()}`;
+
+    await linha.selectOption(linhaDestino);
+    await fase.fill(destino);
+    await necessidade.fill(necessidadeDestino);
+
+    // Força uma reconstrução controlada pelo filtro ANTES de salvar. Os rascunhos devem sobreviver.
+    await page.locator('#cn252Busca').fill(`${TEST_OP} `);
+    await page.waitForTimeout(100);
+    await page.locator('#cn252Busca').fill(TEST_OP);
+    await page.waitForTimeout(100);
+
+    card = cardDaOp(page);
+    await expect(card.locator('[data-campo="linha"]')).toHaveValue(linhaDestino);
+    await expect(card.locator('[data-campo="fase"]')).toHaveValue(destino);
+    await expect(card.locator('[data-campo="necessidade"]')).toHaveValue(necessidadeDestino);
+
     await page.evaluate(op => {
-      const tbody = document.getElementById('listaManejoInline');
-      window.__corponuTestePiscar = {
+      const lista = document.getElementById('cn252Lista');
+      window.__corponuTesteCalcinha252 = {
         op: String(op),
         iniciouEm: performance.now(),
         mutacoesDiretas: 0,
-        linhasOpRemovidas: 0,
-        linhasOpAdicionadas: 0,
+        cardsRemovidos: 0,
+        cardsAdicionados: 0,
         detalhes: []
       };
-
-      const contemOp = node => {
-        if (!(node instanceof Element)) return false;
-        if (node.matches('tr[data-manejo-row="1"]') && String(node.textContent || '').includes(String(op))) return true;
-        return Boolean([...node.querySelectorAll?.('tr[data-manejo-row="1"]') || []]
-          .find(row => String(row.textContent || '').includes(String(op))));
-      };
-
       const observer = new MutationObserver(records => {
-        const dados = window.__corponuTestePiscar;
+        const dados = window.__corponuTesteCalcinha252;
         records.forEach(record => {
-          if (record.target === tbody && record.type === 'childList') dados.mutacoesDiretas += 1;
+          if (record.target === lista && record.type === 'childList') dados.mutacoesDiretas += 1;
           record.removedNodes.forEach(node => {
-            if (contemOp(node)) {
-              dados.linhasOpRemovidas += 1;
-              dados.detalhes.push({ tipo: 'removeu-op', t: Math.round(performance.now() - dados.iniciouEm) });
+            if (node instanceof Element && node.matches('[data-cn252-op]')) {
+              dados.cardsRemovidos += 1;
+              dados.detalhes.push({ tipo: 'removeu-card', t: Math.round(performance.now() - dados.iniciouEm) });
             }
           });
           record.addedNodes.forEach(node => {
-            if (contemOp(node)) {
-              dados.linhasOpAdicionadas += 1;
-              dados.detalhes.push({ tipo: 'adicionou-op', t: Math.round(performance.now() - dados.iniciouEm) });
+            if (node instanceof Element && node.matches('[data-cn252-op]')) {
+              dados.cardsAdicionados += 1;
+              dados.detalhes.push({ tipo: 'adicionou-card', t: Math.round(performance.now() - dados.iniciouEm) });
             }
           });
         });
       });
-
-      observer.observe(tbody, { childList: true, subtree: true });
-      window.__corponuTestePiscarObserver = observer;
+      observer.observe(lista, { childList: true, subtree: false });
+      window.__corponuTesteCalcinha252Observer = observer;
     }, TEST_OP);
 
-    await select.selectOption(destino);
-    await expect(select).toHaveValue(destino);
-
-    row = linhaDaOp(page);
-    const salvar = row.locator('.btn-save-manejo');
-    await expect(salvar).toBeVisible({ timeout: 10_000 });
-
     const inicio = Date.now();
-    await salvar.click();
+    await card.locator('[data-acao="salvar"]').click();
     await aguardarFimSalvamento(page);
     const duracaoMs = Date.now() - inicio;
-
-    await page.waitForTimeout(1_500);
+    await page.waitForTimeout(500);
 
     const metricas = await page.evaluate(() => {
-      window.__corponuTestePiscarObserver?.disconnect();
-      return window.__corponuTestePiscar;
+      window.__corponuTesteCalcinha252Observer?.disconnect();
+      return window.__corponuTesteCalcinha252;
     });
     metricas.duracaoSalvamentoMs = duracaoMs;
     metricas.faseOriginal = faseOriginal;
     metricas.faseDestino = destino;
+    metricas.linhaOriginal = linhaOriginal;
+    metricas.linhaDestino = linhaDestino;
+    metricas.necessidadeDestino = necessidadeDestino;
     metricas.ordemId = fixture.ordemId;
     metricas.errosConsole = erros;
 
-    console.log(`METRICAS_FASE_CALCINHA=${JSON.stringify(metricas)}`);
-    await testInfo.attach('metricas-fase-calcinha.json', {
+    console.log(`METRICAS_MANEJO_CALCINHA_252=${JSON.stringify(metricas)}`);
+    await testInfo.attach('metricas-manejo-calcinha-252.json', {
       body: Buffer.from(JSON.stringify(metricas, null, 2)),
       contentType: 'application/json'
     });
-    await testInfo.attach('apos-salvar.png', {
+    await testInfo.attach('apos-salvar-calcinha-252.png', {
       body: await page.screenshot({ fullPage: true }),
       contentType: 'image/png'
     });
 
-    row = linhaDaOp(page);
-    select = row.locator('.corponu-fase-calcinha-select-223');
-    await expect(select).toHaveValue(destino, { timeout: 10_000 });
+    card = cardDaOp(page);
+    await expect(card.locator('[data-campo="linha"]')).toHaveValue(linhaDestino);
+    await expect(card.locator('[data-campo="fase"]')).toHaveValue(destino);
+    await expect(card.locator('[data-campo="necessidade"]')).toHaveValue(necessidadeDestino);
+
+    expect(metricas.cardsRemovidos, `O card da OP ${TEST_OP} foi removido durante o salvamento: ${JSON.stringify(metricas)}`).toBe(0);
+    expect(metricas.cardsAdicionados, `O card da OP ${TEST_OP} foi recriado durante o salvamento: ${JSON.stringify(metricas)}`).toBe(0);
+    expect(duracaoMs, `Salvar Linha/Fase/Necessidade levou ${duracaoMs}ms`).toBeLessThan(8_000);
 
     await page.reload();
     await expect(page.locator('#appShell')).toBeVisible({ timeout: 30_000 });
     await abrirManejoCalcinha(page);
-    row = await aguardarLinha(page);
-    select = row.locator('.corponu-fase-calcinha-select-223');
-    await expect(select).toBeVisible({ timeout: 20_000 });
-    await expect(select).toHaveValue(destino, { timeout: 20_000 });
-
-    expect(metricas.linhasOpRemovidas, `A linha da OP ${TEST_OP} foi removida durante o salvamento: ${JSON.stringify(metricas)}`).toBe(0);
-    expect(metricas.linhasOpAdicionadas, `A linha da OP ${TEST_OP} foi recriada durante o salvamento: ${JSON.stringify(metricas)}`).toBe(0);
-    expect(duracaoMs, `Salvar somente a Fase levou ${duracaoMs}ms`).toBeLessThan(8_000);
+    card = await aguardarCard(page);
+    await expect(card.locator('[data-campo="linha"]')).toHaveValue(linhaDestino, { timeout: 20_000 });
+    await expect(card.locator('[data-campo="fase"]')).toHaveValue(destino, { timeout: 20_000 });
+    await expect(card.locator('[data-campo="necessidade"]')).toHaveValue(necessidadeDestino, { timeout: 20_000 });
   });
 });
