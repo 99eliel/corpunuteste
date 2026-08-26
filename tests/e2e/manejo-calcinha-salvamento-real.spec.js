@@ -141,7 +141,7 @@ function cardDaOp(page) {
 }
 
 async function filtrarOp(page) {
-  const busca = page.locator('#cn252Busca');
+  const busca = page.locator('#cn252BuscaOP');
   await expect(busca).toBeVisible({ timeout: 20_000 });
   await busca.fill(TEST_OP);
 }
@@ -202,9 +202,9 @@ test.describe('Manejo Calcinha dedicado - salvamento real', () => {
     await necessidade.fill(necessidadeDestino);
 
     // Força uma reconstrução controlada pelo filtro ANTES de salvar. Os rascunhos devem sobreviver.
-    await page.locator('#cn252Busca').fill(`${TEST_OP} `);
+    await page.locator('#cn252BuscaOP').fill(`${TEST_OP} `);
     await page.waitForTimeout(100);
-    await page.locator('#cn252Busca').fill(TEST_OP);
+    await page.locator('#cn252BuscaOP').fill(TEST_OP);
     await page.waitForTimeout(100);
 
     card = cardDaOp(page);
