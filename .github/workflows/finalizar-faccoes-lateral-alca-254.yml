@@ -1,0 +1,45 @@
+name: Finalizar Facções Lateral e Alça 254
+
+on:
+  push:
+    branches:
+      - refactor/faccoes-lateral-alca-254
+
+permissions:
+  contents: write
+
+jobs:
+  finalizar:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/faccoes-lateral-alca-254
+
+      - name: Aplicar limpeza final
+        run: python3 .github/scripts/finalizar-faccoes-lateral-alca-254.py
+
+      - name: Validar sintaxe e arquitetura
+        shell: bash
+        run: |
+          node --check corponu-faccoes-lateral-alca-254.js
+          node --check corponu-faccoes-tres-abas-saida.js
+          node --check tests/e2e/faccoes-lateral-alca-254.spec.js
+          grep -q 'window.CorpoNuFaccoesLateralAlca = apiLateralAlca' corponu-faccoes-lateral-alca-254.js
+          ! grep -q 'faccoesAbasCorte' corponu-faccoes-lateral-alca-254.js
+          ! grep -q 'faccoesAbasCorte' corponu-faccoes-tres-abas-saida.js
+          ! grep -q 'injetarClassificacaoFaccao' corponu-faccoes-lateral-alca-254.js
+          grep -q 'quantidade_recebida_x_2_x_valor_alca' corponu-faccoes-lateral-alca-254.js
+          grep -q 'quantidade_recebida_x_valor_referencia' corponu-faccoes-lateral-alca-254.js
+
+      - name: Commitar limpeza validada
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add corponu-faccoes-lateral-alca-254.js corponu-faccoes-tres-abas-saida.js tests/e2e/faccoes-lateral-alca-254.spec.js
+          git commit -m 'refactor: remover sobreposição restante de Lateral e Alça 254'
+          git push origin HEAD:refactor/faccoes-lateral-alca-254
