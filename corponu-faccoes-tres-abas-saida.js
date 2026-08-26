@@ -1,12 +1,11 @@
 (() => {
   "use strict";
 
-  const V = "2026-08-21-faccoes-processos-na-origem-230";
+  const V = "2026-08-26-faccoes-abas-sem-saida-lateral-254";
   const FB = "10.12.5";
   const PROCESSOS_SAIDA = Object.freeze({
     sutia: ["ENCAPAR BOJO", "SUTIÃ COMPLETO", "INTERLOCK"],
-    calcinha: ["CALCINHA COMPLETA", "CALCINHA MONTAGEM"],
-    corte: ["LATERAL", "ALÇA"]
+    calcinha: ["CALCINHA COMPLETA", "CALCINHA MONTAGEM"]
   });
   const PROCESSOS_EXCLUSIVOS_CALCINHA = new Set(["CALCINHA MONTAGEM", "CALCINHA COMPLETA"]);
   const CLASSE_TIPO_INCOMPATIVEL = "cn230-faccao-tipo-incompativel";
@@ -74,7 +73,7 @@
 
   const ordemAtiva = o => Boolean(o) && o.excluida !== true && norm(o.status) !== "EXCLUIDA";
   const hoje = () => new Date().toISOString().slice(0, 10);
-  const processosPermitidos = tipoAba => PROCESSOS_SAIDA[tipoAba] || PROCESSOS_SAIDA.sutia;
+  const processosPermitidos = tipoAba => PROCESSOS_SAIDA[tipoAba] || [];
 
   function toast(m) {
     const t = document.getElementById("toast");
@@ -224,25 +223,11 @@
       ag.insertBefore(b, ag.firstChild);
     }
 
-    const leg = document.getElementById("btnCorteRegistrarSaida");
-    if (leg) {
-      leg.id = "btnCorteRegistrarSaidaLegado";
-      leg.style.setProperty("display", "none", "important");
-    }
-
-    const tc = document.querySelector("#painelFaccoesCorte .corte-toolbar");
-    if (tc && !document.getElementById("btnSaidaCorteNovo")) {
-      const b = document.createElement("button");
-      b.id = "btnSaidaCorteNovo";
-      b.type = "button";
-      b.className = "btn btn-primary";
-      b.textContent = "Registrar saída";
-      tc.insertBefore(b, tc.firstChild);
-    }
     corrigirClassificacaoVisualMovimentacoes();
   }
 
   function abrir(a) {
+    if (a === "corte") return;
     aba = a;
     op = null;
     document.getElementById("s3form")?.reset();
@@ -466,6 +451,7 @@
 
   async function salvar(ev) {
     ev.preventDefault();
+    if (aba === "corte") return toast("Use o fluxo próprio de Lateral e Alça.");
     if (!op) return toast("Busque a OP primeiro.");
 
     const processo = norm(document.getElementById("s3processo").value);
@@ -494,7 +480,7 @@
     bt.textContent = "Salvando...";
 
     try {
-      const corte = aba === "corte";
+      const corte = false;
       const dest = faccoes.find(f => norm(f.nome) === faccao);
       const mov = {
         origem: corte ? "corte" : "faccoes_registro_saida",
@@ -531,7 +517,7 @@
       await c.f.addDoc(c.f.collection(c.db, "movimentacoesProducao"), mov);
       fechar();
       toast("Saída registrada com sucesso.");
-      corte ? document.getElementById("btnCorteAtualizar")?.click() : document.getElementById("btnAtualizarServidor")?.click();
+      document.getElementById("btnAtualizarServidor")?.click();
     } catch (e) {
       console.error(e);
       toast("Erro ao registrar a saída.");
@@ -574,11 +560,6 @@
     }
 
     if (t.closest("#btnSaidaAbas")) abrir(aba);
-    if (t.closest("#btnSaidaCorteNovo")) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      abrir("corte");
-    }
     if (t.closest("#s3buscar")) pesquisar();
     if (t.closest("#s3fechar,#s3cancelar")) fechar();
   }, true);

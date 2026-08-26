@@ -1,14 +1,19 @@
 /*
- * Módulo consolidado de Facções / Corte / Lateral e Alça.
+ * Módulo nativo de Facções / Lateral e Alça.
  * As correções válidas do loader legado são incorporadas aqui, sem remendos em runtime.
  */
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-21-lateral-alca-fluxo-legado-227";
+  const VERSION = "2026-08-26-faccoes-lateral-alca-nativo-254";
   const FB = "10.12.5";
   const CONFIG_ID = "processos-corte";
-  const AREA = "corte";
+  const AREA = "corte"; // campo legado preservado para compatibilidade com movimentos/pagamentos existentes
+  const FLUXO = "lateral_alca";
+  const PROCESSOS_OFICIAIS = Object.freeze([
+    { id: "lateral", nome: "LATERAL", ativo: true, atendeSutia: true, atendeCalcinha: false, marcaLateralPronta: true },
+    { id: "alca", nome: "ALÇA", ativo: true, atendeSutia: true, atendeCalcinha: false, marcaLateralPronta: false }
+  ]);
 
   if (window.__CORPONU_FACCOES_CORTE__ === VERSION) return;
   window.__CORPONU_FACCOES_CORTE__ = VERSION;
@@ -441,11 +446,7 @@
   }
 
   async function carregarProcessos() {
-    const c = await aguardarContexto();
-    const snap = await c.fs.getDoc(c.fs.doc(c.db, "configuracoes", CONFIG_ID));
-    const data = snap.exists() ? snap.data() : {};
-    processos = Array.isArray(data.processos) ? data.processos.map(item => ({ ...item })) : [];
-    processos.sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR", { numeric: true }));
+    processos = PROCESSOS_OFICIAIS.map(item => ({ ...item }));
   }
 
   async function carregarFaccoes() {
@@ -579,7 +580,7 @@
       estadoCache.completoEm = Date.now();
     } catch (error) {
       console.error(error);
-      toast("Não foi possível carregar todos os dados da área Lateral e Alça.", "error");
+      toast("Não foi possível carregar todos os dados de Lateral e Alça.", "error");
     } finally {
       carregando = false;
       if (button) { button.disabled = false; button.textContent = "Atualizar"; }
@@ -748,7 +749,7 @@
     if (!list) return;
     const items = [...precos].sort((a, b) => `${a.processo}-${a.referencia}`.localeCompare(`${b.processo}-${b.referencia}`, "pt-BR", { numeric: true }));
     if (!items.length) {
-      list.innerHTML = `<div class="corte-empty">Nenhum valor de Corte cadastrado.</div>`;
+      list.innerHTML = `<div class="corte-empty">Nenhum valor de Lateral/Alça cadastrado.</div>`;
       return;
     }
     list.innerHTML = items.map(item => `<div class="corte-preco-item"><div><strong>${html(item.processo || "-")} • Ref. ${html(item.referencia || "-")}</strong><small>${dinheiro(item.valor)} por peça</small></div><button class="btn btn-sm" type="button" data-editar-preco-corte="${html(item.id)}">Editar</button></div>`).join("");
@@ -812,7 +813,7 @@
     if (faccaoSelect) { faccaoSelect.disabled = true; faccaoSelect.innerHTML = `<option value="">Escolha o processo</option>`; }
   }
 
-  function preencherFaccoesSaida() {
+  async function preencherFaccoesSaida() {
     const select = document.getElementById("saidaCorteFaccao");
     const processId = document.getElementById("saidaCorteProcesso")?.value || "";
     if (!select || !opSaida) return;
@@ -821,68 +822,32 @@
       select.innerHTML = `<option value="">Escolha o processo</option>`;
       return;
     }
-    const items = faccoesCompativeis(opSaida);
-    select.disabled = false;
-    select.innerHTML = `<option value="">Selecione</option>` + items.map(item => `<option value="${html(item.nome || "")}">${html(item.nome || "")}</option>`).join("");
-    if (!items.length) select.innerHTML = `<option value="">Nenhuma facção classificada para ${tipoDaOP(opSaida) === "calcinha" ? "Calcinha" : "Sutiã"}</option>`;
-  }
 
-  async function acaoBuscarOPSaida() {
-    const input = document.getElementById("saidaCorteOP");
-    const button = document.getElementById("btnBuscarOPCorte");
-    const value = input?.value?.trim() || "";
-    if (!value) return toast("Digite o número da OP.", "error");
-    if (button) { button.disabled = true; button.textContent = "Buscando..."; }
-    try {
-      const op = await buscarOP(value);
-      if (!op) return toast("OP não encontrada.", "error");
-      opSaida = op;
-      const type = tipoDaOP(op) === "calcinha" ? "Calcinha" : "Sutiã";
-      const preview = document.getElementById("saidaCortePreview");
-      if (preview) {
-        preview.innerHTML = `<div class="corte-preview-grid"><div class="corte-preview-item"><small>OP</small><strong>${html(op.numeroOP || op.numeroOPExterno || op.id)}</strong></div><div class="corte-preview-item"><small>Referência</small><strong>${html(op.referencia || "-")}</strong></div><div class="corte-preview-item"><small>Cor</small><strong>${html(op.cor || "-")}</strong></div><div class="corte-preview-item"><small>Quantidade / Tipo</small><strong>${quantidade(quantidadeDaOP(op))} • ${html(type)}</strong></div></div>`;
-        preview.classList.remove("hidden");
-      }
-      document.getElementById("saidaCorteCampos")?.classList.remove("hidden");
-      preencherProcessosSaida();
-    } catch (error) {
-      console.error(error);
-      toast("Erro ao buscar a OP.", "error");
-    } finally {
-      if (button) { button.disabled = false; button.textContent = "Buscar OP"; }
+    const processo = processoPorId(processId);
+    if (!processo) {
+      select.disabled = true;
+      select.innerHTML = `<option value="">Processo inválido</option>`;
+      return;
     }
-  }
 
-  async function existeProcessoValidoNaOP(opId, process) {
-    const c = await aguardarContexto();
-    const snap = await c.fs.getDocs(c.fs.query(c.fs.collection(c.db, "movimentacoesProducao"), c.fs.where("opId", "==", opId)));
-    return snap.docs.some(docSnap => {
-      const item = { id: docSnap.id, ...docSnap.data() };
-      const sameArea = pertenceLateralAlca(item);
-      const sameProcess = String(item.processoCorteId || "") === String(process.id) || norm(item.processo) === norm(process.nome);
-      return sameArea && sameProcess && !movimentoCancelado(item);
-    });
-  }
+    select.disabled = true;
+    select.innerHTML = `<option value="">Carregando facções...</option>`;
 
-  async function registrarLog(acao, entidade, entidadeId, detalhes) {
     try {
-      const c = await aguardarContexto();
-      await c.fs.addDoc(c.fs.collection(c.db, "logsAlteracoes"), {
-        acao,
-        entidade,
-        entidadeId,
-        tipoAlvo: entidade,
-        alvoId: entidadeId,
-        detalhes,
-        usuarioId: user.uid,
-        usuarioUid: user.uid,
-        usuarioEmail: user.email || "",
-        criadoPor: user.uid,
-        criadoEm: c.fs.serverTimestamp(),
-        versao: VERSION
-      });
+      const api = window.CorpoNuFaccoesGrupos;
+      if (!api?.listarFaccoesPorProcesso) throw new Error("Catálogo oficial de facções indisponível");
+      const items = await api.listarFaccoesPorProcesso(processo.nome);
+      select.innerHTML = `<option value="">Selecione</option>` + items
+        .filter(item => item.ativo !== false)
+        .map(item => `<option value="${html(item.nome || "")}">${html(item.nome || "")}</option>`)
+        .join("");
+      if (!items.length) select.innerHTML = `<option value="">Nenhuma facção cadastrada para ${html(processo.nome)}</option>`;
+      select.disabled = items.length === 0;
     } catch (error) {
-      console.warn("Log de Corte não criado", error);
+      console.error("Não foi possível carregar o grupo oficial de facções.", error);
+      select.disabled = true;
+      select.innerHTML = `<option value="">Falha ao carregar facções</option>`;
+      toast("Não foi possível carregar as facções oficiais deste processo.", "error");
     }
   }
 
@@ -912,9 +877,10 @@
     try {
       const c = await aguardarContexto();
       const movement = {
-        origem: "corte",
+        origem: "faccoes_lateral_alca",
         area: AREA,
-        areaLabel: "Corte",
+        areaLabel: "Lateral e Alça",
+        fluxoFaccoes: FLUXO,
         movimentacaoCorte: true,
         opId: opSaida.id,
         numeroOP: opNumber,
@@ -1167,10 +1133,10 @@
       observacoes: price
         ? (ehLateralReferencia
           ? "Gerado pela chegada da área Lateral e Alça com o valor cadastrado da referência."
-          : "Gerado pela chegada da área Corte.")
+          : "Gerado pela chegada da área Lateral e Alça.")
         : (conflitoPrecoLateral
           ? "Valor a definir: existem valores ativos diferentes para esta referência de LATERAL."
-          : "Valor a definir: não existe preço cadastrado para esta referência e processo de Corte."),
+          : "Valor a definir: não existe preço cadastrado para esta referência e processo de Lateral/Alça."),
       criadoPor: createdBy,
       criadoEm: current.criadoEm || c.fs.serverTimestamp(),
       atualizadoPor: user.uid,
@@ -1508,7 +1474,7 @@
       toast("Processo de Corte salvo.", "ok");
     } catch (error) {
       console.error(error);
-      toast("Erro ao salvar o processo de Corte.", "error");
+      toast("Erro ao salvar o processo de Lateral/Alça.", "error");
     }
   }
 
@@ -1859,7 +1825,7 @@
     document.addEventListener("change", event => {
       const target = event.target;
       if (["corteFiltroProcesso", "corteFiltroFaccao", "corteFiltroStatus", "corteFiltroLateral", "corteFiltroInicio", "corteFiltroFim"].includes(target?.id)) renderMovimentos();
-      if (target?.id === "saidaCorteProcesso") preencherFaccoesSaida();
+      if (target?.id === "saidaCorteProcesso") Promise.resolve(preencherFaccoesSaida()).catch(error => console.error(error));
     }, true);
 
     document.addEventListener("submit", event => {

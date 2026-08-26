@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const LOCAL_RELEASE = "2026-08-25-manejo-calcinha-dedicado-252";
+  const LOCAL_RELEASE = "2026-08-26-faccoes-lateral-alca-254-homologacao";
   const INTERVALO_VERIFICACAO = 60 * 1000;
   const RELOAD_KEY = "corponu_web_release_recarregada";
   const MODULO_GRUPOS_FACCOES = ["corponu-faccoes-grupos-processos.js", "faccoes-grupos-processos", "Não foi possível carregar os grupos de processos das facções."];
@@ -58,7 +58,7 @@
       MODULO_GRUPOS_FACCOES,
       ["corponu-faccao-cadastro-recolhido.js", "faccao-cadastro-recolhido", "Não foi possível abrir o cadastro e a edição de facção em card."],
       ["corponu-chegada-manual-visual.js", "chegada-manual-visual", "Não foi possível carregar a aparência da chegada manual."],
-      ["corponu-faccoes-corte-definitivo.js", "faccoes-corte-definitivo", "Não foi possível carregar a área definitiva de Corte / Lateral e Alça."],
+      ["corponu-faccoes-lateral-alca-254.js", "faccoes-lateral-alca-254", "Não foi possível carregar a área nativa de Lateral e Alça."],
       ["corponu-faccoes-tres-abas-saida.js", "faccoes-tres-abas-saida", "Não foi possível carregar as três abas de Facções."],
       ...PACOTE_SUTIA_FACCOES
     ],

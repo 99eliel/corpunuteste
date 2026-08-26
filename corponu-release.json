@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-25-manejo-calcinha-dedicado-252",
-  "updatedAt": "2026-08-25T20:30:00-03:00",
-  "notes": "HOMOLOGAÇÃO. Cria um Manejo Calcinha dedicado e leve, separado da tabela genérica do Sutiã. Usa o mapa de OPs já carregado pelo Dual Mode, renderiza 80 registros por vez, mantém rascunhos locais, salva Linha/Fase/Necessidade em uma única escrita por OP e reaproveita o envio de Calcinha já existente. Os módulos antigos 204/216 deixam de ser carregados. O Dual Mode ignora a tabela genérica escondida enquanto a tela dedicada está ativa. Nenhuma mudança é aplicada à produção nesta etapa."
+  "version": "2026-08-26-faccoes-lateral-alca-254-homologacao",
+  "updatedAt": "2026-08-26T07:47:00-03:00",
+  "notes": "HOMOLOGAÇÃO. Primeira limpeza estrutural de Facções > Lateral e Alça. Um único módulo passa a ser dono de saída, andamento, chegada e geração de pagamento de LATERAL/ALÇA. O módulo de três abas mantém apenas o envio de Sutiã/Calcinha e a navegação para Lateral/Alça, sem criar saída paralela. A seleção de facção usa a fonte oficial grupos-faccoes-processos. Processos oficiais nesta área: LATERAL e ALÇA. As fórmulas financeiras existentes são preservadas: Lateral por referência; Alça quantidade recebida x 2 x valor padrão. Campos legados area=corte/movimentacaoCorte são mantidos somente por compatibilidade, sem migração de históricos. Produção não alterada."
 }

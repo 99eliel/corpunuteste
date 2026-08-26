@@ -14,11 +14,15 @@ async function entrar(page) {
 
 test.describe('Facções - módulo consolidado', () => {
   test('código definitivo não depende de integrações paralelas nem Observers globais', async ({ request }) => {
-    const respostaCorte = await request.get('/corponu-faccoes-corte-definitivo.js');
+    const respostaCorte = await request.get('/corponu-faccoes-lateral-alca-254.js');
     expect(respostaCorte.ok()).toBeTruthy();
     const codigoCorte = await respostaCorte.text();
 
-    expect(codigoCorte).toContain('2026-08-21-lateral-alca-fluxo-legado-227');
+    expect(codigoCorte).toContain('2026-08-26-faccoes-lateral-alca-nativo-254');
+    expect(codigoCorte).toContain('PROCESSOS_OFICIAIS');
+    expect(codigoCorte).toContain('listarFaccoesPorProcesso');
+    expect(codigoCorte).toContain('quantidade_recebida_x_2_x_valor_alca');
+    expect(codigoCorte).toContain('quantidade_recebida_x_valor_referencia');
     expect(codigoCorte).toContain('movimentacaoUsaFluxoLegado');
     expect(codigoCorte).toContain('abrirChegadaCompatibilidade');
     expect(codigoCorte).not.toContain('new MutationObserver');
@@ -28,10 +32,12 @@ test.describe('Facções - módulo consolidado', () => {
     expect(respostaAbas.ok()).toBeTruthy();
     const codigoAbas = await respostaAbas.text();
 
-    expect(codigoAbas).toContain('2026-08-21-faccoes-processos-na-origem-230');
+    expect(codigoAbas).toContain('2026-08-26-faccoes-abas-sem-saida-lateral-254');
     expect(codigoAbas).toContain('PROCESSOS_SAIDA');
     expect(codigoAbas).toContain('<select id="s3processo"');
     expect(codigoAbas).toContain('Lateral e Alça');
+    expect(codigoAbas).not.toContain('corte: ["LATERAL", "ALÇA"]');
+    expect(codigoAbas).not.toContain('btnSaidaCorteNovo');
     expect(codigoAbas).not.toContain('new MutationObserver');
 
     const respostaGrupos = await request.get('/corponu-faccoes-grupos-processos.js');
@@ -41,6 +47,7 @@ test.describe('Facções - módulo consolidado', () => {
     expect(codigoGrupos).toContain('2026-08-21-faccoes-grupos-consolidados-229');
     expect(codigoGrupos).toContain('preencherSelectFaccoesPorProcesso');
     expect(codigoGrupos).toContain('CorpoNuFaccoesGrupos');
+    expect(codigoGrupos).toContain('listarFaccoesPorProcesso');
     expect(codigoGrupos).not.toContain('stopImmediatePropagation');
     expect(codigoGrupos).not.toContain('setInterval');
 
@@ -130,7 +137,8 @@ test.describe('Facções - módulo consolidado', () => {
       expect(locais).not.toContain(`corponu-faccoes-corte-0${parte}.txt`);
     }
 
-    expect(locais).toContain('corponu-faccoes-corte-definitivo.js');
+    expect(locais).toContain('corponu-faccoes-lateral-alca-254.js');
+    expect(locais).not.toContain('corponu-faccoes-corte-definitivo.js');
     expect(locais).toContain('corponu-faccoes-grupos-processos.js');
     expect(locais).toContain('corponu-faccoes-exclusao-pagamento-vinculado.js');
     expect(errosPagina, `Erros JavaScript encontrados: ${errosPagina.join(' | ')}`).toEqual([]);

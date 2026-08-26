@@ -698,11 +698,29 @@
     inicializarDados(false);
   }
 
+  async function listarFaccoesPorProcesso(processo, forcar = false) {
+    const dados = await carregarDados(forcar);
+    return faccoesDoGrupo(processo, dados).map(item => ({
+      id: item.id,
+      nome: item.nome || "",
+      cidade: item.cidade || "",
+      ativo: item.ativo !== false
+    }));
+  }
+
+  async function listarProcessosOficiais(forcar = false) {
+    const dados = await carregarDados(forcar);
+    return dados.processos.map(item => ({ ...item }));
+  }
+
   window.CorpoNuFaccoesGrupos = {
     versao: VERSION,
     atualizar: inicializarDados,
     filtrarRegistro: filtrarFluxoRegistro,
-    filtrarManejo: filtrarFluxoManejo
+    filtrarManejo: filtrarFluxoManejo,
+    listarFaccoesPorProcesso,
+    listarProcessosOficiais,
+    processoCanonico
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true });
