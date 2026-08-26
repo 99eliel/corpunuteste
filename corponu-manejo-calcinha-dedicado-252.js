@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-08-25-manejo-calcinha-dedicado-252";
+  const VERSION = "2026-08-26-manejo-calcinha-filtros-identidade-253";
   const GUARD = "__CORPONU_MANEJO_CALCINHA_DEDICADO_252__";
   const ROOT_ID = "corponuManejoCalcinhaDedicado252";
   const STYLE_ID = "corponuManejoCalcinhaDedicado252Style";
@@ -159,7 +159,7 @@
       #${ROOT_ID} .cn252-topo h4{margin:0 0 4px;font-size:16px;color:#1e1b4b}
       #${ROOT_ID} .cn252-topo p{margin:0;color:#64748b;font-size:12px;line-height:1.45}
       #${ROOT_ID} .cn252-contador{white-space:nowrap;padding:7px 10px;border-radius:999px;background:#ede9fe;color:#5b21b6;font-size:12px;font-weight:800}
-      #${ROOT_ID} .cn252-filtros{display:grid;grid-template-columns:minmax(220px,2fr) minmax(145px,1fr) minmax(160px,1fr) auto;gap:8px;margin-bottom:12px}
+      #${ROOT_ID} .cn252-filtros{display:grid;grid-template-columns:minmax(130px,.85fr) minmax(150px,1fr) minmax(220px,1.55fr) minmax(145px,.85fr) minmax(160px,.9fr) auto;gap:8px;margin-bottom:12px}
       #${ROOT_ID} input,#${ROOT_ID} select{width:100%;min-height:38px;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;background:#fff;color:#0f172a;font:inherit}
       #${ROOT_ID} input:focus,#${ROOT_ID} select:focus{outline:2px solid rgba(124,58,237,.18);border-color:#7c3aed}
       #${ROOT_ID} button{font:inherit}
@@ -184,7 +184,7 @@
       #${ROOT_ID} .cn252-msg{min-height:18px;margin-top:8px;color:#64748b;font-size:11px}
       #${ROOT_ID} .cn252-msg.ok{color:#15803d;font-weight:800}
       #${ROOT_ID} .cn252-msg.erro{color:#b91c1c;font-weight:800}
-      @media (max-width:1180px){#${ROOT_ID} .cn252-op{grid-template-columns:1.2fr 85px 1fr 1fr 1.3fr}.cn252-destino{display:none!important}#${ROOT_ID} .cn252-acoes{grid-column:auto}}
+      @media (max-width:1180px){#${ROOT_ID} .cn252-filtros{grid-template-columns:repeat(3,minmax(0,1fr))}#${ROOT_ID} .cn252-op{grid-template-columns:1.2fr 85px 1fr 1fr 1.3fr}.cn252-destino{display:none!important}#${ROOT_ID} .cn252-acoes{grid-column:auto}}
       @media (max-width:820px){#${ROOT_ID} .cn252-filtros{grid-template-columns:1fr 1fr}#${ROOT_ID} .cn252-op{grid-template-columns:1fr 1fr}#${ROOT_ID} .cn252-ident{grid-column:1/-1}#${ROOT_ID} .cn252-qtd{text-align:left}#${ROOT_ID} .cn252-acoes{grid-column:1/-1;justify-content:stretch}#${ROOT_ID} .cn252-acoes .cn252-btn{flex:1}}
     `;
     (document.head || document.documentElement).appendChild(style);
@@ -211,7 +211,9 @@
           <span class="cn252-contador" id="cn252Contador">0 OPs</span>
         </div>
         <div class="cn252-filtros">
-          <input id="cn252Busca" type="search" autocomplete="off" placeholder="Buscar OP, referência, cor, fase ou facção...">
+          <input id="cn252BuscaOP" type="search" autocomplete="off" placeholder="Buscar OP..." aria-label="Buscar por número da OP">
+          <input id="cn252BuscaReferencia" type="search" autocomplete="off" placeholder="Buscar referência..." aria-label="Buscar por referência">
+          <input id="cn252BuscaDetalhes" type="search" autocomplete="off" placeholder="Cor, fase, necessidade, facção ou processo..." aria-label="Buscar por detalhes da OP">
           <select id="cn252FiltroLinha">
             <option value="">Todas as linhas</option>
             <option value="cotton_line">Cotton Line</option>
@@ -238,7 +240,9 @@
 
   function filtros() {
     return {
-      busca: normalizar(document.getElementById("cn252Busca")?.value),
+      op: normalizar(document.getElementById("cn252BuscaOP")?.value),
+      referencia: normalizar(document.getElementById("cn252BuscaReferencia")?.value),
+      detalhes: normalizar(document.getElementById("cn252BuscaDetalhes")?.value),
       linha: texto(document.getElementById("cn252FiltroLinha")?.value),
       status: texto(document.getElementById("cn252FiltroStatus")?.value)
     };
@@ -251,10 +255,12 @@
       if (f.linha === "sem_linha" && v.linha) return false;
       if (f.linha && f.linha !== "sem_linha" && v.linha !== f.linha) return false;
       if (f.status && statusDaOp(op) !== f.status) return false;
-      if (f.busca) {
-        const palheiro = normalizar([
-          op.numeroOP,
-          op.referencia,
+
+      if (f.op && !normalizar(op.numeroOP).includes(f.op)) return false;
+      if (f.referencia && !normalizar(op.referencia).includes(f.referencia)) return false;
+
+      if (f.detalhes) {
+        const palheiroDetalhes = normalizar([
           op.cor,
           op.produtoNome,
           v.fase,
@@ -264,7 +270,7 @@
           manejo(op).processo,
           op.processoPlanejado
         ].join(" "));
-        if (!palheiro.includes(f.busca)) return false;
+        if (!palheiroDetalhes.includes(f.detalhes)) return false;
       }
       return true;
     }).sort((a, b) => numeroOrdenacao(b) - numeroOrdenacao(a));
@@ -583,7 +589,7 @@
     root.addEventListener("input", event => {
       const campo = event.target?.closest?.("[data-campo]");
       if (!campo) {
-        if (event.target?.id === "cn252Busca") {
+        if (["cn252BuscaOP", "cn252BuscaReferencia", "cn252BuscaDetalhes"].includes(event.target?.id)) {
           limite = PAGE_SIZE;
           agendarRender();
         }
