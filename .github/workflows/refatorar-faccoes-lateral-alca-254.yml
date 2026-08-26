@@ -1,0 +1,56 @@
+name: Refatorar Facções Lateral e Alça 254
+
+on:
+  push:
+    branches:
+      - refactor/faccoes-lateral-alca-254
+
+permissions:
+  contents: write
+
+jobs:
+  refatorar:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/faccoes-lateral-alca-254
+
+      - name: Aplicar refatoração estrutural
+        run: python3 .github/scripts/refatorar-faccoes-lateral-alca-254.py
+
+      - name: Validar sintaxe JavaScript
+        run: |
+          node --check corponu-faccoes-lateral-alca-254.js
+          node --check corponu-faccoes-tres-abas-saida.js
+          node --check corponu-faccoes-grupos-processos.js
+          node --check corponu-atualizador.js
+          node --check tests/e2e/faccoes-consolidado.spec.js
+          node --check tests/e2e/faccoes-lateral-alca-254.spec.js
+
+      - name: Validar release JSON
+        run: python3 -m json.tool corponu-release.json >/dev/null
+
+      - name: Conferir diff de produção
+        shell: bash
+        run: |
+          test -f corponu-faccoes-lateral-alca-254.js
+          test ! -f corponu-faccoes-corte-definitivo.js
+          ! grep -q 'btnSaidaCorteNovo' corponu-faccoes-tres-abas-saida.js
+          grep -q 'listarFaccoesPorProcesso' corponu-faccoes-grupos-processos.js
+          grep -q 'quantidade_recebida_x_2_x_valor_alca' corponu-faccoes-lateral-alca-254.js
+          grep -q 'quantidade_recebida_x_valor_referencia' corponu-faccoes-lateral-alca-254.js
+          grep -q 'corte-${slug(movement.id)}' corponu-faccoes-lateral-alca-254.js
+          git status --short
+
+      - name: Commitar versão de homologação
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add corponu-atualizador.js corponu-faccoes-grupos-processos.js corponu-faccoes-tres-abas-saida.js corponu-faccoes-lateral-alca-254.js corponu-faccoes-corte-definitivo.js corponu-release.json tests/e2e/faccoes-consolidado.spec.js tests/e2e/faccoes-lateral-alca-254.spec.js
+          git commit -m 'refactor: unificar Facções Lateral e Alça 254'
+          git push origin HEAD:refactor/faccoes-lateral-alca-254
