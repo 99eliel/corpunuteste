@@ -6,7 +6,7 @@ test.describe('Manejo Calcinha dedicado 252', () => {
     expect(resposta.ok()).toBeTruthy();
     const codigo = await resposta.text();
 
-    expect(codigo).toContain('2026-08-25-manejo-calcinha-dedicado-252');
+    expect(codigo).toContain('2026-08-26-manejo-calcinha-filtros-identidade-253');
     expect(codigo).toContain('PAGE_SIZE = 80');
     expect(codigo).toContain('window.corponuDualMode?.state');
     expect(codigo).toContain('updateDoc(doc(state.db, "ordensProducao", id)');
@@ -22,7 +22,7 @@ test.describe('Manejo Calcinha dedicado 252', () => {
     expect(resposta.ok()).toBeTruthy();
     const codigo = await resposta.text();
 
-    expect(codigo).toContain('2026-08-25-manejo-calcinha-dedicado-252');
+    expect(codigo).toContain('2026-08-26-manejo-calcinha-filtros-identidade-253');
     expect(codigo).toContain('corponu-manejo-calcinha-dedicado-252.js');
     expect(codigo).not.toContain('corponu-manejo-calcinha-estavel-204.js');
     expect(codigo).not.toContain('corponu-manejo-calcinha-fase-definitivo-216.js');
@@ -36,6 +36,104 @@ test.describe('Manejo Calcinha dedicado 252', () => {
     expect(codigo).toContain('function dedicatedCalcinhaActive()');
     expect(codigo).toContain('if (dedicatedCalcinhaActive()) return;');
     expect(codigo).toContain('#corponuManejoCalcinhaDedicado252');
+  });
+
+  test('OP e referência são filtros independentes mesmo quando possuem o mesmo número', async ({ page, request }) => {
+    const resposta = await request.get('/corponu-manejo-calcinha-dedicado-252.js');
+    expect(resposta.ok()).toBeTruthy();
+    const codigo = await resposta.text();
+
+    await page.setContent(`
+      <!doctype html>
+      <html><head></head><body>
+        <div id="appShell">
+          <section id="manejo" class="page active">
+            <input id="buscaManejoLinha" value="">
+            <button class="manejo-setor-btn active" data-setor="calcinha">Calcinha</button>
+            <div class="table-wrap">
+              <table class="manejo-inline-table"><tbody id="listaManejoInline"></tbody></table>
+            </div>
+            <datalist id="manejoFasesList"></datalist>
+          </section>
+        </div>
+      </body></html>
+    `);
+
+    await page.evaluate(() => {
+      const base = {
+        quantidade: 10,
+        tipoPeca: 'calcinha',
+        tipoPecaPadrao: 'calcinha',
+        tipoPecaLabel: 'Calcinha',
+        linhaCalcinha: 'cotton_line',
+        necessidade: '',
+        processoPlanejado: 'CALCINHA COMPLETA',
+        faccaoPlanejada: 'FACCAO TESTE',
+        ocultarDoManejo: false,
+        manejosSetores: {
+          calcinha: {
+            setor: 'calcinha',
+            setorLabel: 'Calcinha',
+            linhaCalcinha: 'cotton_line',
+            linhaCalcinhaLabel: 'Cotton Line',
+            fase: 'FASE TESTE',
+            necessidade: '',
+            status: 'organizada'
+          }
+        },
+        manejoStatusSetores: { calcinha: 'organizada' }
+      };
+
+      const porNumero = {
+        ...base,
+        id: 'op-numero',
+        numeroOP: '123',
+        referencia: '900',
+        cor: 'PRETO'
+      };
+      const porReferencia = {
+        ...base,
+        id: 'op-referencia',
+        numeroOP: '456',
+        referencia: '123',
+        cor: 'BRANCO'
+      };
+
+      window.corponuDualMode = {
+        state: {
+          ready: true,
+          maps: {
+            ordens: new Map([
+              ['op-numero', porNumero],
+              ['op-referencia', porReferencia]
+            ]),
+            movimentacoes: new Map()
+          }
+        },
+        refresh: async () => {}
+      };
+    });
+
+    await page.addScriptTag({ content: codigo });
+
+    const root = page.locator('#corponuManejoCalcinhaDedicado252');
+    await expect(root).toBeVisible();
+    await expect(root.locator('[data-cn252-op]')).toHaveCount(2);
+
+    await root.locator('#cn252BuscaReferencia').fill('123');
+    await expect(root.locator('[data-cn252-op="op-referencia"]')).toHaveCount(1);
+    await expect(root.locator('[data-cn252-op="op-numero"]')).toHaveCount(0);
+    await expect(root.locator('#cn252Contador')).toHaveText('1 OP');
+
+    await root.locator('#cn252BuscaReferencia').fill('');
+    await root.locator('#cn252BuscaOP').fill('123');
+    await expect(root.locator('[data-cn252-op="op-numero"]')).toHaveCount(1);
+    await expect(root.locator('[data-cn252-op="op-referencia"]')).toHaveCount(0);
+    await expect(root.locator('#cn252Contador')).toHaveText('1 OP');
+
+    await root.locator('#cn252BuscaOP').fill('');
+    await root.locator('#cn252BuscaDetalhes').fill('123');
+    await expect(root.locator('[data-cn252-op]')).toHaveCount(0);
   });
 
   test('rascunho sobrevive ao filtro e salvar faz uma única escrita sem reconstruir o card', async ({ page, request }) => {
@@ -141,8 +239,8 @@ test.describe('Manejo Calcinha dedicado 252', () => {
     await card.locator('[data-campo="fase"]').fill('FASE NOVA');
     await card.locator('[data-campo="necessidade"]').fill('URGENTE TESTE');
 
-    // Força nova renderização pela busca. Os três valores editados devem sobreviver via drafts.
-    await root.locator('#cn252Busca').fill('12346');
+    // Força nova renderização pelo filtro de OP. Os três valores editados devem sobreviver via drafts.
+    await root.locator('#cn252BuscaOP').fill('12346');
     await page.waitForTimeout(80);
     card = root.locator('[data-cn252-op="op1"]');
     await expect(card.locator('[data-campo="linha"]')).toHaveValue('corpo_nu');
