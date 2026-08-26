@@ -30,7 +30,6 @@
   let movimentoChegada = null;
   let processoEdicaoId = "";
   let carregando = false;
-  let abaAtiva = "geral";
 
   const norm = value => String(value ?? "")
     .normalize("NFD")
@@ -250,8 +249,6 @@
     const style = document.createElement("style");
     style.id = "styleFaccoesCorte";
     style.textContent = `
-      .corte-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding:7px;border:1px solid #ddd6fe;background:#f5f3ff;border-radius:14px;width:max-content;max-width:100%}
-      .corte-tab{border:0;background:transparent;color:#5b21b6;padding:10px 14px;border-radius:10px;font-weight:900;cursor:pointer}.corte-tab.active{background:#6d28d9;color:#fff;box-shadow:0 7px 18px #6d28d933}
       #painelFaccoesCorte.hidden,.corte-admin.hidden,.corte-modal.hidden,.corte-preview.hidden,.corte-classificacao.hidden{display:none!important}
       #painelFaccoesCorte{display:grid;gap:16px}.corte-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.corte-cards{display:grid;grid-template-columns:repeat(5,minmax(145px,1fr));gap:12px}
       .corte-card{padding:14px;border:1px solid #e2e8f0;border-radius:14px;background:#fff}.corte-card span{display:block;color:#64748b;font-size:12px;font-weight:800}.corte-card strong{display:block;margin-top:5px;font-size:23px;color:#0f172a}.corte-card.alerta{background:#fff7ed;border-color:#fed7aa}.corte-card.alerta strong{color:#9a3412}
@@ -264,7 +261,7 @@
       .corte-classificacao{grid-column:1/-1;padding:12px;border:1px solid #ddd6fe;border-radius:12px;background:#faf5ff}.corte-classificacao strong{display:block;margin-bottom:8px}.corte-classificacao .checks{display:flex;gap:16px;flex-wrap:wrap}
       .corte-note{padding:11px;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a;font-size:12px;font-weight:700}.corte-warning{padding:11px;border:1px solid #fed7aa;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:12px;font-weight:700}
       @media(max-width:1200px){.corte-cards{grid-template-columns:repeat(3,1fr)}.corte-filtros{grid-template-columns:repeat(3,1fr)}.corte-admin-wrap{grid-template-columns:1fr}}
-      @media(max-width:760px){.corte-cards,.corte-filtros,.corte-grid-2,.corte-grid-3,.corte-preview-grid{grid-template-columns:1fr}.corte-tabs{width:100%}.corte-tab{flex:1}.corte-modal{padding:8px}.corte-modal-card{padding:14px;border-radius:14px}}
+      @media(max-width:760px){.corte-cards,.corte-filtros,.corte-grid-2,.corte-grid-3,.corte-preview-grid{grid-template-columns:1fr}.corte-modal{padding:8px}.corte-modal-card{padding:14px;border-radius:14px}}
     `;
     document.head.appendChild(style);
   }
@@ -364,17 +361,6 @@
     [...wrapper.children].forEach(child => document.body.appendChild(child));
   }
 
-  function injetarClassificacaoFaccao() {
-    const form = document.getElementById("formFaccao");
-    if (!form || document.getElementById("corteClassificacaoFaccao")) return;
-    const box = document.createElement("div");
-    box.id = "corteClassificacaoFaccao";
-    box.className = "corte-classificacao";
-    box.innerHTML = `<strong>Tipos de peça atendidos</strong><div class="checks"><label class="check"><input id="faccaoTrabalhaSutia" type="checkbox"><span>Sutiã</span></label><label class="check"><input id="faccaoTrabalhaCalcinha" type="checkbox"><span>Calcinha</span></label></div><small>Essas opções também serão usadas para filtrar quem pode receber processos da área Corte.</small>`;
-    const obs = document.getElementById("faccaoObs")?.closest("label");
-    if (obs) form.insertBefore(box, obs); else form.appendChild(box);
-  }
-
   function garantirProcessosChegadaManual() {
     const datalist = document.getElementById("chegadaManualProcessoList");
     if (!(datalist instanceof HTMLDataListElement)) return;
@@ -391,19 +377,10 @@
     injetarEstilo();
     montarModais();
     garantirProcessosChegadaManual();
-    injetarClassificacaoFaccao();
 
     const page = document.getElementById("faccoes");
     const existing = page?.querySelector(":scope > .faccoes-operacional-panel");
     if (!page || !existing) return false;
-
-    if (!document.getElementById("faccoesAbasCorte")) {
-      const tabs = document.createElement("div");
-      tabs.id = "faccoesAbasCorte";
-      tabs.className = "corte-tabs";
-      tabs.innerHTML = `<button class="corte-tab active" type="button" data-area-faccoes="geral">Sutiã e Calcinha</button><button class="corte-tab" type="button" data-area-faccoes="corte">Lateral e Alça</button>`;
-      page.insertBefore(tabs, existing);
-    }
 
     if (!document.getElementById("painelFaccoesCorte")) {
       const panel = document.createElement("div");
@@ -414,7 +391,6 @@
     }
 
     atualizarVisibilidadeAdmin();
-    aplicarAba(abaAtiva, false);
     return true;
   }
 
@@ -422,18 +398,19 @@
     document.querySelectorAll(".corte-admin").forEach(element => element.classList.toggle("hidden", !ehAdmin()));
   }
 
-  function aplicarAba(area, carregar = true) {
-    abaAtiva = area === "corte" ? "corte" : "geral";
+  function mostrarAreaLateralAlca() {
     const page = document.getElementById("faccoes");
-    const existing = page?.querySelector(":scope > .faccoes-operacional-panel");
-    const corte = document.getElementById("painelFaccoesCorte");
-    if (!existing || !corte) return;
+    const geral = page?.querySelector(":scope > .faccoes-operacional-panel");
+    const painel = document.getElementById("painelFaccoesCorte");
+    if (!page || !geral || !painel) return false;
+    geral.classList.add("hidden");
+    painel.classList.remove("hidden");
+    carregarTudoCorte();
+    return true;
+  }
 
-    existing.classList.toggle("hidden", abaAtiva === "corte");
-    corte.classList.toggle("hidden", abaAtiva !== "corte");
-    document.querySelectorAll("[data-area-faccoes]").forEach(button => button.classList.toggle("active", button.dataset.areaFaccoes === abaAtiva));
-
-    if (abaAtiva === "corte" && carregar) carregarTudoCorte();
+  function ocultarAreaLateralAlca() {
+    document.getElementById("painelFaccoesCorte")?.classList.add("hidden");
   }
 
   async function carregarPerfil() {
@@ -889,14 +866,14 @@
         produtoNome: opSaida.produtoNome || opSaida.nomeProduto || "",
         tipoPecaCorte: tipoDaOP(opSaida),
         tipoDestino: "faccao_corte",
-        tipoDestinoLabel: "Facção • Corte",
+        tipoDestinoLabel: "Facção • Lateral e Alça",
         destino: faccao,
         destinoId: faccoes.find(item => norm(item.nome) === norm(faccao))?.id || "",
         processo: process.nome,
         processoCorteId: process.id,
         marcaLateralPronta: process.marcaLateralPronta === true,
         setor: AREA,
-        setorLabel: "Corte",
+        setorLabel: "Lateral e Alça",
         quantidadeEnviada: total,
         quantidadeRecebida: 0,
         dataEnvio: date,
@@ -923,11 +900,11 @@
       }, { merge: true });
       await registrarLog("corte_saida_registrada", "movimentacaoProducao", ref.id, `OP ${opNumber} | ${process.nome} | ${faccao} | ${total} peças`);
       fecharModal("modalSaidaCorte");
-      toast("Saída de Corte registrada com sucesso.", "ok");
+      toast("Saída de Lateral e Alça registrada com sucesso.", "ok");
       await carregarTudoCorte(true);
     } catch (error) {
       console.error(error);
-      toast("Erro ao registrar a saída de Corte.", "error");
+      toast("Erro ao registrar a saída de Lateral e Alça.", "error");
     } finally {
       if (button) { button.disabled = false; button.textContent = "Confirmar saída"; }
     }
@@ -1086,8 +1063,10 @@
     const createdBy = current.criadoPor || user.uid;
     const data = {
       origem: "movimentacao_corte",
+      origemFluxo: "faccoes_lateral_alca",
+      fluxoFaccoes: FLUXO,
       area: AREA,
-      areaLabel: "Corte",
+      areaLabel: "Lateral e Alça",
       movimentacaoId: movement.id,
       opId: movement.opId,
       numeroOP: movement.numeroOP || "",
@@ -1102,7 +1081,7 @@
       precoReferenciaId: price?.id || "",
       servicoId: price?.id || "",
       setor: ehAlcaGlobal ? "alca" : (ehLateralReferencia ? "lateral" : AREA),
-      setorLabel: ehAlcaGlobal ? "Alça" : (ehLateralReferencia ? "Lateral" : "Corte"),
+      setorLabel: ehAlcaGlobal ? "Alça" : (ehLateralReferencia ? "Lateral" : "Lateral e Alça"),
       dataEntrega: movement.dataChegada,
       quantidade: qty,
       ...(ehAlcaGlobal ? {
@@ -1162,7 +1141,7 @@
       lateralProntaCorteUsuarioNome: perfil?.nome || user.displayName || user.email || "Usuário",
       lateralProntaCorteEm: c.fs.serverTimestamp(),
       lateralProntaOrigemAtual: "faccao_corte",
-      lateralProntaOrigemAtualLabel: "Facção de Corte",
+      lateralProntaOrigemAtualLabel: "Facção • Lateral e Alça",
       lateralProntaOrigemAtualEm: c.fs.serverTimestamp(),
       atualizadoPor: user.uid,
       atualizadoEm: c.fs.serverTimestamp()
@@ -1202,7 +1181,7 @@
         await api.recalcular(op);
       }
     } catch (error) {
-      console.warn("Pagamentos de montagem não recalculados pela área Corte", error);
+      console.warn("Pagamentos de montagem não recalculados após Lateral/Alça", error);
     }
   }
 
@@ -1289,7 +1268,7 @@
       }, 1500);
     } catch (error) {
       console.error(error);
-      toast("Erro ao registrar a chegada de Corte.", "error");
+      toast("Erro ao registrar a chegada de Lateral e Alça.", "error");
     } finally {
       if (button) { button.disabled = false; button.textContent = "Salvar chegada"; }
     }
@@ -1317,7 +1296,7 @@
         lateralProntaCorteFaccao: latest.destino || "",
         lateralProntaCorteQuantidade: numero(latest.quantidadeRecebida),
         lateralProntaOrigemAtual: "faccao_corte",
-        lateralProntaOrigemAtualLabel: "Facção de Corte",
+        lateralProntaOrigemAtualLabel: "Facção • Lateral e Alça",
         lateralProntaOrigemAtualEm: c.fs.serverTimestamp(),
         atualizadoPor: user.uid,
         atualizadoEm: c.fs.serverTimestamp()
@@ -1537,7 +1516,7 @@
         statusPagamento: "pendente",
         valorPendente: false,
         avisoPagamento: "",
-        observacoes: "Valor de Corte definido e pagamento pendente recalculado.",
+        observacoes: "Valor de Lateral/Alça definido e pagamento pendente recalculado.",
         atualizadoPor: user.uid,
         atualizadoEm: c.fs.serverTimestamp(),
         versaoCorte: VERSION
@@ -1572,7 +1551,7 @@
         setor: AREA,
         setorLabel: "Corte",
         area: AREA,
-        areaLabel: "Corte",
+        areaLabel: "Lateral e Alça",
         valor: arredondar(price),
         ativo: true,
         atualizadoPor: user.uid,
@@ -1588,50 +1567,8 @@
       toast(`Valor salvo. ${updated} pagamento(s) pendente(s) recalculado(s).`, "ok");
     } catch (error) {
       console.error(error);
-      toast("Erro ao salvar o valor de Corte.", "error");
+      toast("Erro ao salvar o valor de Lateral/Alça.", "error");
     }
-  }
-
-  async function salvarClassificacaoFaccao(dadosCapturados = {}) {
-    if (!ehAdmin()) return;
-    const name = String(dadosCapturados.nome || document.getElementById("faccaoNome")?.value || "").trim();
-    if (!name) return;
-    const currentId = String(dadosCapturados.id || document.getElementById("faccaoId")?.value || "");
-    const trabalhaSutia = dadosCapturados.trabalhaSutia === true;
-    const trabalhaCalcinha = dadosCapturados.trabalhaCalcinha === true;
-    const c = await aguardarContexto();
-    await new Promise(resolve => setTimeout(resolve, 650));
-    let id = currentId;
-    if (!id) {
-      const found = await c.fs.getDocs(c.fs.query(c.fs.collection(c.db, "faccoes"), c.fs.where("nome", "==", norm(name)), c.fs.limit(1)));
-      id = found.empty
-        ? name.trim().replaceAll("/", "-").replaceAll("\\", "-").replaceAll("#", "-").replaceAll("?", "-")
-        : found.docs[0].id;
-    }
-    await c.fs.setDoc(c.fs.doc(c.db, "faccoes", id), {
-      trabalhaSutia,
-      trabalhaCalcinha,
-      classificacaoPecasAtualizadaPor: user.uid,
-      classificacaoPecasAtualizadaEm: c.fs.serverTimestamp()
-    }, { merge: true });
-  }
-
-  async function carregarClassificacaoFaccao(id) {
-    const c = await aguardarContexto();
-    const snap = await c.fs.getDoc(c.fs.doc(c.db, "faccoes", id));
-    const data = snap.exists() ? snap.data() : {};
-    const inferred = inferirClassificacaoFaccao(data);
-    const sutia = document.getElementById("faccaoTrabalhaSutia");
-    const calcinha = document.getElementById("faccaoTrabalhaCalcinha");
-    if (sutia) sutia.checked = data.trabalhaSutia === true || (data.trabalhaSutia === undefined && inferred.sutia);
-    if (calcinha) calcinha.checked = data.trabalhaCalcinha === true || (data.trabalhaCalcinha === undefined && inferred.calcinha);
-  }
-
-  function limparClassificacaoFaccao() {
-    const sutia = document.getElementById("faccaoTrabalhaSutia");
-    const calcinha = document.getElementById("faccaoTrabalhaCalcinha");
-    if (sutia) sutia.checked = false;
-    if (calcinha) calcinha.checked = false;
   }
 
   function imprimirCorte() {
@@ -1651,7 +1588,7 @@
       const field = document.getElementById(`${prefix}LateralPronta`);
       if (field) {
         field.value = "sim";
-        field.title = "Lateral pronta — Facção de Corte";
+        field.title = "Lateral pronta — Facção de Lateral e Alça";
         field.dispatchEvent(new Event("change", { bubbles: true }));
       }
     } catch (error) {}
@@ -1731,7 +1668,7 @@
         if (data.lateralProntaCorteAtiva !== false) await recalcularMontagemPorOP(ordem.id, true);
       }
     } catch (error) {
-      console.warn("Não foi possível recalcular todas as laterais de Corte.", error);
+      console.warn("Não foi possível recalcular todas as laterais de Lateral/Alça.", error);
     }
   }
 
@@ -1748,12 +1685,10 @@
         setTimeout(() => {
           injetarUI();
           atualizarVisibilidadeAdmin();
-          if (abaAtiva === "corte") carregarTudoCorte();
+          if (!document.getElementById("painelFaccoesCorte")?.classList.contains("hidden")) carregarTudoCorte();
         }, 0);
       }
 
-      const tab = target.closest("[data-area-faccoes]");
-      if (tab) { aplicarAba(tab.dataset.areaFaccoes); return; }
       if (target.closest("#btnCorteRegistrarSaida")) return abrirSaida();
       if (target.closest("#btnChegadaManualLateralAlca")) {
         garantirProcessosChegadaManual();
@@ -1789,12 +1724,6 @@
         if (opId) [900, 2200, 4800].forEach(delay => setTimeout(() => recalcularLateralCorteDaOP(opId).catch(() => {}), delay));
       }
 
-      const editFaccao = target.closest('[onclick*="editarFaccao"]');
-      if (editFaccao) {
-        const id = argOnclick(editFaccao);
-        if (id) setTimeout(() => carregarClassificacaoFaccao(id), 100);
-      }
-      if (target.closest("#btnAbrirCadastroFaccao")) setTimeout(limparClassificacaoFaccao, 50);
 
       const mainSend = target.closest('[onclick*="mandarParaFaccao"],[onclick*="abrirModalMovimentacao"]');
       if (mainSend) {
@@ -1835,15 +1764,6 @@
       if (form.id === "formChegadaCorte") return salvarChegada(event);
       if (form.id === "formProcessoCorte") return salvarProcesso(event);
       if (form.id === "formPrecoCorte") return salvarPreco(event);
-      if (form.id === "formFaccao") {
-        const dadosClassificacao = {
-          id: document.getElementById("faccaoId")?.value || "",
-          nome: document.getElementById("faccaoNome")?.value?.trim() || "",
-          trabalhaSutia: document.getElementById("faccaoTrabalhaSutia")?.checked === true,
-          trabalhaCalcinha: document.getElementById("faccaoTrabalhaCalcinha")?.checked === true
-        };
-        setTimeout(() => salvarClassificacaoFaccao(dadosClassificacao).catch(console.warn), 0);
-      }
       if (form.id === "formRevisaoComponentes") atualizarOrigemAposRevisaoInterna();
       if (form.id === "formConfigRev") [1500, 3200, 5600].forEach(delay => setTimeout(recalcularTodasLateraisCorte, delay));
       if (["formChegadaMovimentacao", "formChegadaManualFaccao", "formEntregaPagamento"].includes(form.id)) {
@@ -1881,7 +1801,7 @@
         pagamentosCorte = [];
         if (current) {
           await carregarPerfil().catch(() => {});
-          if (abaAtiva === "corte") carregarTudoCorte();
+          if (!document.getElementById("painelFaccoesCorte")?.classList.contains("hidden")) carregarTudoCorte();
         }
       });
     } catch (error) {
@@ -1889,11 +1809,15 @@
     }
   }
 
-  window.CorpoNuFaccoesCorte = {
+  const apiLateralAlca = {
     versao: VERSION,
     atualizar: carregarTudoCorte,
+    mostrar: mostrarAreaLateralAlca,
+    ocultar: ocultarAreaLateralAlca,
     recalcularMontagemPorOP
   };
+  window.CorpoNuFaccoesLateralAlca = apiLateralAlca;
+  window.CorpoNuFaccoesCorte = apiLateralAlca; // alias legado temporário
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true });
   else iniciar();

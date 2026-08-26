@@ -28,10 +28,15 @@ test.describe('Facções - Lateral e Alça 254', () => {
     expect(modulo).toContain('quantidade_recebida_x_valor_referencia');
     expect(modulo).toContain('if (pagamentoPago(current))');
     expect(modulo).not.toContain('new MutationObserver');
+    expect(modulo).toContain('window.CorpoNuFaccoesLateralAlca = apiLateralAlca');
+    expect(modulo).not.toContain('data-area-faccoes');
+    expect(modulo).not.toContain('injetarClassificacaoFaccao');
 
     expect(abas).not.toContain('corte: ["LATERAL", "ALÇA"]');
     expect(abas).not.toContain('btnSaidaCorteNovo');
     expect(abas).toContain('if (a === "corte") return;');
+    expect(abas).toContain('window.CorpoNuFaccoesLateralAlca?.mostrar?.()');
+    expect(abas).not.toContain('faccoesAbasCorte');
     expect(abas).toContain('if (aba === "corte") return toast("Use o fluxo próprio de Lateral e Alça.")');
 
     expect(grupos).toContain('async function listarFaccoesPorProcesso');
@@ -51,6 +56,7 @@ test.describe('Facções - Lateral e Alça 254', () => {
     await expect.poll(() => page.evaluate(() => Boolean(window.__CORPONU_FACCOES_CORTE__)), { timeout: 15_000 }).toBeTruthy();
 
     await expect(page.locator('#abaFaccaoCorte')).toHaveCount(1);
+    await expect(page.locator('#faccoesAbasCorte')).toHaveCount(0);
     await page.locator('#abaFaccaoCorte').click();
     await expect(page.locator('#painelFaccoesCorte')).toBeVisible();
 

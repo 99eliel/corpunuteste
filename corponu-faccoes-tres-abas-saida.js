@@ -106,7 +106,7 @@
   function abas() {
     const p = document.getElementById("faccoes");
     if (!p) return null;
-    const bs = [...p.querySelectorAll("button")].filter(b => !b.closest("#faccoesAbasCorte"));
+    const bs = [...p.querySelectorAll("button")];
     const s = bs.find(b => /^SUTIA(?:\s+\d+)?$/.test(norm(b.textContent)));
     const c = bs.find(b => /^CALCINHA(?:\s+\d+)?$/.test(norm(b.textContent)));
     if (!s || !c) return null;
@@ -121,15 +121,12 @@
 
   function mostrarGeral() {
     painelGeral()?.classList.remove("hidden");
-    document.getElementById("painelFaccoesCorte")?.classList.add("hidden");
-    document.querySelector('#faccoesAbasCorte [data-area-faccoes="geral"]')?.click();
+    window.CorpoNuFaccoesLateralAlca?.ocultar?.();
   }
 
   function mostrarCorte() {
     painelGeral()?.classList.add("hidden");
-    document.getElementById("painelFaccoesCorte")?.classList.remove("hidden");
-    document.querySelector('#faccoesAbasCorte [data-area-faccoes="corte"]')?.click();
-    setTimeout(() => document.getElementById("btnCorteAtualizar")?.click(), 0);
+    window.CorpoNuFaccoesLateralAlca?.mostrar?.();
   }
 
   function marcar(a) {
@@ -168,7 +165,7 @@
     if (document.getElementById("stFaccoes3")) return;
     const s = document.createElement("style");
     s.id = "stFaccoes3";
-    s.textContent = `#faccoesAbasCorte{display:none!important}#faccoes tr.${CLASSE_TIPO_INCOMPATIVEL}{display:none!important}#modalSaida3.hidden{display:none!important}#modalSaida3{position:fixed;inset:0;z-index:100080;background:#0f172a99;display:flex;align-items:center;justify-content:center;padding:18px}.s3card{width:min(760px,100%);max-height:94vh;overflow:auto;background:#fff;border-radius:18px;padding:20px;box-shadow:0 25px 70px #0f172a55}.s3head{display:flex;justify-content:space-between;gap:15px}.s3head h3{margin:0}.s3close{border:0;background:#f1f5f9;border-radius:10px;width:36px;height:36px;font-size:22px}.s3busca{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}.s3grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.s3prev{margin:12px 0;padding:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px}.s3prev.hidden,.s3campos.hidden{display:none!important}.s3info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.s3info div{background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:9px}.s3info small{display:block;color:#64748b}.s3info strong{display:block;margin-top:3px}@media(max-width:760px){.s3grid,.s3info,.s3busca{grid-template-columns:1fr}}`;
+    s.textContent = `#faccoes tr.${CLASSE_TIPO_INCOMPATIVEL}{display:none!important}#modalSaida3.hidden{display:none!important}#modalSaida3{position:fixed;inset:0;z-index:100080;background:#0f172a99;display:flex;align-items:center;justify-content:center;padding:18px}.s3card{width:min(760px,100%);max-height:94vh;overflow:auto;background:#fff;border-radius:18px;padding:20px;box-shadow:0 25px 70px #0f172a55}.s3head{display:flex;justify-content:space-between;gap:15px}.s3head h3{margin:0}.s3close{border:0;background:#f1f5f9;border-radius:10px;width:36px;height:36px;font-size:22px}.s3busca{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}.s3grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.s3prev{margin:12px 0;padding:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px}.s3prev.hidden,.s3campos.hidden{display:none!important}.s3info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.s3info div{background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:9px}.s3info small{display:block;color:#64748b}.s3info strong{display:block;margin-top:3px}@media(max-width:760px){.s3grid,.s3info,.s3busca{grid-template-columns:1fr}}`;
     document.head.appendChild(s);
   }
 
@@ -195,11 +192,6 @@
     estilo();
     modal();
     preencherProcessos(aba);
-    const velha = document.getElementById("faccoesAbasCorte");
-    if (velha) {
-      velha.hidden = true;
-      velha.style.setProperty("display", "none", "important");
-    }
 
     const x = abas();
     if (x && !document.getElementById("abaFaccaoCorte")) {
@@ -499,7 +491,7 @@
         processo,
         processoLivre: false,
         setor: aba,
-        setorLabel: aba === "sutia" ? "Sutiã" : aba === "calcinha" ? "Calcinha" : "Corte",
+        setorLabel: aba === "sutia" ? "Sutiã" : "Calcinha",
         quantidadeEnviada: total,
         quantidadeRecebida: 0,
         dataEnvio: data,
