@@ -1,0 +1,42 @@
+name: CorpoNu - Detalhes Pagamento Sutiã Completo
+
+on:
+  push:
+    paths:
+      - 'corponu-pagamentos-detalhes-sutia-completo-257.js'
+      - 'corponu-atualizador.js'
+      - 'tests/e2e/pagamentos-detalhes-sutia-completo-257.spec.js'
+      - '.github/workflows/teste-pagamentos-detalhes-sutia.yml'
+  pull_request:
+    paths:
+      - 'corponu-pagamentos-detalhes-sutia-completo-257.js'
+      - 'corponu-atualizador.js'
+      - 'tests/e2e/pagamentos-detalhes-sutia-completo-257.spec.js'
+      - '.github/workflows/teste-pagamentos-detalhes-sutia.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  detalhes-pagamento-sutia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Validar detalhes do pagamento do Sutiã Completo
+        run: npx playwright test tests/e2e/pagamentos-detalhes-sutia-completo-257.spec.js --project=chromium-desktop --workers=1
