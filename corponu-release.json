@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-26-manejo-calcinha-filtros-identidade-253",
-  "updatedAt": "2026-08-26T18:48:00-03:00",
-  "notes": "HOMOLOGAÇÃO. Refatora os filtros do Manejo Calcinha dedicado para separar identidade de OP e Referência. A busca por OP consulta somente numeroOP; a busca por Referência consulta somente referencia; a busca por detalhes fica isolada para cor, produto, fase, necessidade, facção e processo. Evita colisões entre números iguais sem criar camada de hotfix ou duplicar a lógica do módulo. Nenhuma mudança foi aplicada à produção nesta etapa."
+  "version": "2026-08-26-pagamentos-detalhes-sutia-completo-257",
+  "updatedAt": "2026-08-26T21:20:00-03:00",
+  "notes": "HOMOLOGAÇÃO. A aba Pagamentos passa a exibir um ícone de informações somente nos lançamentos de SUTIÃ COMPLETO. O detalhe é somente leitura e usa a memória histórica gravada no pagamento para mostrar valor base por peça, descontos de Lateral, Bojo, Fecho e Ponto de Luz, valor final por peça, quantidade, subtotal, desconto por defeito e total final. Quando um lançamento antigo não possui a memória no pagamento, o sistema tenta a conferência histórica da movimentação; se não houver dados suficientes, informa a ausência sem recalcular com preços atuais nem inventar descontos. Nenhuma alteração foi aplicada à produção nesta etapa."
 }
