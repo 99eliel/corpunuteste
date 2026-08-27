@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const LOCAL_RELEASE = "2026-08-26-manejo-calcinha-filtros-identidade-253";
+  const LOCAL_RELEASE = "2026-08-26-pagamentos-detalhes-sutia-completo-257";
   const INTERVALO_VERIFICACAO = 60 * 1000;
   const RELOAD_KEY = "corponu_web_release_recarregada";
   const MODULO_GRUPOS_FACCOES = ["corponu-faccoes-grupos-processos.js", "faccoes-grupos-processos", "Não foi possível carregar os grupos de processos das facções."];
@@ -52,7 +52,8 @@
       ["corponu-valores-pendentes-auth-214.js", "valores-pendentes-auth-214", "Não foi possível estabilizar a autenticação de Valores pendentes."],
       ["corponu-pendencias-valor-seguro.js", "pendencias-valor-seguro", "Não foi possível salvar e recalcular os valores pendentes com segurança."],
       ["corponu-verificacao-sutia-completo.js", "verificacao-sutia-completo-segura", "Não foi possível carregar a verificação segura do Sutiã Completo."],
-      ["corponu-restantes-pendentes-filtro-op-225.js", "restantes-filtro-op", "Não foi possível carregar o filtro de OP em Restantes pendentes."]
+      ["corponu-restantes-pendentes-filtro-op-225.js", "restantes-filtro-op", "Não foi possível carregar o filtro de OP em Restantes pendentes."],
+      ["corponu-pagamentos-detalhes-sutia-completo-257.js", "pagamentos-detalhes-sutia-257", "Não foi possível carregar a memória detalhada do pagamento do Sutiã Completo."]
     ],
     faccoes: [
       MODULO_GRUPOS_FACCOES,
