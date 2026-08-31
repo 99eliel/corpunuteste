@@ -38,6 +38,7 @@ jobs:
           grep -F 'window.CorpoNuFaccoesLateralAlca = api' corponu-faccoes-corte-definitivo.js
           grep -F 'window.CorpoNuFaccoesLateralAlca?.mostrar?.()' corponu-faccoes-tres-abas-saida.js
           ! grep -F 'btnSaidaCorteNovo' corponu-faccoes-tres-abas-saida.js
+          ! grep -F 'faccoesAbasCorte' corponu-faccoes-tres-abas-saida.js
           ! grep -F 'new MutationObserver' corponu-faccoes-corte-definitivo.js
           ! grep -F '[900, 2200, 4800]' corponu-faccoes-corte-definitivo.js
 
