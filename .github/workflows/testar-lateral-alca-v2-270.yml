@@ -1,0 +1,60 @@
+name: Testar Lateral e Alça V2 270
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/testar-lateral-alca-v2-270.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lateral-alca-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Blindar Firebase na homologação
+        run: python3 scripts/aplicar-firebase-homologacao.py
+
+      - name: Confirmar isolamento de produção
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -q 'corponu-b4942' app.js login-core.js; then
+            echo 'ERRO: Firebase de produção encontrado.'
+            exit 1
+          fi
+          grep -q 'projectId: "corponuteste"' app.js
+          grep -q 'projectId: "corponuteste"' login-core.js
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Executar E2E isolado de Lateral e Alça
+        env:
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: npx playwright test tests/e2e/faccoes-consolidado.spec.js --project=chromium-desktop --workers=1
+
+      - name: Guardar diagnóstico
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lateral-alca-v2-270-e2e-${{ github.run_number }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
