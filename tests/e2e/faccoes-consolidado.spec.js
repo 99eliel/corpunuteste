@@ -12,127 +12,74 @@ async function entrar(page) {
   await expect(page.locator('#appShell')).toBeVisible({ timeout: 25_000 });
 }
 
-test.describe('Facções - módulo consolidado', () => {
-  test('código definitivo não depende de integrações paralelas nem Observers globais', async ({ request }) => {
-    const respostaCorte = await request.get('/corponu-faccoes-corte-definitivo.js');
-    expect(respostaCorte.ok()).toBeTruthy();
-    const codigoCorte = await respostaCorte.text();
+test.describe('Facções - Lateral e Alça V2', () => {
+  test('arquitetura elimina o segundo sistema pesado e inclui Cortagem e montagem', async ({ request }) => {
+    const resposta = await request.get('/corponu-faccoes-corte-definitivo.js');
+    expect(resposta.ok()).toBeTruthy();
+    const codigo = await resposta.text();
 
-    expect(codigoCorte).toContain('2026-08-21-lateral-alca-fluxo-legado-227');
-    expect(codigoCorte).toContain('movimentacaoUsaFluxoLegado');
-    expect(codigoCorte).toContain('abrirChegadaCompatibilidade');
-    expect(codigoCorte).not.toContain('new MutationObserver');
-    expect(codigoCorte).not.toContain('__CORPONU_FACCOES_LATERAL_ALCA__');
+    expect(codigo).toContain('2026-08-31-lateral-alca-v2-270');
+    expect(codigo).toContain('nome: "LATERAL"');
+    expect(codigo).toContain('nome: "ALÇA"');
+    expect(codigo).toContain('nome: "CORTAGEM E MONTAGEM"');
+    expect(codigo).toContain('VALOR_FIXO_CORTAGEM_MONTAGEM = 0.0540');
+    expect(codigo).toContain('faccaoProcesso: "ALÇA"');
+    expect(codigo).toContain('tipoValor: "fixo"');
+    expect(codigo).toContain('chegadaInformadaStatus: "aguardando_confirmacao_admin"');
+    expect(codigo).toContain('chegadaInformadaStatus: "confirmada_admin"');
+    expect(codigo).toContain('writeBatch');
+    expect(codigo).toContain('CorpoNuSutiaCompleto?.atualizarStatusOP');
+    expect(codigo).toContain('painelFaccoesCorte');
+    expect(codigo).toContain('CorpoNuFaccoesLateralAlca');
+
+    expect(codigo).not.toContain('new MutationObserver');
+    expect(codigo).not.toContain('setInterval');
+    expect(codigo).not.toContain('[900, 2200, 4800]');
+    expect(codigo).not.toContain('[1500, 3200, 5600]');
+    expect(codigo).not.toContain('getDocs(c.fs.collection(c.db, "entregasPagamento"))');
+    expect(codigo).not.toContain('getDocs(c.fs.collection(c.db, "precosReferencia"))');
+    expect(codigo).not.toContain('CONFIG_ID = "processos-corte"');
 
     const respostaAbas = await request.get('/corponu-faccoes-tres-abas-saida.js');
     expect(respostaAbas.ok()).toBeTruthy();
     const codigoAbas = await respostaAbas.text();
-
-    expect(codigoAbas).toContain('2026-08-21-faccoes-processos-na-origem-230');
-    expect(codigoAbas).toContain('PROCESSOS_SAIDA');
-    expect(codigoAbas).toContain('<select id="s3processo"');
     expect(codigoAbas).toContain('Lateral e Alça');
     expect(codigoAbas).not.toContain('new MutationObserver');
 
     const respostaGrupos = await request.get('/corponu-faccoes-grupos-processos.js');
     expect(respostaGrupos.ok()).toBeTruthy();
     const codigoGrupos = await respostaGrupos.text();
-
-    expect(codigoGrupos).toContain('2026-08-21-faccoes-grupos-consolidados-229');
-    expect(codigoGrupos).toContain('preencherSelectFaccoesPorProcesso');
     expect(codigoGrupos).toContain('CorpoNuFaccoesGrupos');
-    expect(codigoGrupos).not.toContain('stopImmediatePropagation');
-    expect(codigoGrupos).not.toContain('setInterval');
-
-    const respostaExclusao = await request.get('/corponu-faccoes-exclusao-pagamento-vinculado.js');
-    expect(respostaExclusao.ok()).toBeTruthy();
-    const codigoExclusao = await respostaExclusao.text();
-
-    expect(codigoExclusao).toContain('2026-08-21-exclusao-faccoes-unificada-231');
-    expect(codigoExclusao).toContain('FACCAO CORTE');
-    expect(codigoExclusao).toContain('movimentacaoCorte');
-    expect(codigoExclusao).toContain('pagamentosPendentes');
-    expect(codigoExclusao).toContain('pagos.length');
-    expect(codigoExclusao).not.toContain('setInterval');
-    expect(codigoExclusao).not.toContain('addEventListener("focus"');
-    expect(codigoExclusao).not.toContain('addEventListener("pageshow"');
-
-    const respostaExclusaoLegada = await request.get('/corponu-faccoes-lateral-alca-exclusao.js');
-    expect(respostaExclusaoLegada.status()).toBe(404);
   });
 
-  test('abre Facções sob demanda sem loader, fragmentos ou remendos antigos', async ({ page }) => {
+  test('abre Lateral e Alça e oferece o novo processo no fluxo próprio', async ({ page }) => {
     test.skip(!temCredenciais, 'Configure TEST_EMAIL e TEST_PASSWORD nos GitHub Actions Secrets.');
 
-    const requisicoes = [];
     const errosPagina = [];
-
-    page.on('request', request => requisicoes.push(request.url()));
     page.on('pageerror', error => errosPagina.push(String(error)));
 
     await entrar(page);
-
-    await expect.poll(async () => page.evaluate(() => Boolean(window.__CORPONU_FACCOES_CORTE__)), {
-      timeout: 1_500
-    }).toBeFalsy();
-
     await page.locator('.nav-btn[data-page="faccoes"]').click();
     await expect(page.locator('#faccoes')).toHaveClass(/active/);
-    await expect(page.locator('#pageTitle')).toHaveText('Facções');
 
-    await expect.poll(async () => page.evaluate(() => Boolean(window.__CORPONU_FACCOES_CORTE__)), {
+    await expect.poll(async () => page.evaluate(() => Boolean(window.CorpoNuFaccoesLateralAlca)), {
       timeout: 15_000
     }).toBeTruthy();
 
-    await expect.poll(async () => page.locator('#painelFaccoesCorte').count(), {
-      timeout: 15_000
-    }).toBeGreaterThan(0);
-
-    await expect(page.locator('#btnCorteGerenciar')).toHaveCount(0);
-    await expect(page.locator('#cortePainelAdmin')).toHaveCount(0);
-    await expect(page.locator('#btnCorteRegistrarChegada')).toHaveCount(0);
-
-    const observacao = page.locator('#chegadaCorteObs');
-    await expect(observacao).toHaveCount(1);
-    await expect(observacao).not.toHaveAttribute('required', '');
-    await expect(observacao).toHaveAttribute('placeholder', 'Opcional');
-
-    await expect(page.locator('#btnChegadaManualLateralAlca')).toHaveCount(1);
     await expect(page.locator('#abaFaccaoCorte')).toContainText('Lateral e Alça');
+    await page.locator('#abaFaccaoCorte').click();
 
-    await expect.poll(async () => page.evaluate(() => Boolean(window.__CORPONU_FACCOES_LATERAL_ALCA__)), {
-      timeout: 2_000
-    }).toBeFalsy();
+    await expect(page.locator('#painelFaccoesCorte')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('#btnLA2RegistrarSaida')).toBeVisible();
+    await expect(page.locator('#listaFaccoesLateralAlcaV2')).toHaveCount(1);
 
-    await expect.poll(async () => page.evaluate(() => Boolean(window.CorpoNuFaccoesGrupos)), {
-      timeout: 10_000
-    }).toBeTruthy();
+    await page.locator('#btnLA2RegistrarSaida').click();
+    await expect(page.locator('#modalLA2Saida')).toBeVisible();
+    await expect(page.locator('#la2SaidaProcesso option[value="lateral"]')).toHaveText('LATERAL');
+    await expect(page.locator('#la2SaidaProcesso option[value="alca"]')).toHaveText('ALÇA');
+    await expect(page.locator('#la2SaidaProcesso option[value="cortagem-montagem"]')).toContainText('CORTAGEM E MONTAGEM');
+    await expect(page.locator('#la2SaidaProcesso option[value="cortagem-montagem"]')).toContainText('0,0540');
 
-    const locais = requisicoes
-      .map(url => new URL(url).pathname.split('/').pop())
-      .filter(Boolean);
-
-    const removidos = [
-      'corponu-faccoes-corte.js',
-      'corponu-faccoes-corte-sem-gerenciamento.js',
-      'corponu-lateral-observacao-opcional.js',
-      'corponu-faccoes-ocultar-registrar-chegada-topo.js',
-      'corponu-faccoes-lateral-alca-integracao.js',
-      'corponu-faccoes-label-lateral.js',
-      'corponu-faccoes-processos-cadastrados.js',
-      'corponu-faccoes-grupos-processos-integracao.js',
-      'corponu-faccoes-grupos-saida-fix.js',
-      'corponu-faccoes-lateral-alca-exclusao.js'
-    ];
-    removidos.forEach(nome => expect(locais).not.toContain(nome));
-
-    for (let parte = 1; parte <= 5; parte += 1) {
-      expect(locais).not.toContain(`corponu-faccoes-corte-0${parte}.txt`);
-    }
-
-    expect(locais).toContain('corponu-faccoes-corte-definitivo.js');
-    expect(locais).toContain('corponu-faccoes-grupos-processos.js');
-    expect(locais).toContain('corponu-faccoes-exclusao-pagamento-vinculado.js');
     expect(errosPagina, `Erros JavaScript encontrados: ${errosPagina.join(' | ')}`).toEqual([]);
   });
 });

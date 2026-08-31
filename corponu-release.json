@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-26-pagamentos-detalhes-sutia-completo-257",
-  "updatedAt": "2026-08-26T21:20:00-03:00",
-  "notes": "HOMOLOGAÇÃO. A aba Pagamentos passa a exibir um ícone de informações somente nos lançamentos de SUTIÃ COMPLETO. O detalhe é somente leitura e usa a memória histórica gravada no pagamento para mostrar valor base por peça, descontos de Lateral, Bojo, Fecho e Ponto de Luz, valor final por peça, quantidade, subtotal, desconto por defeito e total final. Quando um lançamento antigo não possui a memória no pagamento, o sistema tenta a conferência histórica da movimentação; se não houver dados suficientes, informa a ausência sem recalcular com preços atuais nem inventar descontos. Nenhuma alteração foi aplicada à produção nesta etapa."
+  "version": "2026-08-31-lateral-alca-v2-270",
+  "updatedAt": "2026-08-31T13:30:00-03:00",
+  "notes": "HOMOLOGAÇÃO. Lateral e Alça foi reconstruída como fluxo próprio e leve, substituindo a implementação antiga sem sobrepor hotfixes. A aba mantém leitura dos registros históricos de area=corte/movimentacaoCorte e novos registros usam fluxoFaccoes=lateral_alca. LATERAL continua usando valor por referência e marca lateral pronta; ALÇA mantém o valor global atual com regra de 2 alças por peça; dentro do grupo Alça foi incluído CORTAGEM E MONTAGEM com valor fixo de R$ 0,0540 por peça. Usuário comum apenas informa chegada e o administrador confirma a baixa, que gera pagamento e marca lateral pronta somente no processo LATERAL. Foram eliminados carregamentos completos de pagamentos/preços, renders repetidos e recálculos por temporizadores. Nenhuma regra do Firebase foi alterada e nenhum dado histórico foi migrado ou apagado."
 }
