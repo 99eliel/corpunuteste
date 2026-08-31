@@ -60,12 +60,12 @@ test.describe('Facções - Lateral e Alça V2', () => {
 
     await entrar(page);
     await page.locator('.nav-btn[data-page="faccoes"]').click();
-    await expect(page.locator('#faccoes')).toBeVisible();
 
     await expect.poll(async () => page.evaluate(() => Boolean(window.CorpoNuFaccoesLateralAlca)), {
       timeout: 15_000
     }).toBeTruthy();
 
+    await expect(page.locator('#abaFaccaoCorte')).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('#abaFaccaoCorte')).toContainText('Lateral e Alça');
     await page.locator('#abaFaccaoCorte').click();
 
