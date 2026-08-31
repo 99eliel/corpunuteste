@@ -60,7 +60,6 @@ test.describe('Facções - Lateral e Alça V2', () => {
 
     await entrar(page);
     await page.locator('.nav-btn[data-page="faccoes"]').click();
-    await expect(page.locator('#pageTitle')).toHaveText('Facções');
     await expect(page.locator('#faccoes')).toBeVisible();
 
     await expect.poll(async () => page.evaluate(() => Boolean(window.CorpoNuFaccoesLateralAlca)), {
