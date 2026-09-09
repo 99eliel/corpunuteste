@@ -78,7 +78,6 @@
     ["corponu-pagamento-antiduplicidade-isolada.js", "pagamento-antiduplicidade-isolada", "Não foi possível carregar a proteção isolada contra pagamentos duplicados."],
     ["corponu-revisao-lateral-bojo.js", "revisao-lateral-bojo", "Não foi possível carregar a área Revisão lateral e bojo."],
     ["corponu-saida-sem-confirmacao.js", "saida-sem-confirmacao-dupla", "Não foi possível carregar a proteção contra saída duplicada."],
-    ["corponu-faccoes-exclusao-pagamento-vinculado.js", "faccoes-exclusao-pagamento-vinculado", "Não foi possível vincular a exclusão da facção ao pagamento pendente."]
   ];
 
   const MODULOS_APOS_LOGIN = [
