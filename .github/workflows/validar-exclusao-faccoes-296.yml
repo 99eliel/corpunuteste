@@ -1,0 +1,50 @@
+name: Validar exclusão Facções 296
+
+on:
+  push:
+    paths:
+      - '.github/workflows/validar-exclusao-faccoes-296.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Aplicar consolidação estrutural
+        run: node scripts/consolidar-exclusao-faccoes-296.js
+
+      - name: Validar sintaxe e invariantes
+        run: |
+          node --check app.js
+          node --check corponu-atualizador.js
+          grep -F 'const exclusoesMovimentacaoEmAndamento = new Set();' app.js
+          grep -F 'where("movimentacaoId", "==", movimentacaoId)' app.js
+          grep -F 'const batch = writeBatch(db);' app.js
+          grep -F 'batch.delete(doc(db, "movimentacoesProducao", movimentacaoId));' app.js
+          grep -F 'Não é possível excluir: existe pagamento desta movimentação já marcado como pago.' app.js
+          ! grep -F 'corponu-faccoes-exclusao-pagamento-vinculado.js' corponu-atualizador.js
+          git diff --check
+
+      - name: Garantir escopo exato
+        run: |
+          arquivos="$(git diff --name-only | sort)"
+          esperado="$(printf '%s\n' app.js corponu-atualizador.js | sort)"
+          test "$arquivos" = "$esperado"
+
+      - name: Publicar no teste
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js corponu-atualizador.js
+          git commit -m 'test: consolidar exclusão de Facções no app principal'
+          git push origin HEAD:main
