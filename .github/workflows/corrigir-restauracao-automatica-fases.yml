@@ -47,3 +47,5 @@ jobs:
           git add update.js
           git commit -m 'fix: tornar lista de fases oficial soberana no teste'
           git push origin HEAD:main
+
+# disparo de validacao estrutural
