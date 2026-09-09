@@ -3,7 +3,7 @@ name: Validar Facções ações e desempenho 300
 on:
   push:
     paths:
-      - 'scripts/corrigir-faccoes-acoes-desempenho-300.js'
+      - 'scripts/corrigir-faccoes-acoes-desempenho-300-v2.js'
       - '.github/workflows/validar-faccoes-acoes-desempenho-300.yml'
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
           grep -F 'const OTIMIZACAO_LEITURAS_ATIVA = true;' app.js
 
       - name: Aplicar correção estrutural 300
-        run: node scripts/corrigir-faccoes-acoes-desempenho-300.js
+        run: node scripts/corrigir-faccoes-acoes-desempenho-300-v2.js
 
       - name: Validar sintaxe e invariantes
         run: |
