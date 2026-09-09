@@ -22,8 +22,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Aplicar correcao estrutural
-        run: node scripts/corrigir-restauracao-automatica-fases.js
+      - name: Aplicar migração oficial da Fase Bojo
+        run: node scripts/adicionar-migracao-fase-bojo-oficial.js
 
       - name: Validar JavaScript e invariantes
         run: |
@@ -31,8 +31,9 @@ jobs:
           ! grep -F 'restauracaoFasesAntigasAutomaticaTentada' update.js
           ! grep -F 'restaurarOpcoesAntigasFases({ manual: false })' update.js
           grep -F 'restaurarOpcoesAntigasFases({ manual: true })' update.js
-          grep -F 'A lista oficial é soberana' update.js
-          grep -F 'Recuperar opções antigas' update.js
+          grep -F 'Object.freeze(["BÁSICO SEM BOJO", "COM BOJO"])' update.js
+          grep -F 'faseBojoOficial20260909V1' update.js
+          grep -F 'await migrarFaseBojoOficialSeNecessario();' update.js
           git diff --check
 
       - name: Garantir escopo
@@ -45,7 +46,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add update.js
-          git commit -m 'fix: tornar lista de fases oficial soberana no teste'
+          git commit -m 'test: migrar Fase Bojo para duas opções oficiais'
           git push origin HEAD:main
 
-# disparo de validacao estrutural
+# segunda validacao: migracao versionada da configuracao oficial
