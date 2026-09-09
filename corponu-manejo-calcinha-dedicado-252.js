@@ -5,7 +5,8 @@
   const GUARD = "__CORPONU_MANEJO_CALCINHA_DEDICADO_252__";
   const ROOT_ID = "corponuManejoCalcinhaDedicado252";
   const STYLE_ID = "corponuManejoCalcinhaDedicado252Style";
-  const DATALIST_ID = "corponuManejoCalcinhaFases252";
+  const FASES_CONFIG_COLECAO = "configuracoes";
+  const FASES_CONFIG_DOCUMENTO = "fasesManejoCalcinha";
   const PAGE_SIZE = 80;
 
   if (window[GUARD] === VERSION) return;
@@ -15,6 +16,9 @@
   let limite = PAGE_SIZE;
   let renderAgendado = false;
   let salvando = new Set();
+  let fasesOficiaisCalcinha = [];
+  let fasesOficiaisCalcinhaStatus = "pendente";
+  let fasesOficiaisCalcinhaPromessa = null;
 
   const texto = valor => String(valor ?? "").trim();
   const normalizar = valor => texto(valor)
@@ -127,22 +131,122 @@
     return Number.isFinite(n) ? n : 0;
   }
 
-  function fasesDisponiveis(ordens) {
-    const fases = new Map();
-    const adicionar = valor => {
-      const bruto = texto(valor);
-      const chave = normalizar(bruto);
-      if (bruto && chave && !fases.has(chave)) fases.set(chave, bruto);
-    };
+  function normalizarListaFasesOficiaisCalcinha(lista) {
+    const mapa = new Map();
+    (Array.isArray(lista) ? lista : []).forEach(valor => {
+      const fase = texto(valor);
+      const chave = normalizar(fase);
+      if (fase && chave && !mapa.has(chave)) mapa.set(chave, fase);
+    });
+    return [...mapa.values()].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" }));
+  }
 
-    ordens.forEach(op => adicionar(manejo(op).fase || op?.fase || op?.manejo?.fase));
-    document.querySelectorAll("#manejoFasesList option").forEach(option => adicionar(option.value || option.textContent));
+  async function carregarFasesOficiaisCalcinha({ forcar = false, somenteServidor = false } = {}) {
+    if (!forcar && fasesOficiaisCalcinhaStatus === "pronto") return [...fasesOficiaisCalcinha];
+    if (!forcar && fasesOficiaisCalcinhaPromessa) return fasesOficiaisCalcinhaPromessa;
+
+    const state = dual();
+    if (!state?.firebase || !state?.db) {
+      throw new Error("Firebase da Calcinha ainda não está disponível.");
+    }
+
+    fasesOficiaisCalcinhaStatus = "carregando";
+    const promessa = (async () => {
+      const { doc, getDoc, getDocFromServer } = state.firebase;
+      const referencia = doc(state.db, FASES_CONFIG_COLECAO, FASES_CONFIG_DOCUMENTO);
+      const ler = somenteServidor && typeof getDocFromServer === "function" ? getDocFromServer : getDoc;
+      if (typeof ler !== "function") throw new Error("Leitura da configuração oficial indisponível.");
+      const snapshot = await ler(referencia);
+      const lista = snapshot.exists()
+        ? normalizarListaFasesOficiaisCalcinha(snapshot.data()?.sugestoes)
+        : [];
+      fasesOficiaisCalcinha = lista;
+      fasesOficiaisCalcinhaStatus = "pronto";
+      return [...lista];
+    })();
+
+    fasesOficiaisCalcinhaPromessa = promessa;
     try {
-      const extras = JSON.parse(localStorage.getItem("fasesManejoExtras") || "[]");
-      if (Array.isArray(extras)) extras.forEach(adicionar);
-    } catch (_) {}
+      return await promessa;
+    } catch (error) {
+      fasesOficiaisCalcinhaStatus = fasesOficiaisCalcinha.length ? "pronto" : "erro";
+      throw error;
+    } finally {
+      if (fasesOficiaisCalcinhaPromessa === promessa) fasesOficiaisCalcinhaPromessa = null;
+    }
+  }
 
-    return [...fases.values()].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
+  function garantirFasesOficiaisCalcinha() {
+    if (fasesOficiaisCalcinhaStatus === "carregando" || fasesOficiaisCalcinhaPromessa) return;
+    if (fasesOficiaisCalcinhaStatus === "pronto") return;
+    carregarFasesOficiaisCalcinha()
+      .then(() => agendarRender())
+      .catch(error => {
+        console.error("[Calcinha] Não foi possível carregar as fases oficiais.", error);
+        agendarRender();
+      });
+  }
+
+  function fasesDisponiveis() {
+    garantirFasesOficiaisCalcinha();
+    return [...fasesOficiaisCalcinha];
+  }
+
+  function renderCampoFaseOficialCalcinha(faseAtual, numeroOP = "") {
+    garantirFasesOficiaisCalcinha();
+    const atual = texto(faseAtual);
+    const chaveAtual = normalizar(atual);
+    const mapa = new Map(fasesOficiaisCalcinha.map(fase => [normalizar(fase), fase]));
+    const atualEhOficial = chaveAtual && mapa.has(chaveAtual);
+
+    if (fasesOficiaisCalcinhaStatus === "pendente" || fasesOficiaisCalcinhaStatus === "carregando") {
+      return '<select data-campo="fase" disabled aria-label="Fase da OP ' + escapeHtml(numeroOP) + '"><option>Carregando fases...</option></select>';
+    }
+
+    if (fasesOficiaisCalcinhaStatus === "erro") {
+      return '<select data-campo="fase" disabled aria-label="Fase da OP ' + escapeHtml(numeroOP) + '"><option>Não foi possível carregar as fases</option></select>';
+    }
+
+    const opcoes = [];
+    if (!atual) {
+      opcoes.push('<option value="" selected>Selecione a fase</option>');
+    } else if (!atualEhOficial) {
+      opcoes.push('<option value="" selected>Fase antiga: ' + escapeHtml(atual) + ' — escolha uma oficial</option>');
+    } else {
+      opcoes.push('<option value="">Selecione a fase</option>');
+    }
+
+    fasesOficiaisCalcinha.forEach(fase => {
+      const selecionada = normalizar(fase) === chaveAtual ? ' selected' : '';
+      opcoes.push('<option value="' + escapeHtml(fase) + '"' + selecionada + '>' + escapeHtml(fase) + '</option>');
+    });
+
+    return '<select data-campo="fase" aria-label="Fase da OP ' + escapeHtml(numeroOP) + '">' + opcoes.join('') + '</select>';
+  }
+
+  async function validarFaseOficialCalcinhaAntesDeSalvar(faseInformada) {
+    const fase = texto(faseInformada);
+    if (!fase) {
+      mensagem("Escolha uma fase cadastrada pelo administrador para a Calcinha.", "erro");
+      return "";
+    }
+
+    let oficiais;
+    try {
+      oficiais = await carregarFasesOficiaisCalcinha({ forcar: true, somenteServidor: true });
+    } catch (error) {
+      console.error("[Calcinha] Não foi possível validar a fase diretamente no servidor.", error);
+      mensagem("Não foi possível confirmar a lista oficial de fases. Confira a internet e tente novamente.", "erro");
+      return "";
+    }
+
+    const chave = normalizar(fase);
+    const oficial = oficiais.find(item => normalizar(item) === chave) || "";
+    if (!oficial) {
+      mensagem("Essa fase não está cadastrada pelo administrador para a Calcinha.", "erro");
+      return "";
+    }
+    return oficial;
   }
 
   function injetarEstilo() {
@@ -228,7 +332,6 @@
           </select>
           <button type="button" class="cn252-btn" id="cn252Atualizar">Atualizar</button>
         </div>
-        <datalist id="${DATALIST_ID}"></datalist>
         <div class="cn252-lista" id="cn252Lista"></div>
         <div class="cn252-mais" id="cn252MaisWrap"></div>
         <div class="cn252-msg" id="cn252Msg" aria-live="polite"></div>
@@ -306,7 +409,7 @@
           <option value="cotton_line" ${v.linha === "cotton_line" ? "selected" : ""}>Cotton Line</option>
           <option value="corpo_nu" ${v.linha === "corpo_nu" ? "selected" : ""}>Corpo Nu</option>
         </select>
-        <input data-campo="fase" type="text" list="${DATALIST_ID}" autocomplete="off" value="${escapeHtml(v.fase)}" placeholder="Fase">
+        ${renderCampoFaseOficialCalcinha(v.fase, op.numeroOP || "")}
         <input data-campo="necessidade" type="text" autocomplete="off" value="${escapeHtml(v.necessidade)}" placeholder="Necessidade livre">
         <div class="cn252-destino">
           <strong>${escapeHtml(processo || "Destino ainda não definido")}</strong>
@@ -332,9 +435,7 @@
     if (document.body) document.body.dataset.corponuCalcinhaDedicado = "1";
 
     const todas = ordensCalcinha();
-    const fases = fasesDisponiveis(todas);
-    const datalist = document.getElementById(DATALIST_ID);
-    if (datalist) datalist.innerHTML = fases.map(fase => `<option value="${escapeHtml(fase)}"></option>`).join("");
+    const fases = fasesDisponiveis();
 
     const filtradas = filtrarOrdens(todas);
     const visiveis = filtradas.slice(0, limite);
@@ -426,6 +527,10 @@
       mensagem("Sua sessão expirou. Entre novamente.", "erro");
       return false;
     }
+
+    const faseOficial = await validarFaseOficialCalcinhaAntesDeSalvar(dados.fase);
+    if (!faseOficial) return false;
+    dados.fase = faseOficial;
 
     const statusAtual = statusDaOp(op);
     const novoStatus = statusAtual === "bipado"
