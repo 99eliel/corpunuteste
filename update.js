@@ -8640,7 +8640,6 @@
   // =========================================================
   const MARCADOR_RESTAURACAO_FASES_ANTIGAS = "restauracaoFiltrosAntigos20260729V2";
   let restauracaoFasesAntigasEmAndamento = false;
-  let restauracaoFasesAntigasAutomaticaTentada = false;
   let eventosRestauracaoFasesAntigasInstalados = false;
 
   function adicionarFaseAoConjunto(conjunto, valor) {
@@ -8875,17 +8874,11 @@
 
   function iniciarRestauracaoFasesAntigas() {
     instalarEventosRestauracaoFasesAntigas();
-    [350, 900, 1800, 3000].forEach(delay => setTimeout(() => {
-      garantirBotoesRestauracaoFasesAntigas();
-      if (
-        !restauracaoFasesAntigasAutomaticaTentada &&
-        (usuarioEhAdminFases || usuarioEhAdminFasesCalcinha) &&
-        (contextoFirebaseFasesCalcinha?.user || contextoFirebaseFases?.user)
-      ) {
-        restauracaoFasesAntigasAutomaticaTentada = true;
-        restaurarOpcoesAntigasFases({ manual: false });
-      }
-    }, delay));
+    // A lista oficial é soberana. Histórico de OP nunca repopula sugestões automaticamente.
+    // Recuperação histórica permanece disponível somente por ação manual do administrador.
+    [350, 900, 1800, 3000].forEach(delay =>
+      setTimeout(garantirBotoesRestauracaoFasesAntigas, delay)
+    );
   }
 
 
