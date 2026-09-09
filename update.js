@@ -1712,6 +1712,18 @@
     }
   }
 
+  function publicarFasesManejoOficiaisParaAplicacao(tipo, fases) {
+    const tipoNormalizado = String(tipo || "").trim().toLowerCase();
+    if (!['sutia', 'calcinha'].includes(tipoNormalizado)) return;
+
+    window.dispatchEvent(new CustomEvent("corponu:fases-manejo-atualizadas", {
+      detail: {
+        tipo: tipoNormalizado,
+        fases: ordenarFasesGerenciadas(fases)
+      }
+    }));
+  }
+
   function iniciarSnapshotConfiguracaoFases() {
     if (!contextoFirebaseFases) return;
     if (unsubscribeConfiguracaoFases) {
@@ -1728,6 +1740,7 @@
         fasesGerenciadas = ordenarFasesGerenciadas(
           configuracaoFasesExiste ? snapshot.data()?.sugestoes : opcoesAtuaisDoDatalistFases()
         );
+        publicarFasesManejoOficiaisParaAplicacao("sutia", fasesGerenciadas);
         aplicarListaOficialNoDatalist();
         criarPainelAdminFases();
         criarListaInicialFasesSeNecessario();
@@ -8449,18 +8462,11 @@
   }
 
   function aplicarListaCorretaNosCamposFaseManejo() {
-    const tipo = tipoManejoAtualSugestoes();
-    const listaId = tipo === "calcinha" ? ID_DATALIST_FASES_CALCINHA : "manejoFasesList";
-    if (tipo === "calcinha") renderDatalistFasesCalcinha();
-
-    document.querySelectorAll('#manejo input[id$="-fase"], #manejo input[list="manejoFasesList"], #manejo input[list="manejoFasesListCalcinha"]')
-      .forEach(input => {
-        input.setAttribute("list", listaId);
-        input.dataset.listaFaseTipo = tipo;
-        input.title = tipo === "calcinha"
-          ? "Digite a fase da calcinha ou escolha uma sugestão cadastrada pelo administrador."
-          : "Digite a fase do sutiã ou escolha uma sugestão cadastrada pelo administrador.";
-      });
+    document.querySelectorAll('#manejo select[id$="-fase"]').forEach(select => {
+      select.removeAttribute("list");
+      select.removeAttribute("data-lista-fase-tipo");
+      select.title = "Selecione uma fase cadastrada pelo administrador.";
+    });
   }
 
   function agendarAplicacaoListaPorSetor() {
@@ -8477,7 +8483,7 @@
     const aviso = painel.querySelector(".notice.small");
     if (titulo) titulo.textContent = "Opções do filtro Fase Bojo — Sutiã";
     if (descricao) descricao.textContent = "Gerencie as opções mostradas no filtro múltiplo da coluna Fase Bojo e nas sugestões de edição do Sutiã.";
-    if (aviso) aviso.innerHTML = "Esta lista controla diretamente o filtro mostrado na tabela. Os usuários podem digitar livremente, mas a opção só entra no filtro oficial do <strong>Sutiã</strong> quando o administrador adicioná-la aqui.";
+    if (aviso) aviso.innerHTML = "Esta lista define as fases que podem ser selecionadas e salvas no Manejo do <strong>Sutiã</strong>. Somente o administrador pode adicionar ou remover opções.";
     painel.dataset.tipoSugestoesFase = "sutia";
     return true;
   }
@@ -8554,7 +8560,7 @@
         <span id="contadorSugestoesFasesCalcinhaAdmin" class="badge ok">0 sugestão(ões)</span>
       </div>
       <div class="notice small" style="margin-bottom:12px;border-color:#c4b5fd;background:#faf5ff;">
-        Esta lista controla diretamente o filtro mostrado na tabela. Os usuários podem digitar livremente, mas a opção só entra no filtro oficial da <strong>Calcinha</strong> quando o administrador adicioná-la aqui.
+        Esta lista define as fases que podem ser selecionadas e salvas no Manejo da <strong>Calcinha</strong>. O operador só pode usar opções cadastradas aqui pelo administrador.
       </div>
       <form id="formSugestaoFaseCalcinhaAdmin" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;">
         <label style="flex:1;min-width:240px;">
@@ -8681,6 +8687,7 @@
       fasesCalcinhaGerenciadas = ordenarFasesGerenciadas(
         snapshot.exists() ? snapshot.data()?.sugestoes : []
       );
+      publicarFasesManejoOficiaisParaAplicacao("calcinha", fasesCalcinhaGerenciadas);
       renderDatalistFasesCalcinha();
       criarPainelAdminFasesCalcinha();
       if (tipoManejoAtualSugestoes() === "calcinha") agendarAplicacaoListaPorSetor();

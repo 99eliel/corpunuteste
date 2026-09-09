@@ -14,6 +14,7 @@ import {
   persistentMultipleTabManager,
   doc,
   getDoc,
+  getDocFromServer,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -62,7 +63,6 @@ const state = {
   celulas: [],
   movimentacoesProducao: [],
   manejos: [],
-  fasesManejoExtras: [],
   fasesLateraisManejoExtras: [],
   faccoesManejoExtras: [],
   celusManejoExtras: [],
@@ -1585,6 +1585,223 @@ function getTipoPecaManejoOP(op) {
   return "sutia";
 }
 
+// Fases oficiais do Manejo.
+// A fonte de verdade é a configuração administrada na aba Usuários.
+const FASES_MANEJO_ADMIN_POR_SETOR = Object.freeze({
+  sutia: Object.freeze({ documento: "fasesManejo", label: "Sutiã" }),
+  calcinha: Object.freeze({ documento: "fasesManejoCalcinha", label: "Calcinha" })
+});
+
+const fasesManejoOficiaisCache = {
+  sutia: [],
+  calcinha: []
+};
+
+const fasesManejoOficiaisStatus = {
+  sutia: "pendente",
+  calcinha: "pendente"
+};
+
+const fasesManejoOficiaisPromessa = {
+  sutia: null,
+  calcinha: null
+};
+
+function tipoFasesManejoOficiais(setor = getManejoSetorAtual()) {
+  return String(setor || "").trim().toLowerCase() === "calcinha" ? "calcinha" : "sutia";
+}
+
+function chaveFaseManejoOficial(valor) {
+  return normalizarTexto(valor).trim().replace(/\s+/g, " ");
+}
+
+function normalizarListaFasesManejoOficiais(valores) {
+  const mapa = new Map();
+
+  (Array.isArray(valores) ? valores : []).forEach(valor => {
+    const fase = limparTexto(valor).toUpperCase();
+    const chave = chaveFaseManejoOficial(fase);
+    if (!chave || mapa.has(chave)) return;
+    mapa.set(chave, fase);
+  });
+
+  return [...mapa.values()].sort((a, b) =>
+    a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
+  );
+}
+
+function getFasesManejoOficiaisCache(setor = getManejoSetorAtual()) {
+  const tipo = tipoFasesManejoOficiais(setor);
+  return [...(fasesManejoOficiaisCache[tipo] || [])];
+}
+
+function atualizarCacheFasesManejoOficiais(setor, fases) {
+  const tipo = tipoFasesManejoOficiais(setor);
+  const lista = normalizarListaFasesManejoOficiais(fases);
+  fasesManejoOficiaisCache[tipo] = lista;
+  fasesManejoOficiaisStatus[tipo] = "pronto";
+  return [...lista];
+}
+
+async function carregarFasesManejoOficiais(setor = getManejoSetorAtual(), opcoes = {}) {
+  const tipo = tipoFasesManejoOficiais(setor);
+  const config = FASES_MANEJO_ADMIN_POR_SETOR[tipo];
+  const forcar = opcoes.forcar === true;
+  const somenteServidor = opcoes.somenteServidor === true;
+
+  if (!forcar && fasesManejoOficiaisStatus[tipo] === "pronto") {
+    return getFasesManejoOficiaisCache(tipo);
+  }
+
+  if (!forcar && fasesManejoOficiaisPromessa[tipo]) {
+    return fasesManejoOficiaisPromessa[tipo];
+  }
+
+  fasesManejoOficiaisStatus[tipo] = "carregando";
+
+  const promessa = (async () => {
+    const referencia = doc(db, "configuracoes", config.documento);
+    const snapshot = somenteServidor
+      ? await getDocFromServer(referencia)
+      : await getDoc(referencia);
+    const lista = snapshot.exists()
+      ? normalizarListaFasesManejoOficiais(snapshot.data()?.sugestoes)
+      : [];
+
+    fasesManejoOficiaisCache[tipo] = lista;
+    fasesManejoOficiaisStatus[tipo] = "pronto";
+    return [...lista];
+  })();
+
+  fasesManejoOficiaisPromessa[tipo] = promessa;
+
+  try {
+    return await promessa;
+  } catch (error) {
+    if (fasesManejoOficiaisCache[tipo]?.length) {
+      fasesManejoOficiaisStatus[tipo] = "pronto";
+    } else {
+      fasesManejoOficiaisStatus[tipo] = "erro";
+    }
+    throw error;
+  } finally {
+    if (fasesManejoOficiaisPromessa[tipo] === promessa) {
+      fasesManejoOficiaisPromessa[tipo] = null;
+    }
+  }
+}
+
+function garantirFasesManejoOficiaisCarregadas(setor = getManejoSetorAtual()) {
+  const tipo = tipoFasesManejoOficiais(setor);
+  if (fasesManejoOficiaisStatus[tipo] !== "pendente") return;
+
+  carregarFasesManejoOficiais(tipo)
+    .then(() => {
+      if (document.getElementById("manejo")?.classList.contains("active") &&
+          tipoFasesManejoOficiais(getManejoSetorAtual()) === tipo) {
+        renderFiltrosColunasManejo();
+        renderManejoInline();
+      }
+    })
+    .catch(error => {
+      console.error(`Não foi possível carregar as fases oficiais de ${FASES_MANEJO_ADMIN_POR_SETOR[tipo].label}.`, error);
+      if (document.getElementById("manejo")?.classList.contains("active") &&
+          tipoFasesManejoOficiais(getManejoSetorAtual()) === tipo) {
+        renderManejoInline();
+      }
+    });
+}
+
+function renderCampoFaseManejoOficial(rowId, setor, faseAtual = "") {
+  const tipo = tipoFasesManejoOficiais(setor);
+  const config = FASES_MANEJO_ADMIN_POR_SETOR[tipo];
+  garantirFasesManejoOficiaisCarregadas(tipo);
+
+  const status = fasesManejoOficiaisStatus[tipo];
+  const fases = getFasesManejoOficiaisCache(tipo);
+  const atual = limparTexto(faseAtual).toUpperCase();
+  const chaveAtual = chaveFaseManejoOficial(atual);
+
+  if (status === "pendente" || status === "carregando") {
+    return `<select id="${rowId}-fase" disabled aria-label="Fase ${escapeHtml(config.label)}"><option value="">Carregando fases...</option></select>`;
+  }
+
+  if (status === "erro") {
+    return `<select id="${rowId}-fase" disabled aria-label="Fase ${escapeHtml(config.label)}"><option value="">Não foi possível carregar as fases</option></select>`;
+  }
+
+  if (!fases.length) {
+    return `<select id="${rowId}-fase" disabled aria-label="Fase ${escapeHtml(config.label)}"><option value="">Nenhuma fase cadastrada pelo administrador</option></select>`;
+  }
+
+  const faseOficialAtual = fases.find(fase => chaveFaseManejoOficial(fase) === chaveAtual) || "";
+  const opcaoHistorica = atual && !faseOficialAtual
+    ? `<option value="${escapeHtml(atual)}" selected disabled>${escapeHtml(atual)} — fora da lista atual</option>`
+    : "";
+
+  const opcoes = fases.map(fase => {
+    const selected = faseOficialAtual && chaveFaseManejoOficial(fase) === chaveFaseManejoOficial(faseOficialAtual)
+      ? " selected"
+      : "";
+    return `<option value="${escapeHtml(fase)}"${selected}>${escapeHtml(fase)}</option>`;
+  }).join("");
+
+  return `
+    <select id="${rowId}-fase" aria-label="Fase ${escapeHtml(config.label)}" title="Selecione uma fase cadastrada pelo administrador">
+      <option value="">Selecione a fase</option>
+      ${opcaoHistorica}
+      ${opcoes}
+    </select>
+  `;
+}
+
+async function validarFaseManejoOficialAntesDeGravar(ordem, setor, faseInformada) {
+  const tipo = tipoFasesManejoOficiais(setor);
+  const config = FASES_MANEJO_ADMIN_POR_SETOR[tipo];
+  const fase = limparTexto(faseInformada).toUpperCase();
+
+  if (!fase) {
+    toast(`Selecione uma fase de ${config.label} definida pelo administrador.`);
+    return "";
+  }
+
+  let fases;
+  try {
+    fases = await carregarFasesManejoOficiais(tipo, {
+      forcar: true,
+      somenteServidor: true
+    });
+  } catch (error) {
+    console.error("Não foi possível validar a fase diretamente no servidor.", error);
+    toast("Não foi possível confirmar a lista oficial de fases no servidor. Confira a internet e tente novamente.");
+    return "";
+  }
+
+  const chave = chaveFaseManejoOficial(fase);
+  const faseOficial = fases.find(item => chaveFaseManejoOficial(item) === chave) || "";
+
+  if (!faseOficial) {
+    const opLabel = ordem?.numeroOP ? ` da OP ${ordem.numeroOP}` : "";
+    toast(`A fase "${fase}"${opLabel} não está autorizada pelo administrador. Selecione uma opção da lista oficial.`);
+    return "";
+  }
+
+  return faseOficial;
+}
+
+window.addEventListener("corponu:fases-manejo-atualizadas", event => {
+  const tipoInformado = String(event?.detail?.tipo || "").trim().toLowerCase();
+  if (!Object.prototype.hasOwnProperty.call(FASES_MANEJO_ADMIN_POR_SETOR, tipoInformado)) return;
+
+  atualizarCacheFasesManejoOficiais(tipoInformado, event?.detail?.fases || []);
+
+  if (document.getElementById("manejo")?.classList.contains("active") &&
+      tipoFasesManejoOficiais(getManejoSetorAtual()) === tipoInformado) {
+    renderFiltrosColunasManejo();
+    renderManejoInline();
+  }
+});
+
 function getManejoSetorAtual() {
   return state.manejoSetorAtual || "sutia";
 }
@@ -2244,10 +2461,7 @@ function renderManejoInline() {
           </div>
         </td>
         <td>
-          <div class="fase-plus">
-            <input id="${rowId}-fase" value="${escapeHtml(manejo?.fase || "")}" list="manejoFasesList" placeholder="Digite a fase" />
-            <button class="btn-plus" type="button" onclick="adicionarFaseSugestao('${op.id}')" title="Adicionar Fase Bojo às sugestões">+</button>
-          </div>
+          ${renderCampoFaseManejoOficial(rowId, setor, manejo?.fase || "")}
         </td>
         <td class="manejo-col-fase-lateral">
           <div class="fase-plus">
@@ -2365,8 +2579,13 @@ async function salvarSilkETecidoAntesDeMovimentar(op, setor = getManejoSetorAtua
 
   const dados = dadosObrigatorios || getDadosLinhaOuManejoObrigatorios(op, setor);
   const manejoExistente = getManejoDaOrdem(op, setor) || {};
-  const faseLinha = limparTexto(valorLinhaManejo(op, "fase")).toUpperCase();
-  const fase = faseLinha || manejoExistente.fase || "PRONTO PARA MOVIMENTAR";
+  const faseInformada = limparTexto(valorLinhaManejo(op, "fase")).toUpperCase() || manejoExistente.fase || "";
+  const fase = await validarFaseManejoOficialAntesDeGravar(op, setor, faseInformada);
+  if (!fase) {
+    const erro = new Error("Fase do Manejo não autorizada pelo administrador.");
+    erro.code = "fase-manejo-nao-autorizada";
+    throw erro;
+  }
   const faseLateral = setor === "sutia"
     ? (limparTexto(valorLinhaManejo(op, "faseLateral")).toUpperCase() || manejoExistente.faseLateral || "")
     : (manejoExistente.faseLateral || "");
@@ -2454,7 +2673,7 @@ const CAMPOS_FILTRO_MANEJO_EXATO_QUANDO_OPCAO = new Set([
 function getOpcoesFiltroManejoNormalizadas(campo, setor = getManejoSetorAtual()) {
   const ordens = getOrdensDoSetorManejo(setor);
   const extrasPorCampo = {
-    fase: state.fasesManejoExtras || [],
+    fase: getFasesManejoOficiaisCache(setor),
     faseLateral: state.fasesLateraisManejoExtras || [],
     faccao: state.faccoesManejoExtras || [],
     celu: state.celusManejoExtras || []
@@ -2800,10 +3019,7 @@ function renderFiltrosColunasManejo() {
     "Sem tecido",
     ...ordens.map(op => getValorManejoParaFiltro(op, "dataTecido"))
   ], "Todas");
-  preencherSelectFiltroManejo("filtroManejoFase", [
-    ...ordens.map(op => getValorManejoParaFiltro(op, "fase")),
-    ...state.fasesManejoExtras
-  ], "Todas");
+  preencherSelectFiltroManejo("filtroManejoFase", getFasesManejoOficiaisCache(setor), "Todas");
   if (setor === "sutia") {
     preencherSelectFiltroManejo("filtroManejoFaseLateral", [
       ...ordens.map(op => getValorManejoParaFiltro(op, "faseLateral")),
@@ -3189,15 +3405,13 @@ async function salvarManejoLinha(ordemId) {
   const setor = getManejoSetorAtual();
   const infoSetor = getInfoManejoSetor(setor);
   const manejoExistente = getManejoDaOrdem(ordem, setor);
-  const fase = limparTexto(valorLinhaManejo(ordem, "fase")).toUpperCase();
+  const faseInformada = limparTexto(valorLinhaManejo(ordem, "fase")).toUpperCase();
   const faseLateral = setor === "sutia"
     ? limparTexto(valorLinhaManejo(ordem, "faseLateral")).toUpperCase()
     : (manejoExistente?.faseLateral || "");
+  const fase = await validarFaseManejoOficialAntesDeGravar(ordem, setor, faseInformada);
 
-  if (!fase) {
-    toast("Informe a fase antes de salvar.");
-    return;
-  }
+  if (!fase) return;
 
   const silkNome = limparTexto(valorLinhaManejo(ordem, "silkNome")).toUpperCase();
   const silkData = valorLinhaManejo(ordem, "silkData") || "";
@@ -3275,15 +3489,13 @@ async function biparManejoLinha(ordemId) {
   const setor = getManejoSetorAtual();
   const infoSetor = getInfoManejoSetor(setor);
   const manejoExistente = getManejoDaOrdem(ordem, setor) || {};
-  const faseAtual = limparTexto(valorLinhaManejo(ordem, "fase")).toUpperCase() || manejoExistente.fase || "";
+  const faseInformada = limparTexto(valorLinhaManejo(ordem, "fase")).toUpperCase() || manejoExistente.fase || "";
   const faseLateralAtual = setor === "sutia"
     ? (limparTexto(valorLinhaManejo(ordem, "faseLateral")).toUpperCase() || manejoExistente.faseLateral || "")
     : (manejoExistente.faseLateral || "");
+  const faseAtual = await validarFaseManejoOficialAntesDeGravar(ordem, setor, faseInformada);
 
-  if (!faseAtual) {
-    const continuar = confirm("Essa OP ainda está sem fase preenchida. Deseja marcar como bipada mesmo assim?");
-    if (!continuar) return;
-  }
+  if (!faseAtual) return;
 
   const confirmar = confirm(`Marcar a OP ${ordem.numeroOP} como BIPADA/finalizada no manejo ${infoSetor.label}?`);
   if (!confirmar) return;
@@ -3441,7 +3653,6 @@ function salvarListaLocalManejo(chave, lista) {
 }
 
 function carregarSugestoesExtrasManejo() {
-  state.fasesManejoExtras = carregarListaLocalManejo("fasesManejoExtras");
   state.fasesLateraisManejoExtras = carregarListaLocalManejo("fasesLateraisManejoExtras");
   state.faccoesManejoExtras = carregarListaLocalManejo("faccoesManejoExtras");
   state.celusManejoExtras = carregarListaLocalManejo("celusManejoExtras");
@@ -3471,10 +3682,6 @@ function adicionarSugestaoManejo(ordemId, campo, listaState, chaveStorage, nomeC
   renderProcessos();
   renderFiltrosColunasManejo();
   toast(`${nomeCampo} "${valor}" adicionada às sugestões.`);
-}
-
-function adicionarFaseSugestao(ordemId) {
-  adicionarSugestaoManejo(ordemId, "fase", "fasesManejoExtras", "fasesManejoExtras", "Fase Bojo");
 }
 
 function adicionarFaseLateralSugestao(ordemId) {
@@ -3512,19 +3719,10 @@ function renderDatalistManejo() {
   const tecidoNomesList = document.getElementById("manejoTecidoNomesList");
 
   if (fasesList) {
-    const fases = new Set();
-
-    state.fasesManejoExtras.forEach(fase => {
-      if (fase) fases.add(String(fase).toUpperCase());
-    });
-
-    state.ordens.forEach(op => {
-      getTodosManejosDaOrdem(op).forEach(manejo => {
-        if (manejo?.fase) fases.add(String(manejo.fase).toUpperCase());
-      });
-    });
-
-    fasesList.innerHTML = [...fases].sort().map(fase => `<option value="${escapeHtml(fase)}"></option>`).join("");
+    const fases = getFasesManejoOficiaisCache(getManejoSetorAtual());
+    fasesList.innerHTML = fases
+      .map(fase => `<option value="${escapeHtml(fase)}"></option>`)
+      .join("");
   }
 
   if (fasesLateraisList) {
