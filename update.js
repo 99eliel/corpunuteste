@@ -1194,8 +1194,8 @@
 
   const FASES_CONFIG_COLECAO = "configuracoes";
   const FASES_CONFIG_DOCUMENTO = "fasesManejo";
-  const FASES_BOJO_OFICIAIS = Object.freeze(["BÁSICO SEM BOJO", "COM BOJO"]);
-  const MARCADOR_FASES_BOJO_OFICIAIS = "faseBojoOficial20260909V1";
+  const CAMPO_FASES_SUTIA_EXCLUIDAS = "sugestoesExcluidas";
+  const MARCADOR_RECONSTRUCAO_FASES_SUTIA = "reconstrucaoFasesSutia20260909V1";
   let fasesGerenciadas = [];
   let configuracaoFasesExiste = false;
   let usuarioEhAdminFases = false;
@@ -1589,6 +1589,52 @@
     });
   }
 
+  async function alterarSugestaoFaseSutiaPersistente(faseInformada, acao) {
+    if (!usuarioEhAdminFases || !contextoFirebaseFases?.user) {
+      mostrarAvisoFormulario("Somente o administrador pode gerenciar sugestões de fases.");
+      return null;
+    }
+
+    const fase = normalizarFaseGerenciada(faseInformada);
+    if (!fase) return null;
+    if (!["adicionar", "remover"].includes(acao)) {
+      throw new Error("Ação inválida ao alterar sugestão de fase.");
+    }
+
+    const { firestore, db, user } = contextoFirebaseFases;
+    const referencia = firestore.doc(db, FASES_CONFIG_COLECAO, FASES_CONFIG_DOCUMENTO);
+
+    return firestore.runTransaction(db, async transacao => {
+      const snapshot = await transacao.get(referencia);
+      const dados = snapshot.exists() ? snapshot.data() : {};
+      const listaAtual = ordenarFasesGerenciadas(dados?.sugestoes || fasesGerenciadas);
+      const excluidasAtuais = ordenarFasesGerenciadas(dados?.[CAMPO_FASES_SUTIA_EXCLUIDAS] || []);
+      const mapaExcluidas = new Map(excluidasAtuais.map(item => [chaveFaseGerenciada(item), item]));
+      const chave = chaveFaseGerenciada(fase);
+
+      let proximaLista;
+      if (acao === "adicionar") {
+        proximaLista = ordenarFasesGerenciadas([...listaAtual, fase]);
+        mapaExcluidas.delete(chave);
+      } else {
+        proximaLista = ordenarFasesGerenciadas(
+          listaAtual.filter(item => chaveFaseGerenciada(item) !== chave)
+        );
+        mapaExcluidas.set(chave, fase);
+      }
+
+      transacao.set(referencia, {
+        sugestoes: proximaLista,
+        [CAMPO_FASES_SUTIA_EXCLUIDAS]: ordenarFasesGerenciadas([...mapaExcluidas.values()]),
+        atualizadoEm: firestore.serverTimestamp(),
+        atualizadoPor: user.uid,
+        versaoGerenciamento: APP_VERSION
+      }, { merge: true });
+
+      return proximaLista;
+    });
+  }
+
   async function adicionarSugestaoFaseAdmin(faseInformada) {
     const fase = normalizarFaseGerenciada(faseInformada);
     if (!fase) return;
@@ -1599,7 +1645,7 @@
     }
 
     try {
-      await alterarListaFasesComTransacao(lista => [...lista, fase]);
+      await alterarSugestaoFaseSutiaPersistente(fase, "adicionar");
       await registrarLogFaseAdmin("Sugestão de fase adicionada", fase);
       showUpdateToast(`Sugestão "${fase}" adicionada para todos os usuários.`);
     } catch (error) {
@@ -1618,9 +1664,7 @@
     if (!confirmar) return;
 
     try {
-      await alterarListaFasesComTransacao(lista =>
-        lista.filter(item => chaveFaseGerenciada(item) !== chaveFaseGerenciada(fase))
-      );
+      await alterarSugestaoFaseSutiaPersistente(fase, "remover");
       await registrarLogFaseAdmin("Sugestão de fase removida", fase);
       showUpdateToast(`Sugestão "${fase}" removida. As OPs antigas foram preservadas.`);
     } catch (error) {
@@ -1694,33 +1738,98 @@
     );
   }
 
-  async function migrarFaseBojoOficialSeNecessario() {
+  async function reconstruirListaFasesSutiaSeNecessario() {
     if (!usuarioEhAdminFases || !contextoFirebaseFases?.user) return false;
 
     const { firestore, db, user } = contextoFirebaseFases;
     const referencia = firestore.doc(db, FASES_CONFIG_COLECAO, FASES_CONFIG_DOCUMENTO);
+    const snapshotAtual = await firestore.getDoc(referencia);
+    const dadosAtuais = snapshotAtual.exists() ? snapshotAtual.data() : {};
+    if (dadosAtuais?.[MARCADOR_RECONSTRUCAO_FASES_SUTIA] === true) return false;
 
+    let historicas = [];
     try {
-      return await firestore.runTransaction(db, async transacao => {
-        const snapshot = await transacao.get(referencia);
-        const dados = snapshot.exists() ? snapshot.data() : {};
-        if (dados?.[MARCADOR_FASES_BOJO_OFICIAIS] === true) return false;
+      const recuperadas = await coletarTodasFasesAntigasDoSistema();
+      historicas = ordenarFasesGerenciadas(recuperadas?.sutia || []);
+    } catch (error) {
+      console.warn("Não foi possível coletar todas as fases históricas do Sutiã.", error);
+    }
 
-        transacao.set(referencia, {
-          sugestoes: FASES_BOJO_OFICIAIS.map(normalizarFaseGerenciada),
-          [MARCADOR_FASES_BOJO_OFICIAIS]: true,
-          atualizadoEm: firestore.serverTimestamp(),
-          atualizadoPor: user.uid,
-          versaoGerenciamento: APP_VERSION
-        }, { merge: true });
-
-        return true;
+    const eventos = [];
+    try {
+      const consulta = firestore.query(
+        firestore.collection(db, "logsAlteracoes"),
+        firestore.where("tipoAlvo", "==", "Sugestão de fase")
+      );
+      const logs = await firestore.getDocs(consulta);
+      logs.forEach(item => {
+        const dados = item.data() || {};
+        const fase = normalizarFaseGerenciada(dados.alvoId || "");
+        const acao = String(dados.acao || "").trim().toUpperCase();
+        if (!fase) return;
+        if (acao !== "SUGESTÃO DE FASE ADICIONADA" && acao !== "SUGESTÃO DE FASE REMOVIDA") return;
+        eventos.push({
+          fase,
+          acao,
+          instante: dados.criadoEm?.toMillis?.() || 0,
+          id: item.id
+        });
       });
     } catch (error) {
-      console.error("Não foi possível migrar a Fase Bojo para as opções oficiais.", error);
-      mostrarAvisoFormulario("Não foi possível aplicar as opções oficiais da Fase Bojo.");
+      console.error("Não foi possível ler o histórico administrativo das sugestões de fase.", error);
+      mostrarAvisoFormulario("Não foi possível reconstruir as fases com segurança. Nenhuma lista foi sobrescrita.");
       return false;
     }
+
+    eventos.sort((a, b) => a.instante - b.instante || a.id.localeCompare(b.id));
+
+    const candidatas = new Map();
+    historicas.forEach(fase => candidatas.set(chaveFaseGerenciada(fase), fase));
+
+    const ultimoEstado = new Map();
+    eventos.forEach(evento => {
+      const chave = chaveFaseGerenciada(evento.fase);
+      ultimoEstado.set(chave, {
+        fase: evento.fase,
+        removida: evento.acao === "SUGESTÃO DE FASE REMOVIDA"
+      });
+      if (evento.acao === "SUGESTÃO DE FASE ADICIONADA") {
+        candidatas.set(chave, evento.fase);
+      }
+    });
+
+    const excluidas = ordenarFasesGerenciadas(
+      [...ultimoEstado.values()].filter(item => item.removida).map(item => item.fase)
+    );
+    const chavesExcluidas = new Set(excluidas.map(chaveFaseGerenciada));
+    const listaReconstruida = ordenarFasesGerenciadas(
+      [...candidatas.values()].filter(fase => !chavesExcluidas.has(chaveFaseGerenciada(fase)))
+    );
+
+    if (!listaReconstruida.length) {
+      console.error("Reconstrução abortada: nenhuma fase válida foi encontrada.");
+      mostrarAvisoFormulario("A reconstrução das fases foi abortada para proteger os dados.");
+      return false;
+    }
+
+    return firestore.runTransaction(db, async transacao => {
+      const snapshot = await transacao.get(referencia);
+      const dados = snapshot.exists() ? snapshot.data() : {};
+      if (dados?.[MARCADOR_RECONSTRUCAO_FASES_SUTIA] === true) return false;
+
+      transacao.set(referencia, {
+        sugestoes: listaReconstruida,
+        [CAMPO_FASES_SUTIA_EXCLUIDAS]: excluidas,
+        [MARCADOR_RECONSTRUCAO_FASES_SUTIA]: true,
+        reconstruidoEm: firestore.serverTimestamp(),
+        reconstruidoPor: user.uid,
+        atualizadoEm: firestore.serverTimestamp(),
+        atualizadoPor: user.uid,
+        versaoGerenciamento: APP_VERSION
+      }, { merge: true });
+
+      return true;
+    });
   }
 
   async function configurarUsuarioGestaoFases(user) {
@@ -1743,7 +1852,7 @@
       const perfil = perfilSnapshot.exists() ? perfilSnapshot.data() : {};
       usuarioEhAdminFases = perfil?.tipo === "admin" && perfil?.ativo !== false;
       contextoFirebaseFases = { ...contextoFirebaseFases, user, perfil };
-      await migrarFaseBojoOficialSeNecessario();
+      await reconstruirListaFasesSutiaSeNecessario();
       iniciarSnapshotConfiguracaoFases();
       criarPainelAdminFases();
     } catch (error) {
@@ -8782,8 +8891,14 @@
       }
 
       const chavesAtuais = new Set(listaAtual.map(chaveFaseGerenciada));
+      const exclusoesPersistentes = documentoId === FASES_CONFIG_DOCUMENTO
+        ? new Set(ordenarFasesGerenciadas(dadosAtuais?.[CAMPO_FASES_SUTIA_EXCLUIDAS] || []).map(chaveFaseGerenciada))
+        : new Set();
       const novas = ordenarFasesGerenciadas(recuperadas)
-        .filter(fase => !chavesAtuais.has(chaveFaseGerenciada(fase)));
+        .filter(fase => {
+          const chave = chaveFaseGerenciada(fase);
+          return !chavesAtuais.has(chave) && !exclusoesPersistentes.has(chave);
+        });
       const listaFinal = ordenarFasesGerenciadas([...listaAtual, ...novas]);
 
       transacao.set(referencia, {
