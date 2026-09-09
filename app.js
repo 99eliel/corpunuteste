@@ -4917,13 +4917,14 @@ function montarMenuAcoesManejoHtml(ordemId) {
   const setor = getManejoSetorAtual();
   const manejo = ordem ? getManejoDaOrdem(ordem, setor) : null;
   const podeLimpar = Boolean(manejo && ehAdmin());
+  const ordemIdHtml = escapeHtml(String(ordemId || ""));
 
   return `
-    <button type="button" onclick="window.fecharMenusAcoesManejo(); window.mandarParaFaccao('${ordemId}')">Enviar para facção</button>
-    <button type="button" onclick="window.fecharMenusAcoesManejo(); window.mandarParaCelula('${ordemId}')">Enviar para célula</button>
-    <button type="button" onclick="window.fecharMenusAcoesManejo(); window.abrirModalAjusteMigracao('${ordemId}')">Mover / editar local</button>
-    <button type="button" onclick="window.fecharMenusAcoesManejo(); window.abrirRastreamentoOP('${ordemId}')">Ver histórico/rastreamento</button>
-    ${podeLimpar ? `<button class="danger" type="button" onclick="window.fecharMenusAcoesManejo(); window.limparManejoLinha('${ordemId}')">Limpar manejo</button>` : ""}
+    <button type="button" data-manejo-acao="faccao" data-ordem-id="${ordemIdHtml}">Enviar para facção</button>
+    <button type="button" data-manejo-acao="celula" data-ordem-id="${ordemIdHtml}">Enviar para célula</button>
+    <button type="button" data-manejo-acao="ajustar" data-ordem-id="${ordemIdHtml}">Mover / editar local</button>
+    <button type="button" data-manejo-acao="historico" data-ordem-id="${ordemIdHtml}">Ver histórico/rastreamento</button>
+    ${podeLimpar ? `<button class="danger" type="button" data-manejo-acao="limpar" data-ordem-id="${ordemIdHtml}">Limpar manejo</button>` : ""}
   `;
 }
 
@@ -4990,6 +4991,39 @@ document.addEventListener("click", event => {
     event.preventDefault();
     event.stopPropagation();
     toggleMenuAcoesManejo(botaoAcoesManejo.dataset.manejoAcoesId, botaoAcoesManejo);
+    return;
+  }
+
+  const botaoAcaoManejo = event.target.closest?.("[data-manejo-acao]");
+  if (botaoAcaoManejo) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const ordemId = String(botaoAcaoManejo.dataset.ordemId || "");
+    const acao = String(botaoAcaoManejo.dataset.manejoAcao || "");
+    fecharMenusAcoesManejo();
+
+    if (!ordemId) return;
+
+    switch (acao) {
+      case "faccao":
+        mandarParaFaccao(ordemId);
+        break;
+      case "celula":
+        mandarParaCelula(ordemId);
+        break;
+      case "ajustar":
+        abrirModalAjusteMigracao(ordemId);
+        break;
+      case "historico":
+        abrirRastreamentoOP(ordemId);
+        break;
+      case "limpar":
+        limparManejoLinha(ordemId);
+        break;
+      default:
+        console.warn("Ação desconhecida no menu do Manejo:", acao);
+    }
     return;
   }
 
