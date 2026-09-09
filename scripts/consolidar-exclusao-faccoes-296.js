@@ -165,7 +165,8 @@ const linhasDepois = linhasAntes.filter(linha => !linha.includes('corponu-faccoe
 if (linhasDepois.length !== linhasAntes.length - 1) {
   throw new Error('Esperava remover exatamente um carregamento do módulo antigo de exclusão.');
 }
-atualizador = linhasDepois.join('\n') + (atualizador.endsWith('\n') ? '\n' : '');
+// split/join já preserva a quebra final quando ela existe; não adicionamos outra.
+atualizador = linhasDepois.join('\n');
 
 for (const esperado of [
   'const exclusoesMovimentacaoEmAndamento = new Set();',
