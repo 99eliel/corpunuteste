@@ -1,0 +1,53 @@
+name: Validar menu ações Manejo 293
+
+on:
+  push:
+    paths:
+      - '.github/workflows/validar-menu-acoes-manejo-293.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  corrigir:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Aplicar correção estrutural
+        run: python3 scripts/corrigir-menu-acoes-manejo-293.py
+
+      - name: Validar sintaxe e arquitetura
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app.js
+          grep -F 'data-manejo-acoes-id="${op.id}"' app.js
+          grep -F 'function toggleMenuAcoesManejo(ordemId, botao)' app.js
+          grep -F 'botaoAcoesManejo.dataset.manejoAcoesId' app.js
+          grep -F 'menu.__botaoAncoraManejo = botao' app.js
+          grep -F 'function agendarReposicionamentoMenuAcoesManejo()' app.js
+          grep -F 'window.addEventListener("scroll", agendarReposicionamentoMenuAcoesManejo, true)' app.js
+          ! grep -F 'onclick="toggleMenuAcoesManejo(event,' app.js
+          ! grep -F 'window.addEventListener("scroll", fecharMenusAcoesManejo, true)' app.js
+          git diff --check
+
+      - name: Garantir escopo
+        shell: bash
+        run: |
+          set -euo pipefail
+          arquivos="$(git diff --name-only | sort)"
+          test "$arquivos" = "app.js"
+
+      - name: Publicar no teste
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js
+          git commit -m 'test: corrigir menu de ações do Manejo 293'
+          git push origin HEAD:main
