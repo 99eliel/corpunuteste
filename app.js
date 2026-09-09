@@ -2480,7 +2480,7 @@ function renderManejoInline() {
           <div class="manejo-actions-inline">
             <button class="btn-save-manejo" type="button" onclick="salvarManejoLinha('${op.id}')" title="Salvar edição rápida" aria-label="Salvar edição rápida da OP ${escapeHtml(op.numeroOP || '')}">✓</button>
             <div class="action-menu-wrap">
-              <button class="btn-kebab" type="button" onclick="toggleMenuAcoesManejo(event, '${op.id}')" title="Mais ações da OP" aria-label="Mais ações da OP ${escapeHtml(op.numeroOP || '')}">⋮</button>
+              <button class="btn-kebab" type="button" data-manejo-acoes-id="${op.id}" title="Mais ações da OP" aria-label="Mais ações da OP ${escapeHtml(op.numeroOP || '')}">⋮</button>
             </div>
           </div>
         </td>
@@ -4928,36 +4928,47 @@ function montarMenuAcoesManejoHtml(ordemId) {
 }
 
 function posicionarMenuAcoesManejo(menu, botao) {
-  if (!menu || !botao) return;
+  if (!menu || !botao || !botao.isConnected) return;
 
-  const largura = Math.min(300, Math.max(250, window.innerWidth - 16));
-  menu.style.width = `${largura}px`;
-  menu.style.right = "auto";
-  menu.style.bottom = "auto";
-
+  const margem = 8;
   const rect = botao.getBoundingClientRect();
-  const left = Math.max(8, Math.min(window.innerWidth - largura - 8, rect.right - largura));
-  menu.style.left = `${left}px`;
+  const largura = Math.min(Math.max(menu.offsetWidth || 250, 250), Math.max(250, window.innerWidth - margem * 2));
+  const altura = menu.offsetHeight || 260;
 
-  const alturaMenu = menu.offsetHeight || 260;
-  const topPreferido = rect.top - alturaMenu - 8;
-  const topSeguro = Math.max(8, topPreferido);
-  menu.style.top = `${topSeguro}px`;
+  const left = Math.max(
+    margem,
+    Math.min(window.innerWidth - largura - margem, rect.right - largura)
+  );
+
+  const espacoAbaixo = window.innerHeight - rect.bottom - margem;
+  const espacoAcima = rect.top - margem;
+  const abrirAbaixo = espacoAbaixo >= altura || espacoAbaixo >= espacoAcima;
+  const topDesejado = abrirAbaixo
+    ? rect.bottom + margem
+    : rect.top - altura - margem;
+  const top = Math.max(
+    margem,
+    Math.min(window.innerHeight - altura - margem, topDesejado)
+  );
+
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
 }
 
-function toggleMenuAcoesManejo(event, ordemId) {
-  event?.stopPropagation?.();
+function toggleMenuAcoesManejo(ordemId, botao) {
+  if (!ordemId || !botao) return;
+
   const menu = getMenuAcoesManejoGlobal();
-  const botao = event?.currentTarget || event?.target;
   const mesmoMenuAberto = menu.classList.contains("open") && menu.dataset.ordemId === String(ordemId);
 
   fecharMenusAcoesManejo();
-
   if (mesmoMenuAberto) return;
 
   menu.dataset.ordemId = String(ordemId);
   menu.innerHTML = montarMenuAcoesManejoHtml(ordemId);
+  menu.__botaoAncoraManejo = botao;
   menu.classList.add("open");
+  botao.setAttribute("aria-expanded", "true");
   posicionarMenuAcoesManejo(menu, botao);
 }
 
@@ -4966,17 +4977,44 @@ function fecharMenusAcoesManejo() {
     menu.classList.remove("open");
     menu.removeAttribute("style");
     if (menu.id === "menu-acoes-manejo-global") {
+      menu.__botaoAncoraManejo?.setAttribute?.("aria-expanded", "false");
+      menu.__botaoAncoraManejo = null;
       menu.removeAttribute("data-ordem-id");
     }
   });
 }
 
 document.addEventListener("click", event => {
-  if (!event.target.closest(".action-menu-wrap") && !event.target.closest(".action-menu")) fecharMenusAcoesManejo();
+  const botaoAcoesManejo = event.target.closest?.("[data-manejo-acoes-id]");
+  if (botaoAcoesManejo) {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleMenuAcoesManejo(botaoAcoesManejo.dataset.manejoAcoesId, botaoAcoesManejo);
+    return;
+  }
+
+  if (!event.target.closest?.(".action-menu")) fecharMenusAcoesManejo();
 });
 
-window.addEventListener("resize", fecharMenusAcoesManejo);
-window.addEventListener("scroll", fecharMenusAcoesManejo, true);
+let frameReposicionamentoMenuManejo = 0;
+function agendarReposicionamentoMenuAcoesManejo() {
+  const menu = document.getElementById("menu-acoes-manejo-global");
+  if (!menu?.classList.contains("open")) return;
+
+  if (frameReposicionamentoMenuManejo) cancelAnimationFrame(frameReposicionamentoMenuManejo);
+  frameReposicionamentoMenuManejo = requestAnimationFrame(() => {
+    frameReposicionamentoMenuManejo = 0;
+    const botao = menu.__botaoAncoraManejo;
+    if (!botao?.isConnected) {
+      fecharMenusAcoesManejo();
+      return;
+    }
+    posicionarMenuAcoesManejo(menu, botao);
+  });
+}
+
+window.addEventListener("resize", agendarReposicionamentoMenuAcoesManejo);
+window.addEventListener("scroll", agendarReposicionamentoMenuAcoesManejo, true);
 
 async function abrirRastreamentoOP(ordemId) {
   const ordem = state.ordens.find(op => String(op.id) === String(ordemId) || String(op.numeroOP) === String(ordemId));
