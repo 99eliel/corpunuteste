@@ -8411,6 +8411,8 @@
   // - Não usa MutationObserver de DOM; aplica a lista por eventos pontuais.
   // =========================================================
   const FASES_CALCINHA_CONFIG_DOCUMENTO = "fasesManejoCalcinha";
+  const CAMPO_FASES_CALCINHA_EXCLUIDAS = "sugestoesExcluidas";
+  const MARCADOR_RECONSTRUCAO_FASES_CALCINHA = "reconstrucaoFasesCalcinha20260909V1";
   const ID_DATALIST_FASES_CALCINHA = "manejoFasesListCalcinha";
   const ID_PAINEL_FASES_CALCINHA = "painelSugestoesFasesCalcinhaAdmin";
   let fasesCalcinhaGerenciadas = [];
@@ -8644,6 +8646,52 @@
     });
   }
 
+  async function alterarSugestaoFaseCalcinhaPersistente(faseInformada, acao) {
+    if (!usuarioEhAdminFasesCalcinha || !contextoFirebaseFasesCalcinha?.user) {
+      mostrarAvisoFormulario("Somente o administrador pode gerenciar sugestões da calcinha.");
+      return null;
+    }
+
+    const fase = normalizarFaseGerenciada(faseInformada);
+    if (!fase) return null;
+    if (!["adicionar", "remover"].includes(acao)) {
+      throw new Error("Ação inválida ao alterar sugestão da Calcinha.");
+    }
+
+    const { firestore, db, user } = contextoFirebaseFasesCalcinha;
+    const referencia = firestore.doc(db, "configuracoes", FASES_CALCINHA_CONFIG_DOCUMENTO);
+
+    return firestore.runTransaction(db, async transacao => {
+      const snapshot = await transacao.get(referencia);
+      const dados = snapshot.exists() ? snapshot.data() : {};
+      const listaAtual = ordenarFasesGerenciadas(dados?.sugestoes || fasesCalcinhaGerenciadas);
+      const excluidasAtuais = ordenarFasesGerenciadas(dados?.[CAMPO_FASES_CALCINHA_EXCLUIDAS] || []);
+      const mapaExcluidas = new Map(excluidasAtuais.map(item => [chaveFaseGerenciada(item), item]));
+      const chave = chaveFaseGerenciada(fase);
+
+      let proximaLista;
+      if (acao === "adicionar") {
+        proximaLista = ordenarFasesGerenciadas([...listaAtual, fase]);
+        mapaExcluidas.delete(chave);
+      } else {
+        proximaLista = ordenarFasesGerenciadas(
+          listaAtual.filter(item => chaveFaseGerenciada(item) !== chave)
+        );
+        mapaExcluidas.set(chave, fase);
+      }
+
+      transacao.set(referencia, {
+        sugestoes: proximaLista,
+        [CAMPO_FASES_CALCINHA_EXCLUIDAS]: ordenarFasesGerenciadas([...mapaExcluidas.values()]),
+        atualizadoEm: firestore.serverTimestamp(),
+        atualizadoPor: user.uid,
+        versaoGerenciamento: APP_VERSION
+      }, { merge: true });
+
+      return proximaLista;
+    });
+  }
+
   async function adicionarSugestaoFaseCalcinhaAdmin(faseInformada) {
     const fase = normalizarFaseGerenciada(faseInformada);
     if (!fase) return;
@@ -8652,7 +8700,7 @@
       return;
     }
     try {
-      await alterarListaFasesCalcinhaComTransacao(lista => [...lista, fase]);
+      await alterarSugestaoFaseCalcinhaPersistente(fase, "adicionar");
       await registrarLogFaseCalcinhaAdmin("Sugestão de fase da Calcinha adicionada", fase);
       showUpdateToast(`Sugestão "${fase}" adicionada para o manejo de calcinhas.`);
     } catch (error) {
@@ -8666,9 +8714,7 @@
     if (!fase) return;
     if (!window.confirm(`Remover "${fase}" das sugestões da Calcinha?\n\nAs OPs antigas não serão alteradas.`)) return;
     try {
-      await alterarListaFasesCalcinhaComTransacao(lista =>
-        lista.filter(item => chaveFaseGerenciada(item) !== chaveFaseGerenciada(fase))
-      );
+      await alterarSugestaoFaseCalcinhaPersistente(fase, "remover");
       await registrarLogFaseCalcinhaAdmin("Sugestão de fase da Calcinha removida", fase);
       showUpdateToast(`Sugestão "${fase}" removida da Calcinha.`);
     } catch (error) {
@@ -8696,6 +8742,108 @@
     });
   }
 
+  async function reconstruirListaFasesCalcinhaSeNecessario() {
+    if (!usuarioEhAdminFasesCalcinha || !contextoFirebaseFasesCalcinha?.user) return false;
+
+    const { firestore, db, user } = contextoFirebaseFasesCalcinha;
+    const referencia = firestore.doc(db, "configuracoes", FASES_CALCINHA_CONFIG_DOCUMENTO);
+    const snapshotAtual = await firestore.getDoc(referencia);
+    const dadosAtuais = snapshotAtual.exists() ? snapshotAtual.data() : {};
+    if (dadosAtuais?.[MARCADOR_RECONSTRUCAO_FASES_CALCINHA] === true) return false;
+
+    let historicas = [];
+    try {
+      const recuperadas = await coletarTodasFasesAntigasDoSistema();
+      historicas = ordenarFasesGerenciadas(recuperadas?.calcinha || []);
+    } catch (error) {
+      console.error("Não foi possível coletar as fases históricas reais da Calcinha.", error);
+      mostrarAvisoFormulario("Não foi possível reconstruir as fases da Calcinha com segurança. Nenhuma lista foi sobrescrita.");
+      return false;
+    }
+
+    const eventos = [];
+    try {
+      const consulta = firestore.query(
+        firestore.collection(db, "logsAlteracoes"),
+        firestore.where("tipoAlvo", "==", "Sugestão de fase da Calcinha")
+      );
+      const logs = await firestore.getDocs(consulta);
+      logs.forEach(item => {
+        const dados = item.data() || {};
+        const fase = normalizarFaseGerenciada(dados.alvoId || "");
+        const acao = normalizarComparacao(dados.acao || "");
+        if (!fase) return;
+        if (acao !== normalizarComparacao("Sugestão de fase da Calcinha adicionada") &&
+            acao !== normalizarComparacao("Sugestão de fase da Calcinha removida")) return;
+        eventos.push({
+          fase,
+          removida: acao === normalizarComparacao("Sugestão de fase da Calcinha removida"),
+          instante: dados.criadoEm?.toMillis?.() || 0,
+          id: item.id
+        });
+      });
+    } catch (error) {
+      console.error("Não foi possível ler o histórico administrativo das fases da Calcinha.", error);
+      mostrarAvisoFormulario("Não foi possível reconstruir as fases da Calcinha com segurança. Nenhuma lista foi sobrescrita.");
+      return false;
+    }
+
+    eventos.sort((a, b) => a.instante - b.instante || a.id.localeCompare(b.id));
+
+    const candidatas = new Map();
+    historicas.forEach(fase => candidatas.set(chaveFaseGerenciada(fase), fase));
+
+    const ultimoEstadoAdmin = new Map();
+    eventos.forEach(evento => {
+      const chave = chaveFaseGerenciada(evento.fase);
+      ultimoEstadoAdmin.set(chave, evento);
+      if (!evento.removida) candidatas.set(chave, evento.fase);
+    });
+
+    const exclusoesJaGravadas = ordenarFasesGerenciadas(
+      dadosAtuais?.[CAMPO_FASES_CALCINHA_EXCLUIDAS] || []
+    );
+    const mapaExcluidas = new Map(
+      exclusoesJaGravadas.map(fase => [chaveFaseGerenciada(fase), fase])
+    );
+
+    ultimoEstadoAdmin.forEach((evento, chave) => {
+      if (evento.removida) mapaExcluidas.set(chave, evento.fase);
+      else mapaExcluidas.delete(chave);
+    });
+
+    const chavesExcluidas = new Set(mapaExcluidas.keys());
+    const listaReconstruida = ordenarFasesGerenciadas(
+      [...candidatas.values()].filter(fase => !chavesExcluidas.has(chaveFaseGerenciada(fase)))
+    );
+    const excluidas = ordenarFasesGerenciadas([...mapaExcluidas.values()]);
+
+    if (!listaReconstruida.length && historicas.length) {
+      console.error("Reconstrução da Calcinha abortada: o resultado ficou vazio apesar de existirem fases históricas.");
+      mostrarAvisoFormulario("A reconstrução das fases da Calcinha foi abortada para proteger os dados.");
+      return false;
+    }
+
+    return firestore.runTransaction(db, async transacao => {
+      const snapshot = await transacao.get(referencia);
+      const dados = snapshot.exists() ? snapshot.data() : {};
+      if (dados?.[MARCADOR_RECONSTRUCAO_FASES_CALCINHA] === true) return false;
+
+      transacao.set(referencia, {
+        sugestoes: listaReconstruida,
+        [CAMPO_FASES_CALCINHA_EXCLUIDAS]: excluidas,
+        [MARCADOR_RECONSTRUCAO_FASES_CALCINHA]: true,
+        reconstruidoEm: firestore.serverTimestamp(),
+        reconstruidoPor: user.uid,
+        atualizadoEm: firestore.serverTimestamp(),
+        atualizadoPor: user.uid,
+        versaoGerenciamento: APP_VERSION
+      }, { merge: true });
+
+      return true;
+    });
+  }
+
   async function configurarUsuarioGestaoFasesCalcinha(user) {
     if (!user || !contextoFirebaseFasesCalcinha) {
       usuarioEhAdminFasesCalcinha = false;
@@ -8710,6 +8858,7 @@
       const perfil = perfilSnapshot.exists() ? perfilSnapshot.data() : {};
       usuarioEhAdminFasesCalcinha = perfil?.tipo === "admin" && perfil?.ativo !== false;
       contextoFirebaseFasesCalcinha = { ...contextoFirebaseFasesCalcinha, user, perfil };
+      await reconstruirListaFasesCalcinhaSeNecessario();
       iniciarSnapshotConfiguracaoFasesCalcinha();
       criarPainelAdminFasesCalcinha();
     } catch (error) {
@@ -8858,11 +9007,10 @@
     const sutia = new Set();
     const calcinha = new Set();
 
-    // Preserva sugestões antigas do navegador em ambas as listas.
-    // Como eram globais antes da separação, o administrador decide depois onde mantê-las.
+    // As sugestões antigas do navegador eram globais e pertencem ao fluxo legado do Sutiã.
+    // Não devem contaminar a lista oficial da Calcinha.
     [...lerSugestoesLocaisAntigas(), ...lerOpcoesAtuaisDosDatalists()].forEach(fase => {
       adicionarFaseAoConjunto(sutia, fase);
-      adicionarFaseAoConjunto(calcinha, fase);
     });
     coletarFasesVisiveisDoManejo(sutia, calcinha);
 
@@ -8898,8 +9046,11 @@
       }
 
       const chavesAtuais = new Set(listaAtual.map(chaveFaseGerenciada));
-      const exclusoesPersistentes = documentoId === FASES_CONFIG_DOCUMENTO
-        ? new Set(ordenarFasesGerenciadas(dadosAtuais?.[CAMPO_FASES_SUTIA_EXCLUIDAS] || []).map(chaveFaseGerenciada))
+      const campoExclusoes = documentoId === FASES_CONFIG_DOCUMENTO
+        ? CAMPO_FASES_SUTIA_EXCLUIDAS
+        : (documentoId === FASES_CALCINHA_CONFIG_DOCUMENTO ? CAMPO_FASES_CALCINHA_EXCLUIDAS : "");
+      const exclusoesPersistentes = campoExclusoes
+        ? new Set(ordenarFasesGerenciadas(dadosAtuais?.[campoExclusoes] || []).map(chaveFaseGerenciada))
         : new Set();
       const novas = ordenarFasesGerenciadas(recuperadas)
         .filter(fase => {
