@@ -1,0 +1,66 @@
+name: Validar fases Manejo restritas 291
+
+on:
+  push:
+    paths:
+      - '.github/workflows/validar-fases-manejo-restritas-291.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Aplicar correção estrutural
+        run: python3 scripts/restringir-fases-manejo-291.py
+
+      - name: Validar sintaxe
+        run: |
+          node --check app.js
+          node --check update.js
+
+      - name: Validar regras do fluxo
+        run: |
+          grep -F 'getDocFromServer' app.js
+          grep -F 'documento: "fasesManejo"' app.js
+          grep -F 'documento: "fasesManejoCalcinha"' app.js
+          grep -F 'function renderCampoFaseManejoOficial' app.js
+          grep -F 'function validarFaseManejoOficialAntesDeGravar' app.js
+          grep -F '<select id="${rowId}-fase"' app.js
+          grep -F 'const fase = await validarFaseManejoOficialAntesDeGravar(ordem, setor, faseInformada);' app.js
+          grep -F 'const faseAtual = await validarFaseManejoOficialAntesDeGravar(ordem, setor, faseInformada);' app.js
+          grep -F 'const fase = await validarFaseManejoOficialAntesDeGravar(op, setor, faseInformada);' app.js
+          test "$(grep -F -c 'validarFaseManejoOficialAntesDeGravar(' app.js)" -ge 4
+          ! grep -F 'onclick="adicionarFaseSugestao(' app.js
+          ! grep -F 'function adicionarFaseSugestao(' app.js
+          ! grep -F 'state.fasesManejoExtras' app.js
+          ! grep -F '<input id="${rowId}-fase" value=' app.js
+          ! grep -F 'Essa OP ainda está sem fase preenchida. Deseja marcar como bipada mesmo assim?' app.js
+          grep -F 'publicarFasesManejoOficiaisParaAplicacao("sutia", fasesGerenciadas)' update.js
+          grep -F 'publicarFasesManejoOficiaisParaAplicacao("calcinha", fasesCalcinhaGerenciadas)' update.js
+          grep -F 'corponu:fases-manejo-atualizadas' update.js
+          grep -F 'Somente o administrador pode adicionar ou remover opções.' update.js
+          grep -F 'O operador só pode usar opções cadastradas aqui pelo administrador.' update.js
+          ! grep -F 'Os usuários podem digitar livremente, mas a opção só entra no filtro oficial do <strong>Sutiã</strong>' update.js
+          ! grep -F 'Os usuários podem digitar livremente, mas a opção só entra no filtro oficial da <strong>Calcinha</strong>' update.js
+          git diff --check
+
+      - name: Garantir escopo exato
+        run: |
+          arquivos="$(git diff --name-only | sort)"
+          esperado="$(printf '%s\n' app.js update.js | sort)"
+          test "$arquivos" = "$esperado"
+
+      - name: Publicar no teste
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js update.js
+          git commit -m 'test: restringir fases do Manejo as listas do admin'
+          git push origin HEAD:main
