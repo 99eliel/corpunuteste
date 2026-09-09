@@ -1194,6 +1194,8 @@
 
   const FASES_CONFIG_COLECAO = "configuracoes";
   const FASES_CONFIG_DOCUMENTO = "fasesManejo";
+  const FASES_BOJO_OFICIAIS = Object.freeze(["BÁSICO SEM BOJO", "COM BOJO"]);
+  const MARCADOR_FASES_BOJO_OFICIAIS = "faseBojoOficial20260909V1";
   let fasesGerenciadas = [];
   let configuracaoFasesExiste = false;
   let usuarioEhAdminFases = false;
@@ -1692,6 +1694,35 @@
     );
   }
 
+  async function migrarFaseBojoOficialSeNecessario() {
+    if (!usuarioEhAdminFases || !contextoFirebaseFases?.user) return false;
+
+    const { firestore, db, user } = contextoFirebaseFases;
+    const referencia = firestore.doc(db, FASES_CONFIG_COLECAO, FASES_CONFIG_DOCUMENTO);
+
+    try {
+      return await firestore.runTransaction(db, async transacao => {
+        const snapshot = await transacao.get(referencia);
+        const dados = snapshot.exists() ? snapshot.data() : {};
+        if (dados?.[MARCADOR_FASES_BOJO_OFICIAIS] === true) return false;
+
+        transacao.set(referencia, {
+          sugestoes: FASES_BOJO_OFICIAIS.map(normalizarFaseGerenciada),
+          [MARCADOR_FASES_BOJO_OFICIAIS]: true,
+          atualizadoEm: firestore.serverTimestamp(),
+          atualizadoPor: user.uid,
+          versaoGerenciamento: APP_VERSION
+        }, { merge: true });
+
+        return true;
+      });
+    } catch (error) {
+      console.error("Não foi possível migrar a Fase Bojo para as opções oficiais.", error);
+      mostrarAvisoFormulario("Não foi possível aplicar as opções oficiais da Fase Bojo.");
+      return false;
+    }
+  }
+
   async function configurarUsuarioGestaoFases(user) {
     if (!user || !contextoFirebaseFases) {
       usuarioEhAdminFases = false;
@@ -1712,6 +1743,7 @@
       const perfil = perfilSnapshot.exists() ? perfilSnapshot.data() : {};
       usuarioEhAdminFases = perfil?.tipo === "admin" && perfil?.ativo !== false;
       contextoFirebaseFases = { ...contextoFirebaseFases, user, perfil };
+      await migrarFaseBojoOficialSeNecessario();
       iniciarSnapshotConfiguracaoFases();
       criarPainelAdminFases();
     } catch (error) {
