@@ -48,3 +48,5 @@ jobs:
           git add app.js corponu-atualizador.js
           git commit -m 'test: consolidar exclusão de Facções no app principal'
           git push origin HEAD:main
+
+# validação repetida após correção da quebra final do atualizador
