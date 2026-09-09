@@ -1,0 +1,45 @@
+name: Generalizar migrador fase Calcinha 295
+
+on:
+  push:
+    paths:
+      - '.github/workflows/generalizar-migrador-fase-calcinha-295.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  ajustar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generalizar somente a detecção do datalist
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const arquivo = 'scripts/corrigir-fase-oficial-calcinha-295.js';
+          let s = fs.readFileSync(arquivo, 'utf8');
+          const inicio = s.indexOf("substituirUnico(\n  '  const DATALIST_ID = \\\"corponuManejoCalcinhaFases252\\\";\\n',");
+          const fimMarcador = "\n\nconst ancoraEstado = '  let salvando = new Set();\\n';";
+          const fim = s.indexOf(fimMarcador);
+          if (inicio < 0 || fim < 0 || fim <= inicio) throw new Error('Bloco inicial do migrador não encontrado.');
+          const novo = `const constantesDatalist = [\n  '  const DATALIST_ID = "corponuManejoCalcinhaFases252";\\n',\n  '  const DATALIST_ID = "corponuManejoCalcinhaFases253";\\n'\n];\nconst encontradasDatalist = constantesDatalist.filter(trecho => source.includes(trecho));\nif (encontradasDatalist.length !== 1) {\n  throw new Error(\`constante de datalist: esperado 1 modelo conhecido, encontrado \${encontradasDatalist.length}\`);\n}\nsource = source.replace(\n  encontradasDatalist[0],\n  '  const FASES_CONFIG_COLECAO = "configuracoes";\\n  const FASES_CONFIG_DOCUMENTO = "fasesManejoCalcinha";\\n'\n);`;
+          s = s.slice(0, inicio) + novo + s.slice(fim);
+          fs.writeFileSync(arquivo, s, 'utf8');
+          NODE
+          node --check scripts/corrigir-fase-oficial-calcinha-295.js
+          grep -F 'corponuManejoCalcinhaFases252' scripts/corrigir-fase-oficial-calcinha-295.js
+          grep -F 'corponuManejoCalcinhaFases253' scripts/corrigir-fase-oficial-calcinha-295.js
+          git diff --check
+      - name: Commitar migrador genérico
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/corrigir-fase-oficial-calcinha-295.js
+          git commit -m 'test: generalizar migrador de fase da Calcinha'
+          git push origin HEAD:main
