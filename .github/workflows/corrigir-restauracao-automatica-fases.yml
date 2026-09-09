@@ -1,0 +1,49 @@
+name: Validar sugestoes oficiais de fase
+
+on:
+  push:
+    paths:
+      - '.github/workflows/corrigir-restauracao-automatica-fases.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  corrigir:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Aplicar correcao estrutural
+        run: node scripts/corrigir-restauracao-automatica-fases.js
+
+      - name: Validar JavaScript e invariantes
+        run: |
+          node --check update.js
+          ! grep -F 'restauracaoFasesAntigasAutomaticaTentada' update.js
+          ! grep -F 'restaurarOpcoesAntigasFases({ manual: false })' update.js
+          grep -F 'restaurarOpcoesAntigasFases({ manual: true })' update.js
+          grep -F 'A lista oficial é soberana' update.js
+          grep -F 'Recuperar opções antigas' update.js
+          git diff --check
+
+      - name: Garantir escopo
+        run: |
+          arquivos="$(git diff --name-only | sort)"
+          test "$arquivos" = "update.js"
+
+      - name: Publicar no teste
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add update.js
+          git commit -m 'fix: tornar lista de fases oficial soberana no teste'
+          git push origin HEAD:main
